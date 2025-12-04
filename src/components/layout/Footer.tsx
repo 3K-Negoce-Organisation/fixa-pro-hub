@@ -40,7 +40,7 @@ export function Footer() {
           <div>
             <Link to="/" className="flex items-center gap-2 mb-4">
               <Package className="h-6 w-6" />
-              <span className="font-bold text-lg">FIXPRO</span>
+              <span className="font-bold text-lg">vis-a-bois</span>
             </Link>
             <p className="text-sm text-background/70 mb-4">
               Spécialiste du matériel de fixation pour les professionnels du bâtiment depuis 1998.
@@ -50,9 +50,9 @@ export function Footer() {
                 <Phone className="h-4 w-4" />
                 04 XX XX XX XX
               </a>
-              <a href="mailto:pro@fixpro.fr" className="flex items-center gap-2 hover:text-accent">
+              <a href="mailto:contact@vis-a-bois.fr" className="flex items-center gap-2 hover:text-accent">
                 <Mail className="h-4 w-4" />
-                pro@fixpro.fr
+                contact@vis-a-bois.fr
               </a>
               <span className="flex items-center gap-2 text-background/70">
                 <MapPin className="h-4 w-4" />
@@ -102,7 +102,7 @@ export function Footer() {
       {/* Copyright */}
       <div className="border-t border-background/10">
         <div className="container py-4 flex flex-col md:flex-row justify-between items-center gap-2 text-xs text-background/50">
-          <p>© 2024 FIXPRO - Tous droits réservés</p>
+          <p>© 2024 vis-a-bois - Tous droits réservés</p>
           <div className="flex gap-4">
             <Link to="/mentions-legales" className="hover:text-background">Mentions légales</Link>
             <Link to="/confidentialite" className="hover:text-background">Politique de confidentialité</Link>
