@@ -1,6 +1,6 @@
 // Shopify Storefront API Configuration
-const SHOPIFY_DOMAIN = 'vis-a-bois.myshopify.com';
-const SHOPIFY_STOREFRONT_TOKEN = '963dcf61d7dc537a271006434e5fd47b';
+const SHOPIFY_DOMAIN = import.meta.env.VITE_SHOPIFY_DOMAIN;
+const SHOPIFY_STOREFRONT_TOKEN = import.meta.env.VITE_SHOPIFY_STOREFRONT_TOKEN;
 
 const STOREFRONT_API_URL = `https://${SHOPIFY_DOMAIN}/api/2024-01/graphql.json`;
 
