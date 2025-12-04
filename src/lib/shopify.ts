@@ -50,31 +50,55 @@ export interface ProductFilters {
 }
 
 export async function shopifyFetch<T>(query: string, variables?: Record<string, unknown>): Promise<T> {
+  console.log('🔗 Shopify API Call:', { 
+    url: STOREFRONT_API_URL, 
+    domain: SHOPIFY_DOMAIN,
+    tokenPresent: !!SHOPIFY_STOREFRONT_TOKEN,
+    variables 
+  });
+
   if (!SHOPIFY_DOMAIN || !SHOPIFY_STOREFRONT_TOKEN) {
     console.warn('Shopify credentials not configured. Using mock data.');
     throw new Error('Shopify not configured');
   }
 
-  const response = await fetch(STOREFRONT_API_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Shopify-Storefront-Access-Token': SHOPIFY_STOREFRONT_TOKEN,
-    },
-    body: JSON.stringify({ query, variables }),
-  });
+  try {
+    const response = await fetch(STOREFRONT_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Shopify-Storefront-Access-Token': SHOPIFY_STOREFRONT_TOKEN,
+      },
+      body: JSON.stringify({ query, variables }),
+    });
 
-  if (!response.ok) {
-    throw new Error(`Shopify API error: ${response.statusText}`);
+    console.log('📡 Shopify Response Status:', response.status, response.statusText);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('❌ Shopify API Error:', errorText);
+      throw new Error(`Shopify API error: ${response.statusText}`);
+    }
+
+    const json = await response.json();
+    console.log('✅ Shopify Data:', json);
+    
+    if (json.errors) {
+      console.error('❌ GraphQL Errors:', json.errors);
+      throw new Error(json.errors[0].message);
+    }
+
+    const productCount = json.data?.products?.edges?.length || 0;
+    console.log(`📦 Products fetched: ${productCount}`);
+    if (productCount > 0) {
+      console.log('📝 Product titles:', json.data.products.edges.map((e: any) => e.node.title));
+    }
+
+    return json.data;
+  } catch (error) {
+    console.error('🚨 Shopify Fetch Error:', error);
+    throw error;
   }
-
-  const json = await response.json();
-  
-  if (json.errors) {
-    throw new Error(json.errors[0].message);
-  }
-
-  return json.data;
 }
 
 // GraphQL Queries
