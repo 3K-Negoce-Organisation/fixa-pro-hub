@@ -42,7 +42,7 @@ export function Header() {
           <Link to="/" className="flex items-center gap-2 shrink-0">
             <Package className="h-8 w-8" />
             <div className="flex flex-col">
-              <span className="font-bold text-lg leading-none">FIXPRO</span>
+              <span className="font-bold text-lg leading-none">vis-a-bois</span>
               <span className="text-[10px] text-primary-foreground/70">Matériel de fixation</span>
             </div>
           </Link>
