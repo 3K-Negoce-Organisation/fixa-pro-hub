@@ -1,9 +1,5 @@
 // Shopify Storefront API Configuration
-// Configure these environment variables in your .env file:
-// VITE_SHOPIFY_DOMAIN=your-store.myshopify.com
-// VITE_SHOPIFY_STOREFRONT_TOKEN=your-storefront-access-token
-
-const SHOPIFY_DOMAIN = import.meta.env.VITE_SHOPIFY_DOMAIN || '';
+const SHOPIFY_DOMAIN = 'vis-a-bois.myshopify.com';
 const SHOPIFY_STOREFRONT_TOKEN = import.meta.env.VITE_SHOPIFY_STOREFRONT_TOKEN || '';
 
 const STOREFRONT_API_URL = `https://${SHOPIFY_DOMAIN}/api/2024-01/graphql.json`;
