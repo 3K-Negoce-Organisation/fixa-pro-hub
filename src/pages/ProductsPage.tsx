@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Grid3X3, List, SlidersHorizontal } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { SlidersHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -14,12 +15,15 @@ import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { ProductFilters } from "@/components/products/ProductFilters";
 import { ProductGrid } from "@/components/products/ProductGrid";
-import {
-  mockProducts,
-  filterProducts,
-  searchProducts,
-  getProductsByCategory,
-} from "@/lib/mockData";
+import { shopifyFetch, PRODUCTS_QUERY, ShopifyProduct } from "@/lib/shopify";
+
+interface ShopifyProductsResponse {
+  products: {
+    edges: Array<{
+      node: ShopifyProduct;
+    }>;
+  };
+}
 
 const ProductsPage = () => {
   const [searchParams] = useSearchParams();
@@ -36,17 +40,72 @@ const ProductsPage = () => {
   const [sortBy, setSortBy] = useState("relevance");
   const [showFilters, setShowFilters] = useState(true);
 
-  // Filter and search products
-  const filteredProducts = useMemo(() => {
-    let products = category
-      ? getProductsByCategory(category)
-      : mockProducts;
+  // Fetch products from Shopify
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["products", query],
+    queryFn: async () => {
+      const searchQuery = query ? `title:*${query}*` : undefined;
+      return shopifyFetch<ShopifyProductsResponse>(PRODUCTS_QUERY, {
+        first: 50,
+        query: searchQuery,
+      });
+    },
+  });
 
-    if (query) {
-      products = searchProducts(products, query);
+  // Transform Shopify products to display format
+  const shopifyProducts = useMemo(() => {
+    if (!data?.products?.edges) return [];
+    
+    return data.products.edges.map(({ node }) => {
+      const price = parseFloat(node.priceRange.minVariantPrice.amount);
+      const image = node.images.edges[0]?.node.url || "/placeholder.svg";
+      const variant = node.variants.edges[0]?.node;
+      
+      return {
+        id: node.id,
+        handle: node.handle,
+        title: node.title,
+        priceHT: price,
+        image,
+        category: node.productType || "general",
+        specs: {
+          diameter: node.tags.find(t => t.includes("mm") && !t.includes("x"))?.replace("mm", "") || "",
+          length: node.tags.find(t => t.includes("x"))?.split("x")[1] || "",
+          driveType: node.tags.find(t => ["Torx", "Pozidriv", "Phillips"].some(d => t.includes(d))) || "",
+          material: node.tags.find(t => ["Inox", "Acier", "Zingué"].some(m => t.includes(m))) || "",
+          headType: node.tags.find(t => ["Fraisée", "Plate", "Ronde"].some(h => t.includes(h))) || "",
+        },
+        stock: variant?.quantityAvailable ?? 0,
+        inStock: variant?.availableForSale ?? false,
+        tags: node.tags,
+      };
+    });
+  }, [data]);
+
+  // Filter products
+  const filteredProducts = useMemo(() => {
+    let products = shopifyProducts;
+
+    // Filter by category
+    if (category) {
+      products = products.filter((p) =>
+        p.category.toLowerCase().includes(category.toLowerCase()) ||
+        p.tags.some(t => t.toLowerCase().includes(category.toLowerCase()))
+      );
     }
 
-    products = filterProducts(products, filters);
+    // Apply filters
+    Object.entries(filters).forEach(([key, values]) => {
+      if (values.length > 0) {
+        products = products.filter((product) => {
+          const specValue = product.specs[key as keyof typeof product.specs];
+          return values.some((v) =>
+            specValue?.toLowerCase().includes(v.toLowerCase()) ||
+            product.tags.some(t => t.toLowerCase().includes(v.toLowerCase()))
+          );
+        });
+      }
+    });
 
     // Sort products
     switch (sortBy) {
@@ -62,7 +121,7 @@ const ProductsPage = () => {
     }
 
     return products;
-  }, [category, query, filters, sortBy]);
+  }, [shopifyProducts, category, filters, sortBy]);
 
   const handleFilterChange = (key: string, values: string[]) => {
     setFilters((prev) => ({ ...prev, [key]: values }));
@@ -202,7 +261,7 @@ const ProductsPage = () => {
 
             {/* Products grid */}
             <div className="flex-1">
-              <ProductGrid products={filteredProducts} />
+              <ProductGrid products={filteredProducts} isLoading={isLoading} />
             </div>
           </div>
         </div>

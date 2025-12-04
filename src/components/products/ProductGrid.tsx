@@ -1,13 +1,12 @@
-import { ProductCard } from "./ProductCard";
-import type { MockProduct } from "@/lib/mockData";
+import { ProductCard, DisplayProduct } from "./ProductCard";
 import { toast } from "sonner";
 
 interface ProductGridProps {
-  products: MockProduct[];
-  loading?: boolean;
+  products: DisplayProduct[];
+  isLoading?: boolean;
 }
 
-export function ProductGrid({ products, loading }: ProductGridProps) {
+export function ProductGrid({ products, isLoading }: ProductGridProps) {
   const handleAddToCart = (productId: string) => {
     const product = products.find((p) => p.id === productId);
     if (product) {
@@ -17,7 +16,7 @@ export function ProductGrid({ products, loading }: ProductGridProps) {
     }
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
         {Array.from({ length: 8 }).map((_, i) => (

@@ -3,19 +3,32 @@ import { ShoppingCart, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { formatPriceHT, formatPriceTTC } from "@/lib/shopify";
-import type { MockProduct } from "@/lib/mockData";
+
+export interface DisplayProduct {
+  id: string;
+  handle: string;
+  title: string;
+  priceHT: number;
+  image: string;
+  category: string;
+  specs: {
+    diameter: string;
+    length: string;
+    driveType: string;
+    material: string;
+    headType: string;
+  };
+  stock: number;
+  inStock: boolean;
+  tags: string[];
+}
 
 interface ProductCardProps {
-  product: MockProduct;
+  product: DisplayProduct;
   onAddToCart?: (productId: string) => void;
 }
 
 export function ProductCard({ product, onAddToCart }: ProductCardProps) {
-  const lowestPrice = Math.min(...product.variants.map((v) => v.priceHT));
-  const hasMultipleVariants = product.variants.length > 1;
-  const inStock = product.variants.some((v) => v.available);
-  const totalStock = product.variants.reduce((acc, v) => acc + v.quantity, 0);
-
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
     onAddToCart?.(product.id);
@@ -46,11 +59,13 @@ export function ProductCard({ product, onAddToCart }: ProductCardProps) {
       {/* Content */}
       <div className="flex flex-col flex-1 p-3">
         {/* Category badge */}
-        <div className="mb-1.5">
-          <Badge variant="secondary" className="text-[10px] font-medium">
-            {product.productType}
-          </Badge>
-        </div>
+        {product.category && (
+          <div className="mb-1.5">
+            <Badge variant="secondary" className="text-[10px] font-medium">
+              {product.category}
+            </Badge>
+          </div>
+        )}
 
         {/* Title */}
         <Link
@@ -62,17 +77,23 @@ export function ProductCard({ product, onAddToCart }: ProductCardProps) {
 
         {/* Specs preview */}
         <div className="flex flex-wrap gap-1 mb-3 text-[10px] text-muted-foreground">
-          <span className="bg-muted px-1.5 py-0.5 rounded">{product.specs.diameter}</span>
-          <span className="bg-muted px-1.5 py-0.5 rounded">{product.specs.length}</span>
-          <span className="bg-muted px-1.5 py-0.5 rounded">{product.specs.driveType}</span>
+          {product.specs.diameter && (
+            <span className="bg-muted px-1.5 py-0.5 rounded">{product.specs.diameter}</span>
+          )}
+          {product.specs.length && (
+            <span className="bg-muted px-1.5 py-0.5 rounded">{product.specs.length}</span>
+          )}
+          {product.specs.driveType && (
+            <span className="bg-muted px-1.5 py-0.5 rounded">{product.specs.driveType}</span>
+          )}
         </div>
 
         {/* Stock status */}
         <div className="mb-2">
-          {inStock ? (
+          {product.inStock ? (
             <span className="stock-badge stock-available text-xs">
               <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-              En stock ({totalStock})
+              En stock ({product.stock})
             </span>
           ) : (
             <span className="stock-badge stock-out text-xs">
@@ -86,13 +107,12 @@ export function ProductCard({ product, onAddToCart }: ProductCardProps) {
         <div className="mt-auto">
           <div className="flex items-baseline gap-2 mb-2">
             <span className="price-ht text-lg">
-              {hasMultipleVariants && "À partir de "}
-              {formatPriceHT(lowestPrice)}
+              {formatPriceHT(product.priceHT)}
               <span className="text-xs ml-1">HT</span>
             </span>
           </div>
           <p className="price-ttc text-xs">
-            {formatPriceTTC(lowestPrice)} TTC
+            {formatPriceTTC(product.priceHT)} TTC
           </p>
         </div>
 
@@ -101,7 +121,7 @@ export function ProductCard({ product, onAddToCart }: ProductCardProps) {
           className="btn-cart w-full mt-3"
           size="sm"
           onClick={handleAddToCart}
-          disabled={!inStock}
+          disabled={!product.inStock}
         >
           <ShoppingCart className="h-4 w-4 mr-1.5" />
           Ajouter au panier
