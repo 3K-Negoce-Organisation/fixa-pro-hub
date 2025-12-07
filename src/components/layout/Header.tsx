@@ -1,14 +1,37 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Search, ShoppingCart, User, Menu, Package, Phone } from "lucide-react";
+import { Search, ShoppingCart, User, Menu, Package, Phone, LogOut } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/contexts/CartContext";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 export function Header() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [userEmail, setUserEmail] = useState<string | null>(null);
   const navigate = useNavigate();
   const { totalItems } = useCart();
+
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setUserEmail(session?.user?.email ?? null);
+      }
+    );
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUserEmail(session?.user?.email ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    toast.success("Déconnexion réussie");
+    navigate("/auth");
+  };
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,8 +53,19 @@ export function Header() {
             <span>Livraison gratuite dès 150€ HT</span>
           </div>
           <div className="flex items-center gap-4">
-            <Link to="/compte" className="hover:underline">Mon compte Pro</Link>
+            <Link to="/compte" className="hover:underline">
+              {userEmail || "Mon compte Pro"}
+            </Link>
             <Link to="/suivi" className="hover:underline">Suivi de commande</Link>
+            {userEmail && (
+              <button 
+                onClick={handleLogout}
+                className="flex items-center gap-1 hover:underline"
+              >
+                <LogOut className="h-3 w-3" />
+                Déconnexion
+              </button>
+            )}
           </div>
         </div>
       </div>
