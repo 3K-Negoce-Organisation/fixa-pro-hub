@@ -43,8 +43,8 @@ export function Header() {
   return (
     <header className="sticky top-0 z-50 bg-primary text-primary-foreground shadow-md">
       {/* Main header */}
-      <div className="container py-3">
-        <div className="flex items-center gap-6">
+      <div className="container py-3 px-0">
+        <div className="flex items-center justify-between gap-6 w-full">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2 shrink-0">
             <Package className="h-8 w-8" />
@@ -74,7 +74,7 @@ export function Header() {
           </form>
 
           {/* Right actions */}
-          <div className="flex items-center gap-3 ml-auto">
+          <div className="flex items-center gap-3 shrink-0">
             <Link
               to="/panier"
               className="flex items-center gap-1 px-3 py-1.5 text-primary-foreground hover:outline hover:outline-1 hover:outline-primary-foreground rounded-sm transition-all relative"
