@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { CartProvider } from "@/contexts/CartContext";
+import AuthGuard from "@/components/auth/AuthGuard";
 import Index from "./pages/Index";
 import ProductsPage from "./pages/ProductsPage";
 import ProductDetailPage from "./pages/ProductDetailPage";
@@ -23,13 +24,13 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/produits" element={<ProductsPage />} />
-            <Route path="/produit/:handle" element={<ProductDetailPage />} />
-            <Route path="/panier" element={<CartPage />} />
             <Route path="/auth" element={<AuthPage />} />
-            <Route path="/compte" element={<AccountPage />} />
             <Route path="/suivi" element={<OrderTrackingPage />} />
+            <Route path="/" element={<AuthGuard><Index /></AuthGuard>} />
+            <Route path="/produits" element={<AuthGuard><ProductsPage /></AuthGuard>} />
+            <Route path="/produit/:handle" element={<AuthGuard><ProductDetailPage /></AuthGuard>} />
+            <Route path="/panier" element={<AuthGuard><CartPage /></AuthGuard>} />
+            <Route path="/compte" element={<AuthGuard><AccountPage /></AuthGuard>} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
