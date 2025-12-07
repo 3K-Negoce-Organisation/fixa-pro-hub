@@ -42,34 +42,6 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-50 bg-primary text-primary-foreground shadow-md">
-      {/* Top bar */}
-      <div className="border-b border-primary-foreground/10">
-        <div className="container flex items-center justify-between py-1.5 text-xs">
-          <div className="flex items-center gap-4">
-            <span className="flex items-center gap-1">
-              <Phone className="h-3 w-3" />
-              <span>04 XX XX XX XX</span>
-            </span>
-            <span>Livraison gratuite dès 150€ HT</span>
-          </div>
-          <div className="flex items-center gap-4">
-            <Link to="/compte" className="hover:underline">
-              {userEmail || "Mon compte Pro"}
-            </Link>
-            <Link to="/suivi" className="hover:underline">Suivi de commande</Link>
-            {userEmail && (
-              <button 
-                onClick={handleLogout}
-                className="flex items-center gap-1 hover:underline"
-              >
-                <LogOut className="h-3 w-3" />
-                Déconnexion
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-
       {/* Main header */}
       <div className="container py-3">
         <div className="flex items-center gap-6">
@@ -102,18 +74,7 @@ export function Header() {
           </form>
 
           {/* Right actions */}
-          <div className="flex items-center gap-1">
-            <Link
-              to="/compte"
-              className="flex flex-col items-start px-3 py-1 text-primary-foreground hover:outline hover:outline-1 hover:outline-primary-foreground rounded-sm transition-all"
-            >
-              <span className="text-[10px] text-primary-foreground/70">Bonjour</span>
-              <span className="text-sm font-medium flex items-center gap-1">
-                <User className="h-4 w-4" />
-                Compte
-              </span>
-            </Link>
-
+          <div className="flex items-center gap-3 ml-auto">
             <Link
               to="/panier"
               className="flex items-center gap-1 px-3 py-1.5 text-primary-foreground hover:outline hover:outline-1 hover:outline-primary-foreground rounded-sm transition-all relative"
@@ -128,6 +89,34 @@ export function Header() {
               </div>
               <span className="text-sm font-medium hidden lg:inline">Panier</span>
             </Link>
+
+            <div className="h-6 w-px bg-primary-foreground/30" />
+
+            <Link
+              to="/compte"
+              className="flex items-center gap-1.5 px-2 py-1 text-sm text-primary-foreground hover:underline"
+            >
+              <User className="h-4 w-4" />
+              <span className="hidden md:inline">{userEmail || "Compte"}</span>
+            </Link>
+
+            <Link
+              to="/suivi"
+              className="flex items-center gap-1.5 px-2 py-1 text-sm text-primary-foreground hover:underline"
+            >
+              <Package className="h-4 w-4" />
+              <span className="hidden md:inline">Suivi</span>
+            </Link>
+
+            {userEmail && (
+              <button 
+                onClick={handleLogout}
+                className="flex items-center gap-1.5 px-2 py-1 text-sm text-primary-foreground hover:underline"
+              >
+                <LogOut className="h-4 w-4" />
+                <span className="hidden md:inline">Déconnexion</span>
+              </button>
+            )}
           </div>
         </div>
       </div>
