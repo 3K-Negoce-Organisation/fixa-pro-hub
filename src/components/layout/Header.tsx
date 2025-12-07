@@ -3,7 +3,6 @@ import { Link, useNavigate } from "react-router-dom";
 import { Search, ShoppingCart, User, Menu, Package, Phone } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { useCart } from "@/contexts/CartContext";
 
 export function Header() {
@@ -51,44 +50,50 @@ export function Header() {
 
           {/* Search bar */}
           <form onSubmit={handleSearch} className="flex-1 max-w-2xl">
-            <div className="relative">
+            <div className="flex">
               <Input
                 type="search"
-                placeholder="Rechercher un produit, une référence... (ex: vis terrasse 5x50)"
+                placeholder="Rechercher un produit, une référence..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-4 pr-12 py-2.5 bg-background text-foreground border-0 rounded-sm"
+                className="w-full h-10 pl-4 pr-4 bg-background text-foreground border-2 border-r-0 border-accent rounded-l-md rounded-r-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-accent"
               />
               <Button
                 type="submit"
-                size="sm"
-                className="absolute right-1 top-1/2 -translate-y-1/2 bg-accent hover:bg-accent/90 rounded-sm px-4"
+                className="h-10 px-4 bg-accent hover:bg-accent/90 rounded-l-none rounded-r-md border-2 border-accent"
               >
-                <Search className="h-4 w-4" />
+                <Search className="h-5 w-5" />
               </Button>
             </div>
           </form>
 
           {/* Right actions */}
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" className="text-primary-foreground hover:bg-primary-foreground/10" asChild>
-              <Link to="/compte">
-                <User className="h-5 w-5 mr-1.5" />
-                <span className="hidden lg:inline">Compte</span>
-              </Link>
-            </Button>
+          <div className="flex items-center gap-1">
+            <Link
+              to="/compte"
+              className="flex flex-col items-start px-3 py-1 text-primary-foreground hover:outline hover:outline-1 hover:outline-primary-foreground rounded-sm transition-all"
+            >
+              <span className="text-[10px] text-primary-foreground/70">Bonjour</span>
+              <span className="text-sm font-medium flex items-center gap-1">
+                <User className="h-4 w-4" />
+                Compte
+              </span>
+            </Link>
 
-            <Button variant="ghost" size="sm" className="text-primary-foreground hover:bg-primary-foreground/10 relative" asChild>
-              <Link to="/panier">
-                <ShoppingCart className="h-5 w-5 mr-1.5" />
-                <span className="hidden lg:inline">Panier</span>
+            <Link
+              to="/panier"
+              className="flex items-center gap-1 px-3 py-1.5 text-primary-foreground hover:outline hover:outline-1 hover:outline-primary-foreground rounded-sm transition-all relative"
+            >
+              <div className="relative">
+                <ShoppingCart className="h-6 w-6" />
                 {totalItems > 0 && (
-                  <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 bg-accent text-accent-foreground text-xs">
+                  <span className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center bg-accent text-accent-foreground text-xs font-bold rounded-full">
                     {totalItems > 99 ? "99+" : totalItems}
-                  </Badge>
+                  </span>
                 )}
-              </Link>
-            </Button>
+              </div>
+              <span className="text-sm font-medium hidden lg:inline">Panier</span>
+            </Link>
           </div>
         </div>
       </div>

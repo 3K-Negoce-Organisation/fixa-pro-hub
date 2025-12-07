@@ -15,8 +15,8 @@
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 20%;
 
-    /* Industrial Blue - Primary */
-    --primary: 210 100% 35%;
+    /* Dark Industrial Blue - Primary (Amazon-style) */
+    --primary: 210 50% 18%;
     --primary-foreground: 0 0% 100%;
 
     /* Light gray for secondary surfaces */
@@ -35,7 +35,7 @@
 
     --border: 210 20% 88%;
     --input: 210 20% 88%;
-    --ring: 210 100% 35%;
+    --ring: 25 95% 53%;
 
     --radius: 0.375rem;
 
