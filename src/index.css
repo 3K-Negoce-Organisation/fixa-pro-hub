@@ -15,8 +15,8 @@
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 20%;
 
-    /* Industrial Blue - Primary (lighter) */
-    --primary: 210 60% 35%;
+    /* Red Primary */
+    --primary: 0 70% 45%;
     --primary-foreground: 0 0% 100%;
 
     /* Light gray for secondary surfaces */
