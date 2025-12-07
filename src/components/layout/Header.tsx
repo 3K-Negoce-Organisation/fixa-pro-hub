@@ -4,10 +4,12 @@ import { Search, ShoppingCart, User, Menu, Package, Phone } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useCart } from "@/contexts/CartContext";
 
 export function Header() {
   const [searchQuery, setSearchQuery] = useState("");
   const navigate = useNavigate();
+  const { totalItems } = useCart();
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -80,9 +82,11 @@ export function Header() {
               <Link to="/panier">
                 <ShoppingCart className="h-5 w-5 mr-1.5" />
                 <span className="hidden lg:inline">Panier</span>
-                <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 bg-accent text-accent-foreground text-xs">
-                  3
-                </Badge>
+                {totalItems > 0 && (
+                  <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 bg-accent text-accent-foreground text-xs">
+                    {totalItems > 99 ? "99+" : totalItems}
+                  </Badge>
+                )}
               </Link>
             </Button>
           </div>

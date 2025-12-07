@@ -1,5 +1,6 @@
 import { ProductCard, DisplayProduct } from "./ProductCard";
 import { toast } from "sonner";
+import { useCart } from "@/contexts/CartContext";
 
 interface ProductGridProps {
   products: DisplayProduct[];
@@ -7,9 +8,20 @@ interface ProductGridProps {
 }
 
 export function ProductGrid({ products, isLoading }: ProductGridProps) {
+  const { addItem } = useCart();
+
   const handleAddToCart = (productId: string) => {
     const product = products.find((p) => p.id === productId);
     if (product) {
+      addItem({
+        id: product.id,
+        variantId: `${product.id}-default`,
+        handle: product.handle,
+        title: product.title,
+        variantTitle: "Unité",
+        priceHT: product.priceHT,
+        image: product.image,
+      });
       toast.success("Produit ajouté au panier", {
         description: product.title,
       });

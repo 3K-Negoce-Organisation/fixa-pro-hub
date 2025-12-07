@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { ShoppingCart, Heart, Share2, ChevronRight, Truck, Shield, RotateCcw } from "lucide-react";
+import { ShoppingCart, Heart, ChevronRight, Truck, Shield, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -22,10 +22,12 @@ import { Footer } from "@/components/layout/Footer";
 import { getProductByHandle } from "@/lib/mockData";
 import { formatPriceHT, formatPriceTTC } from "@/lib/shopify";
 import { toast } from "sonner";
+import { useCart } from "@/contexts/CartContext";
 
 const ProductDetailPage = () => {
   const { handle } = useParams<{ handle: string }>();
   const product = getProductByHandle(handle || "");
+  const { addItem } = useCart();
 
   const [selectedVariant, setSelectedVariant] = useState(
     product?.variants[0]?.id || ""
@@ -55,6 +57,18 @@ const ProductDetailPage = () => {
     product.variants[0];
 
   const handleAddToCart = () => {
+    addItem(
+      {
+        id: product.id,
+        variantId: currentVariant.id,
+        handle: product.handle,
+        title: product.title,
+        variantTitle: currentVariant.title,
+        priceHT: currentVariant.priceHT,
+        image: product.image,
+      },
+      quantity
+    );
     toast.success("Produit ajouté au panier", {
       description: `${product.title} - ${currentVariant.title} (x${quantity})`,
     });
