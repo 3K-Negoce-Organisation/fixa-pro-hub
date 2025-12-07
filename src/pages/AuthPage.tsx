@@ -89,8 +89,21 @@ const AuthPage = () => {
     setIsLoading(false);
   };
 
+  const ALLOWED_EMAILS = [
+    "pierre.kabore@gmail.com",
+    "christophe.kabore@gmail.com"
+  ];
+
   const handleSignup = async (values: SignupFormValues) => {
     setIsLoading(true);
+    
+    // Check if email is allowed
+    if (!ALLOWED_EMAILS.includes(values.email.toLowerCase())) {
+      toast.error("L'inscription est réservée aux utilisateurs autorisés.");
+      setIsLoading(false);
+      return;
+    }
+    
     const redirectUrl = `${window.location.origin}/`;
     
     const { error } = await supabase.auth.signUp({
