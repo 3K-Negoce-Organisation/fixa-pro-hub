@@ -56,11 +56,11 @@ export function Header() {
                 placeholder="Rechercher un produit, une référence..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full h-10 pl-4 pr-4 bg-background text-foreground border-2 border-r-0 border-accent rounded-l-md rounded-r-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-accent"
+                className="w-full h-10 pl-4 pr-4 bg-background text-foreground border-0 rounded-l-md rounded-r-none focus-visible:ring-0 focus-visible:ring-offset-0"
               />
               <Button
                 type="submit"
-                className="h-10 px-4 bg-accent hover:bg-accent/90 rounded-l-none rounded-r-md border-2 border-accent"
+                className="h-10 px-4 bg-accent hover:bg-accent/90 rounded-l-none rounded-r-md"
               >
                 <Search className="h-5 w-5" />
               </Button>
@@ -101,7 +101,7 @@ export function Header() {
       {/* Categories nav */}
       <nav className="bg-primary-foreground/5 border-t border-primary-foreground/10">
         <div className="container">
-          <div className="flex items-center gap-1 py-1.5 overflow-x-auto">
+          <div className="flex items-center gap-1 py-0.5 overflow-x-auto">
             <Link
               to="/produits"
               className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium hover:bg-primary-foreground/10 rounded transition-colors whitespace-nowrap"
