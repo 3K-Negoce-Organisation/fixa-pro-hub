@@ -128,8 +128,6 @@ const AuthPage = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
-      <Header />
-
       <main className="flex-1 flex items-center justify-center py-12">
         <div className="w-full max-w-md mx-4">
           <div className="text-center mb-8">
@@ -282,8 +280,6 @@ const AuthPage = () => {
           </div>
         </div>
       </main>
-
-      <Footer />
     </div>
   );
 };
