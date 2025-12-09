@@ -40,9 +40,7 @@ export function Footer() {
               <Package className="h-6 w-6" />
               <span className="font-bold text-lg">vis-a-bois</span>
             </Link>
-            <p className="text-sm text-background/70 mb-4">
-              Spécialiste du matériel de fixation pour les professionnels du bâtiment depuis 1998.
-            </p>
+            <p className="text-sm text-background/70 mb-4">Spécialiste de la vis à bois depuis 2006.</p>
             <div className="flex flex-col gap-2 text-sm">
               <a href="tel:04XXXXXXXX" className="flex items-center gap-2 hover:text-accent">
                 <Phone className="h-4 w-4" />
