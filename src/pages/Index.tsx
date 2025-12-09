@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, Zap, Shield, Truck } from "lucide-react";
+import { Search, Shield, Truck } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Header } from "@/components/layout/Header";
@@ -32,7 +32,7 @@ const Index = () => {
             {/* Main Search */}
             <div className="max-w-2xl mx-auto mb-8">
               <h1 className="text-2xl font-bold text-center mb-4">
-                Matériel de fixation professionnel
+                Vis de qualité professionnelle
               </h1>
               <form onSubmit={handleSearch} className="relative">
                 <Input
@@ -54,10 +54,6 @@ const Index = () => {
 
             {/* Quick stats */}
             <div className="flex flex-wrap justify-center gap-6 text-sm text-muted-foreground mb-8">
-              <div className="flex items-center gap-2">
-                <Zap className="h-4 w-4 text-accent" />
-                <span>+5000 références</span>
-              </div>
               <div className="flex items-center gap-2">
                 <Truck className="h-4 w-4 text-primary" />
                 <span>Livraison 24/48h</span>
