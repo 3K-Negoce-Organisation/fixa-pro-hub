@@ -48,10 +48,7 @@ export function Header() {
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2 shrink-0">
             <Package className="h-8 w-8" />
-            <div className="flex flex-col">
-              <span className="font-bold text-lg leading-none">vis-a-bois</span>
-              <span className="text-[10px] text-primary-foreground/70">Matériel de fixation</span>
-            </div>
+            <span className="font-bold text-lg leading-none">vis-a-bois</span>
           </Link>
 
           {/* Search bar */}
@@ -145,16 +142,10 @@ export function Header() {
               Vis Charpente
             </Link>
             <Link
-              to="/produits?cat=agglo"
+              to="/produits?cat=menuiserie"
               className="px-3 py-1.5 text-sm hover:bg-primary-foreground/10 rounded transition-colors whitespace-nowrap"
             >
-              Vis Agglo
-            </Link>
-            <Link
-              to="/produits?cat=boulonnerie"
-              className="px-3 py-1.5 text-sm hover:bg-primary-foreground/10 rounded transition-colors whitespace-nowrap"
-            >
-              Boulonnerie
+              Vis Menuiserie
             </Link>
             <Link
               to="/promos"
