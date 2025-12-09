@@ -1,9 +1,7 @@
 import { Link } from "react-router-dom";
 import { Package, Phone, Mail, MapPin, Truck, Shield, CreditCard } from "lucide-react";
-
 export function Footer() {
-  return (
-    <footer className="bg-foreground text-background mt-auto">
+  return <footer className="bg-foreground text-background mt-auto">
       {/* Trust badges */}
       <div className="border-b border-background/10">
         <div className="container py-6">
@@ -54,10 +52,7 @@ export function Footer() {
                 <Mail className="h-4 w-4" />
                 contact@vis-a-bois.fr
               </a>
-              <span className="flex items-center gap-2 text-background/70">
-                <MapPin className="h-4 w-4" />
-                ZA Les Platanes, 69000 Lyon
-              </span>
+              
             </div>
           </div>
 
@@ -67,23 +62,14 @@ export function Footer() {
             <ul className="space-y-2 text-sm text-background/70">
               <li><Link to="/produits?cat=terrasse" className="hover:text-background">Vis Terrasse</Link></li>
               <li><Link to="/produits?cat=charpente" className="hover:text-background">Vis Charpente</Link></li>
-              <li><Link to="/produits?cat=agglo" className="hover:text-background">Vis Aggloméré</Link></li>
-              <li><Link to="/produits?cat=boulonnerie" className="hover:text-background">Boulonnerie</Link></li>
+              <li>Vis menuiserie<Link to="/produits?cat=agglo" className="hover:text-background">Vis Aggloméré</Link></li>
+              
               <li><Link to="/produits" className="hover:text-background">Tous les produits</Link></li>
             </ul>
           </div>
 
           {/* Account */}
-          <div>
-            <h4 className="font-semibold mb-4">Mon Compte Pro</h4>
-            <ul className="space-y-2 text-sm text-background/70">
-              <li><Link to="/compte" className="hover:text-background">Mon espace</Link></li>
-              <li><Link to="/commandes" className="hover:text-background">Mes commandes</Link></li>
-              <li><Link to="/devis" className="hover:text-background">Mes devis</Link></li>
-              <li><Link to="/favoris" className="hover:text-background">Mes favoris</Link></li>
-              <li><Link to="/factures" className="hover:text-background">Mes factures</Link></li>
-            </ul>
-          </div>
+          
 
           {/* Info */}
           <div>
@@ -93,7 +79,7 @@ export function Footer() {
               <li><Link to="/livraison" className="hover:text-background">Livraison</Link></li>
               <li><Link to="/retours" className="hover:text-background">Retours & SAV</Link></li>
               <li><Link to="/contact" className="hover:text-background">Contact</Link></li>
-              <li><Link to="/pro" className="hover:text-background">Devenir client Pro</Link></li>
+              
             </ul>
           </div>
         </div>
@@ -110,6 +96,5 @@ export function Footer() {
           </div>
         </div>
       </div>
-    </footer>
-  );
+    </footer>;
 }
