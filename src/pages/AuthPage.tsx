@@ -132,9 +132,9 @@ const AuthPage = () => {
         <div className="w-full max-w-md mx-4">
           <div className="text-center mb-8">
             <Building2 className="h-12 w-12 text-primary mx-auto mb-4" />
-            <h1 className="text-2xl font-bold">Espace Pro</h1>
+            <h1 className="text-2xl font-bold">Connexion</h1>
             <p className="text-muted-foreground">
-              Accédez à votre compte professionnel
+              Accédez à votre compte
             </p>
           </div>
 
@@ -153,7 +153,7 @@ const AuthPage = () => {
                       name="email"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Email professionnel</FormLabel>
+                          <FormLabel>Email</FormLabel>
                           <FormControl>
                             <div className="relative">
                               <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -208,7 +208,7 @@ const AuthPage = () => {
                       name="email"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Email professionnel</FormLabel>
+                          <FormLabel>Email</FormLabel>
                           <FormControl>
                             <div className="relative">
                               <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
