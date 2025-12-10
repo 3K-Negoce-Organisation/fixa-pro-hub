@@ -73,11 +73,24 @@ export function Footer() {
           <div>
             <h4 className="font-semibold mb-4">Informations</h4>
             <ul className="space-y-2 text-sm text-background/70">
-              <li><Link to="/cgv" className="hover:text-background">CGV Pro</Link></li>
+              <li><Link to="/cgv" className="hover:text-background">CGV</Link></li>
               <li><Link to="/livraison" className="hover:text-background">Livraison</Link></li>
               <li><Link to="/retours" className="hover:text-background">Retours & SAV</Link></li>
               <li><Link to="/contact" className="hover:text-background">Contact</Link></li>
-              
+            </ul>
+          </div>
+
+          {/* Ressources */}
+          <div>
+            <h4 className="font-semibold mb-4">Ressources</h4>
+            <ul className="space-y-2 text-sm text-background/70">
+              <li><Link to="/faq" className="hover:text-background">FAQ</Link></li>
+              <li><Link to="/information-technique" className="hover:text-background">Information technique</Link></li>
+              <li><Link to="/guide-bonnes-pratiques" className="hover:text-background">Guide des bonnes pratiques</Link></li>
+              <li><Link to="/produits-associes" className="hover:text-background">Produits associés</Link></li>
+              <li><Link to="/chantier-reference" className="hover:text-background">Chantier référence</Link></li>
+              <li><Link to="/videos" className="hover:text-background">Vidéos</Link></li>
+              <li><Link to="/avis-client" className="hover:text-background">Avis client</Link></li>
             </ul>
           </div>
         </div>
