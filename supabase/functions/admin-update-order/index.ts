@@ -236,6 +236,16 @@ serve(async (req) => {
       // Get user email
       const { data: userData } = await supabaseAdmin.auth.admin.getUserById(order.user_id);
       const customerEmail = userData?.user?.email;
+      const customerPhone = userData?.user?.phone;
+
+      // Get user profile for complete customer info
+      const { data: profile } = await supabaseAdmin
+        .from('profiles')
+        .select('company_name, phone, billing_address, billing_city, billing_postal_code, shipping_address, shipping_city, shipping_postal_code')
+        .eq('user_id', order.user_id)
+        .maybeSingle();
+
+      console.log('Customer profile:', profile);
 
       if (!shopifyDomain || !shopifyToken) {
         return new Response(
@@ -255,16 +265,39 @@ serve(async (req) => {
         price: item.unit_price_ttc.toString(),
       })) || [];
 
+      // Build shipping address from profile or order
+      const shippingAddress = {
+        address1: profile?.shipping_address || order.shipping_address,
+        city: profile?.shipping_city || order.shipping_city,
+        zip: profile?.shipping_postal_code || order.shipping_postal_code,
+        country: 'France',
+        country_code: 'FR',
+        phone: profile?.phone || customerPhone,
+        company: profile?.company_name,
+        first_name: profile?.company_name || 'Client',
+      };
+
+      // Build billing address from profile
+      const billingAddress = profile?.billing_address ? {
+        address1: profile.billing_address,
+        city: profile.billing_city,
+        zip: profile.billing_postal_code,
+        country: 'France',
+        country_code: 'FR',
+        phone: profile?.phone || customerPhone,
+        company: profile?.company_name,
+        first_name: profile?.company_name || 'Client',
+      } : shippingAddress;
+
       const draftOrderPayload = {
         draft_order: {
           line_items: lineItems,
-          customer: customerEmail ? { email: customerEmail } : undefined,
-          shipping_address: order.shipping_address ? {
-            address1: order.shipping_address,
-            city: order.shipping_city,
-            zip: order.shipping_postal_code,
-            country: 'FR',
+          customer: customerEmail ? { 
+            email: customerEmail,
+            phone: profile?.phone || customerPhone,
           } : undefined,
+          shipping_address: shippingAddress.address1 ? shippingAddress : undefined,
+          billing_address: billingAddress.address1 ? billingAddress : undefined,
           note: `Renvoi - Commande originale: ${order.order_number}`,
           use_customer_default_address: false,
         }
