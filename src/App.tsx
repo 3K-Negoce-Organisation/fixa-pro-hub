@@ -12,6 +12,7 @@ import CartPage from "./pages/CartPage";
 import AuthPage from "./pages/AuthPage";
 import AccountPage from "./pages/AccountPage";
 import OrderTrackingPage from "./pages/OrderTrackingPage";
+import OrderConfirmationPage from "./pages/OrderConfirmationPage";
 import AdminOrdersPage from "./pages/AdminOrdersPage";
 import NotFound from "./pages/NotFound";
 
@@ -27,6 +28,7 @@ const App = () => (
           <Routes>
             <Route path="/auth" element={<AuthPage />} />
             <Route path="/suivi" element={<OrderTrackingPage />} />
+            <Route path="/confirmation" element={<OrderConfirmationPage />} />
             <Route path="/" element={<AuthGuard><Index /></AuthGuard>} />
             <Route path="/produits" element={<AuthGuard><ProductsPage /></AuthGuard>} />
             <Route path="/produit/:handle" element={<AuthGuard><ProductDetailPage /></AuthGuard>} />
