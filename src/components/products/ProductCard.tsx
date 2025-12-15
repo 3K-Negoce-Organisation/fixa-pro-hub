@@ -6,6 +6,7 @@ import { formatPriceHT, formatPriceTTC } from "@/lib/shopify";
 
 export interface DisplayProduct {
   id: string;
+  variantId: string;
   handle: string;
   title: string;
   priceHT: number;
