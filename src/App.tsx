@@ -12,6 +12,7 @@ import CartPage from "./pages/CartPage";
 import AuthPage from "./pages/AuthPage";
 import AccountPage from "./pages/AccountPage";
 import OrderTrackingPage from "./pages/OrderTrackingPage";
+import AdminOrdersPage from "./pages/AdminOrdersPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -31,6 +32,7 @@ const App = () => (
             <Route path="/produit/:handle" element={<AuthGuard><ProductDetailPage /></AuthGuard>} />
             <Route path="/panier" element={<AuthGuard><CartPage /></AuthGuard>} />
             <Route path="/compte" element={<AuthGuard><AccountPage /></AuthGuard>} />
+            <Route path="/admin/commandes" element={<AuthGuard><AdminOrdersPage /></AuthGuard>} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
