@@ -63,26 +63,9 @@ export function Header() {
 
           {/* Right actions */}
           <div className="flex items-center gap-3 shrink-0">
-            <Link to="/panier" className="flex items-center gap-1 px-3 py-1.5 text-primary-foreground hover:outline hover:outline-1 hover:outline-primary-foreground rounded-sm transition-all relative">
-              <div className="relative">
-                <ShoppingCart className="h-6 w-6" />
-                {totalItems > 0 && <span className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center bg-accent text-accent-foreground text-xs font-bold rounded-full">
-                    {totalItems > 99 ? "99+" : totalItems}
-                  </span>}
-              </div>
-              <span className="text-sm font-medium hidden lg:inline">Panier</span>
-            </Link>
-
-            <div className="h-6 w-px bg-primary-foreground/30" />
-
             <Link to="/compte" className="flex items-center gap-1.5 px-2 py-1 text-sm text-primary-foreground hover:underline">
               <User className="h-4 w-4" />
               <span className="hidden md:inline">{userEmail || "Compte"}</span>
-            </Link>
-
-            <Link to="/suivi" className="flex items-center gap-1.5 px-2 py-1 text-sm text-primary-foreground hover:underline">
-              <Package className="h-4 w-4" />
-              <span className="hidden md:inline">Suivi des commandes</span>
             </Link>
 
             {userEmail && <button onClick={handleLogout} className="flex items-center gap-1.5 px-2 py-1 text-sm text-primary-foreground hover:underline">
@@ -95,24 +78,41 @@ export function Header() {
 
       {/* Categories nav */}
       <nav className="bg-primary-foreground/5 border-t border-primary-foreground/10">
-        <div className="container">
-          <div className="flex items-center gap-1 py-0.5 overflow-x-auto">
-            <Link to="/produits" className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium hover:bg-primary-foreground/10 rounded transition-colors whitespace-nowrap">
-              <Menu className="h-4 w-4" />
-              Tous les produits
-            </Link>
-            <Link to="/produits?cat=terrasse" className="px-3 py-1.5 text-sm hover:bg-primary-foreground/10 rounded transition-colors whitespace-nowrap">
-              Vis Terrasse
-            </Link>
-            <Link to="/produits?cat=charpente" className="px-3 py-1.5 text-sm hover:bg-primary-foreground/10 rounded transition-colors whitespace-nowrap">
-              Vis Charpente
-            </Link>
-            <Link to="/produits?cat=menuiserie" className="px-3 py-1.5 text-sm hover:bg-primary-foreground/10 rounded transition-colors whitespace-nowrap">
-              Vis Menuiserie
-            </Link>
-            <Link to="/promos" className="px-3 py-1.5 text-sm font-medium text-accent hover:bg-primary-foreground/10 rounded transition-colors whitespace-nowrap">
-              Promos
-            </Link>
+        <div className="px-4">
+          <div className="flex items-center justify-between py-0.5">
+            <div className="flex items-center gap-1 overflow-x-auto">
+              <Link to="/produits" className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium hover:bg-primary-foreground/10 rounded transition-colors whitespace-nowrap">
+                <Menu className="h-4 w-4" />
+                Tous les produits
+              </Link>
+              <Link to="/produits?cat=terrasse" className="px-3 py-1.5 text-sm hover:bg-primary-foreground/10 rounded transition-colors whitespace-nowrap">
+                Vis Terrasse
+              </Link>
+              <Link to="/produits?cat=charpente" className="px-3 py-1.5 text-sm hover:bg-primary-foreground/10 rounded transition-colors whitespace-nowrap">
+                Vis Charpente
+              </Link>
+              <Link to="/produits?cat=menuiserie" className="px-3 py-1.5 text-sm hover:bg-primary-foreground/10 rounded transition-colors whitespace-nowrap">
+                Vis Menuiserie
+              </Link>
+              <Link to="/promos" className="px-3 py-1.5 text-sm font-medium text-accent hover:bg-primary-foreground/10 rounded transition-colors whitespace-nowrap">
+                Promos
+              </Link>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <Link to="/suivi" className="flex items-center gap-1.5 px-3 py-1.5 text-sm hover:bg-primary-foreground/10 rounded transition-colors whitespace-nowrap">
+                <Package className="h-4 w-4" />
+                <span className="hidden md:inline">Suivi</span>
+              </Link>
+              <Link to="/panier" className="flex items-center gap-1.5 px-3 py-1.5 text-sm hover:bg-primary-foreground/10 rounded transition-colors whitespace-nowrap relative">
+                <div className="relative">
+                  <ShoppingCart className="h-5 w-5" />
+                  {totalItems > 0 && <span className="absolute -top-2 -right-2 h-4 w-4 flex items-center justify-center bg-accent text-accent-foreground text-xs font-bold rounded-full">
+                      {totalItems > 99 ? "99+" : totalItems}
+                    </span>}
+                </div>
+                <span className="hidden md:inline">Panier</span>
+              </Link>
+            </div>
           </div>
         </div>
       </nav>
