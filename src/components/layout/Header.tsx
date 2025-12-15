@@ -101,7 +101,7 @@ export function Header() {
             <div className="flex items-center gap-2 shrink-0">
               <Link to="/suivi" className="flex items-center gap-1.5 px-3 py-1.5 text-sm hover:bg-primary-foreground/10 rounded transition-colors whitespace-nowrap">
                 <Package className="h-4 w-4" />
-                <span className="hidden md:inline">Suivi</span>
+                <span className="hidden md:inline">Suivi de commandes</span>
               </Link>
               <Link to="/panier" className="flex items-center gap-1.5 px-3 py-1.5 text-sm hover:bg-primary-foreground/10 rounded transition-colors whitespace-nowrap relative">
                 <div className="relative">
