@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { Clock, ArrowRight } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { shopifyFetch, PRODUCTS_QUERY, ShopifyProduct, formatPriceHT } from "@/lib/shopify";
+import { shopifyFetch, PRODUCTS_QUERY, ShopifyProduct, formatPriceTTC } from "@/lib/shopify";
 
 interface ShopifyProductsResponse {
   products: {
@@ -88,7 +88,7 @@ export function QuickOrderSection() {
                 {product.title.split(" - ")[0]}
               </Link>
               <p className="text-xs text-muted-foreground">
-                {formatPriceHT(product.priceHT)} HT
+                {formatPriceTTC(product.priceHT)}
               </p>
             </div>
             <Button size="sm" variant="outline" className="shrink-0">
