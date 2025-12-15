@@ -178,7 +178,7 @@ const CartPage = () => {
                       {item.variantTitle}
                     </p>
                     <p className="text-sm font-semibold mt-1">
-                      {formatPriceHT(item.priceHT)} HT
+                      {formatPriceTTC(item.priceHT)}
                     </p>
                   </div>
 
@@ -229,7 +229,7 @@ const CartPage = () => {
                     </div>
 
                     <p className="text-sm font-bold">
-                      {formatPriceHT(item.priceHT * item.quantity)} HT
+                      {formatPriceTTC(item.priceHT * item.quantity)}
                     </p>
                   </div>
                 </div>
@@ -253,19 +253,17 @@ const CartPage = () => {
 
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Sous-total HT</span>
-                    <span className="font-medium">{formatPriceHT(totalHT)}</span>
+                    <span className="text-muted-foreground">Sous-total TTC</span>
+                    <span className="font-medium">{formatPriceTTC(totalHT)}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">TVA (20%)</span>
-                    <span className="font-medium">
-                      {formatPriceHT(totalHT * 0.2)}
-                    </span>
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>dont TVA (20%)</span>
+                    <span>{formatPriceHT(totalHT * 0.2)}</span>
                   </div>
                   <div className="flex justify-between text-muted-foreground">
                     <span>Livraison</span>
                     <span>
-                      {totalHT >= 150 ? "Gratuite" : "Calculée à l'étape suivante"}
+                      {totalHT * 1.2 >= 180 ? "Gratuite" : "Calculée à l'étape suivante"}
                     </span>
                   </div>
                 </div>
@@ -277,11 +275,14 @@ const CartPage = () => {
                       {formatPriceTTC(totalHT)}
                     </span>
                   </div>
+                  <p className="text-xs text-muted-foreground text-right">
+                    {formatPriceHT(totalHT)} HT
+                  </p>
                 </div>
 
-                {totalHT < 150 && (
+                {totalHT * 1.2 < 180 && (
                   <p className="text-xs text-muted-foreground text-center">
-                    Plus que {formatPriceHT(150 - totalHT)} HT pour la livraison
+                    Plus que {formatPriceTTC((180 / 1.2) - totalHT)} pour la livraison
                     gratuite !
                   </p>
                 )}

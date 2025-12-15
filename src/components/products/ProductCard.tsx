@@ -106,13 +106,12 @@ export function ProductCard({ product, onAddToCart }: ProductCardProps) {
         {/* Price section */}
         <div className="mt-auto">
           <div className="flex items-baseline gap-2 mb-2">
-            <span className="price-ht text-lg">
-              {formatPriceHT(product.priceHT)}
-              <span className="text-xs ml-1">HT</span>
+            <span className="price-ttc text-lg font-bold text-foreground">
+              {formatPriceTTC(product.priceHT)}
             </span>
           </div>
-          <p className="price-ttc text-xs">
-            {formatPriceTTC(product.priceHT)} TTC
+          <p className="price-ht text-xs text-muted-foreground">
+            {formatPriceHT(product.priceHT)} HT
           </p>
         </div>
 

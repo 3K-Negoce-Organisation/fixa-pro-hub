@@ -247,7 +247,7 @@ const ProductDetailPage = () => {
                     <SelectContent>
                       {variants.map((variant) => (
                         <SelectItem key={variant.id} value={variant.id}>
-                          {variant.title} - {formatPriceHT(variant.priceHT)} HT
+                          {variant.title} - {formatPriceTTC(variant.priceHT)}
                           {!variant.available && " (Rupture)"}
                         </SelectItem>
                       ))}
@@ -261,12 +261,11 @@ const ProductDetailPage = () => {
                 <div className="bg-secondary p-3 rounded-lg">
                   <div className="flex items-baseline gap-2 mb-0.5">
                     <span className="text-2xl font-bold text-foreground">
-                      {formatPriceHT(currentVariant.priceHT)}
+                      {formatPriceTTC(currentVariant.priceHT)}
                     </span>
-                    <span className="text-base font-semibold text-primary">HT</span>
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    {formatPriceTTC(currentVariant.priceHT)} TTC
+                    {formatPriceHT(currentVariant.priceHT)} HT
                   </p>
                 </div>
               )}
