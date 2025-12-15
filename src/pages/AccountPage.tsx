@@ -3,17 +3,23 @@ import { useNavigate, Link } from "react-router-dom";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { User, LogOut, Building2, MapPin, Phone, Package, ChevronRight } from "lucide-react";
+import { User, LogOut, Building2, MapPin, Phone, Package, ChevronRight, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
+import type { Tables } from "@/integrations/supabase/types";
+
+type Order = Tables<"orders">;
+
 const profileSchema = z.object({
   company_name: z.string().max(100).optional(),
   siret: z.string().max(14).optional(),
@@ -27,11 +33,32 @@ const profileSchema = z.object({
   same_as_billing: z.boolean().default(true)
 });
 type ProfileFormValues = z.infer<typeof profileSchema>;
+
+const statusLabels: Record<string, string> = {
+  pending: "En attente",
+  confirmed: "Confirmée",
+  processing: "En préparation",
+  shipped: "Expédiée",
+  delivered: "Livrée",
+  cancelled: "Annulée"
+};
+
+const statusColors: Record<string, string> = {
+  pending: "bg-yellow-100 text-yellow-800",
+  confirmed: "bg-blue-100 text-blue-800",
+  processing: "bg-purple-100 text-purple-800",
+  shipped: "bg-indigo-100 text-indigo-800",
+  delivered: "bg-green-100 text-green-800",
+  cancelled: "bg-red-100 text-red-800"
+};
+
 const AccountPage = () => {
   const navigate = useNavigate();
   const [user, setUser] = useState<SupabaseUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [ordersLoading, setOrdersLoading] = useState(false);
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
     defaultValues: {
@@ -94,6 +121,29 @@ const AccountPage = () => {
     }
     setIsLoading(false);
   };
+
+  const loadOrders = async (userId: string) => {
+    setOrdersLoading(true);
+    const { data, error } = await supabase
+      .from("orders")
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
+    
+    if (error) {
+      console.error("Error loading orders:", error);
+      toast.error("Erreur lors du chargement des commandes");
+    } else {
+      setOrders(data || []);
+    }
+    setOrdersLoading(false);
+  };
+
+  useEffect(() => {
+    if (user) {
+      loadOrders(user.id);
+    }
+  }, [user]);
   const handleSaveProfile = async (values: ProfileFormValues) => {
     if (!user) return;
     setIsSaving(true);
@@ -302,15 +352,71 @@ const AccountPage = () => {
             </TabsContent>
 
             <TabsContent value="orders">
-              <div className="bg-card border border-border rounded-lg p-6 text-center">
-                <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h2 className="text-lg font-semibold mb-2">Aucune commande</h2>
-                <p className="text-muted-foreground mb-4">
-                  Vous n'avez pas encore passé de commande.
-                </p>
-                <Button asChild>
-                  <Link to="/produits">Découvrir nos produits</Link>
-                </Button>
+              <div className="bg-card border border-border rounded-lg p-6">
+                {ordersLoading ? (
+                  <div className="text-center py-8">
+                    <div className="text-muted-foreground">Chargement des commandes...</div>
+                  </div>
+                ) : orders.length === 0 ? (
+                  <div className="text-center py-8">
+                    <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <h2 className="text-lg font-semibold mb-2">Aucune commande</h2>
+                    <p className="text-muted-foreground mb-4">
+                      Vous n'avez pas encore passé de commande.
+                    </p>
+                    <Button asChild>
+                      <Link to="/produits">Découvrir nos produits</Link>
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>N° Commande</TableHead>
+                          <TableHead>Date</TableHead>
+                          <TableHead>Statut</TableHead>
+                          <TableHead className="text-right">Total HT</TableHead>
+                          <TableHead className="text-right">Total TTC</TableHead>
+                          <TableHead></TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {orders.map((order) => (
+                          <TableRow key={order.id}>
+                            <TableCell className="font-medium">{order.order_number}</TableCell>
+                            <TableCell>
+                              {new Date(order.created_at).toLocaleDateString("fr-FR", {
+                                day: "2-digit",
+                                month: "2-digit",
+                                year: "numeric"
+                              })}
+                            </TableCell>
+                            <TableCell>
+                              <Badge className={statusColors[order.status] || "bg-gray-100 text-gray-800"}>
+                                {statusLabels[order.status] || order.status}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {Number(order.total_ht).toFixed(2)} € HT
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {Number(order.total_ttc).toFixed(2)} € TTC
+                            </TableCell>
+                            <TableCell>
+                              <Button variant="ghost" size="sm" asChild>
+                                <Link to={`/suivi?order=${order.order_number}`}>
+                                  <Eye className="h-4 w-4 mr-1" />
+                                  Suivre
+                                </Link>
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
               </div>
             </TabsContent>
           </Tabs>
