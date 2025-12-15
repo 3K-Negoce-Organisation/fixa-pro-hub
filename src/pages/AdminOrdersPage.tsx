@@ -103,6 +103,11 @@ interface ResendConfirmationState {
   order: Order | null;
 }
 
+interface CancelConfirmationState {
+  step: 'first' | 'second' | null;
+  order: Order | null;
+}
+
 const AdminOrdersPage = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -118,6 +123,10 @@ const [confirmation, setConfirmation] = useState<ConfirmationState>({
     newStatus: null,
   });
   const [resendConfirmation, setResendConfirmation] = useState<ResendConfirmationState>({
+    step: null,
+    order: null,
+  });
+  const [cancelConfirmation, setCancelConfirmation] = useState<CancelConfirmationState>({
     step: null,
     order: null,
   });
@@ -226,9 +235,26 @@ const [confirmation, setConfirmation] = useState<ConfirmationState>({
 
   const handleSave = () => {
     if (!selectedOrder) return;
+    
+    // Prevent any changes to cancelled orders
+    if (selectedOrder.status === 'cancelled') {
+      toast({
+        title: "Action impossible",
+        description: "Impossible de modifier une commande annulée.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     // If status changed, show confirmation
     if (editStatus !== selectedOrder.status) {
+      // Use two-step confirmation for cancellation
+      if (editStatus === 'cancelled') {
+        setCancelConfirmation({ step: 'first', order: selectedOrder });
+        setEditDialogOpen(false);
+        return;
+      }
+      
       setConfirmation({
         open: true,
         order: selectedOrder,
@@ -257,11 +283,41 @@ const [confirmation, setConfirmation] = useState<ConfirmationState>({
   };
 
 const quickStatusUpdate = (order: Order, newStatus: OrderStatus) => {
+    // Prevent any status change on cancelled orders
+    if (order.status === 'cancelled') {
+      toast({
+        title: "Action impossible",
+        description: "Impossible de modifier le statut d'une commande annulée.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Use two-step confirmation for cancellation
+    if (newStatus === 'cancelled') {
+      setCancelConfirmation({ step: 'first', order });
+      return;
+    }
+    
     setConfirmation({
       open: true,
       order,
       newStatus,
     });
+  };
+
+  const handleCancelFirstConfirm = () => {
+    setCancelConfirmation((prev) => ({ ...prev, step: 'second' }));
+  };
+
+  const handleCancelSecondConfirm = () => {
+    if (cancelConfirmation.order) {
+      updateOrderMutation.mutate({
+        order_id: cancelConfirmation.order.id,
+        status: 'cancelled',
+      });
+      setCancelConfirmation({ step: null, order: null });
+    }
   };
 
   // Resend to Shopify mutation
@@ -334,6 +390,7 @@ const quickStatusUpdate = (order: Order, newStatus: OrderStatus) => {
   };
 
   const isCancellation = confirmation.newStatus === 'cancelled';
+  const isCancelledOrder = selectedOrder?.status === 'cancelled';
 
   if (isAdmin === null) {
     return (
@@ -513,10 +570,22 @@ const quickStatusUpdate = (order: Order, newStatus: OrderStatus) => {
           </DialogHeader>
 
           <div className="space-y-4 py-4">
+            {isCancelledOrder && (
+              <div className="flex items-center gap-2 p-3 bg-destructive/10 border border-destructive/20 rounded-md">
+                <XCircle className="h-4 w-4 text-destructive flex-shrink-0" />
+                <p className="text-sm text-destructive">
+                  Cette commande est annulée. Le statut ne peut plus être modifié.
+                </p>
+              </div>
+            )}
             <div className="space-y-2">
               <Label>Statut</Label>
-              <Select value={editStatus} onValueChange={(v) => setEditStatus(v as OrderStatus)}>
-                <SelectTrigger>
+              <Select 
+                value={editStatus} 
+                onValueChange={(v) => setEditStatus(v as OrderStatus)}
+                disabled={isCancelledOrder}
+              >
+                <SelectTrigger className={isCancelledOrder ? "opacity-50 cursor-not-allowed" : ""}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -566,14 +635,16 @@ const quickStatusUpdate = (order: Order, newStatus: OrderStatus) => {
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
-              Annuler
+              Fermer
             </Button>
-            <Button 
-              onClick={handleSave} 
-              disabled={updateOrderMutation.isPending}
-            >
-              {updateOrderMutation.isPending ? 'Enregistrement...' : 'Enregistrer'}
-            </Button>
+            {!isCancelledOrder && (
+              <Button 
+                onClick={handleSave} 
+                disabled={updateOrderMutation.isPending}
+              >
+                {updateOrderMutation.isPending ? 'Enregistrement...' : 'Enregistrer'}
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -698,6 +769,85 @@ const quickStatusUpdate = (order: Order, newStatus: OrderStatus) => {
               className="bg-amber-500 text-white hover:bg-amber-600"
             >
               {resendToShopifyMutation.isPending ? 'Envoi en cours...' : 'Confirmer le renvoi'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* First Cancel Confirmation Dialog */}
+      <AlertDialog 
+        open={cancelConfirmation.step === 'first'} 
+        onOpenChange={(open) => !open && setCancelConfirmation({ step: null, order: null })}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+              Annuler la commande
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <p>
+                  Commande <span className="font-mono font-medium">{cancelConfirmation.order?.order_number}</span>
+                </p>
+                <p className="text-muted-foreground">
+                  Vous êtes sur le point d'annuler cette commande. Cette action est irréversible et annulera également la commande sur Shopify.
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Retour</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={(e) => {
+                e.preventDefault();
+                handleCancelFirstConfirm();
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Continuer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Second Cancel Confirmation Dialog */}
+      <AlertDialog 
+        open={cancelConfirmation.step === 'second'} 
+        onOpenChange={(open) => !open && setCancelConfirmation({ step: null, order: null })}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <XCircle className="h-5 w-5 text-destructive" />
+              Confirmer l'annulation définitive
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <p>
+                  Êtes-vous absolument certain de vouloir annuler la commande <span className="font-mono font-medium">{cancelConfirmation.order?.order_number}</span> ?
+                </p>
+                <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-md">
+                  <p className="text-destructive font-medium text-sm">
+                    ⚠️ Cette action est IRRÉVERSIBLE. Une fois annulée, la commande ne pourra plus être modifiée.
+                  </p>
+                </div>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={updateOrderMutation.isPending}>
+              Annuler
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                handleCancelSecondConfirm();
+              }}
+              disabled={updateOrderMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {updateOrderMutation.isPending ? 'Annulation...' : 'Confirmer l\'annulation'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
