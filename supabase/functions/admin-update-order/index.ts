@@ -6,6 +6,122 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Shopify status sync functions
+async function createShopifyFulfillment(
+  shopifyDomain: string,
+  shopifyToken: string,
+  shopifyOrderId: string,
+  trackingNumber: string | null,
+  carrier: string | null
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    // First, get the fulfillment order ID
+    const fulfillmentOrdersRes = await fetch(
+      `https://${shopifyDomain}/admin/api/2024-01/orders/${shopifyOrderId}/fulfillment_orders.json`,
+      {
+        headers: {
+          'X-Shopify-Access-Token': shopifyToken,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    if (!fulfillmentOrdersRes.ok) {
+      const errorText = await fulfillmentOrdersRes.text();
+      console.error('Failed to get fulfillment orders:', errorText);
+      return { success: false, error: 'Impossible de récupérer les informations de fulfillment Shopify' };
+    }
+
+    const fulfillmentOrdersData = await fulfillmentOrdersRes.json();
+    const fulfillmentOrders = fulfillmentOrdersData.fulfillment_orders || [];
+    
+    if (fulfillmentOrders.length === 0) {
+      return { success: false, error: 'Aucun fulfillment order trouvé pour cette commande' };
+    }
+
+    // Create fulfillment for each fulfillment order
+    for (const fo of fulfillmentOrders) {
+      if (fo.status === 'closed') continue;
+
+      const fulfillmentPayload: Record<string, unknown> = {
+        fulfillment: {
+          line_items_by_fulfillment_order: [{
+            fulfillment_order_id: fo.id,
+          }],
+          notify_customer: true,
+        }
+      };
+
+      if (trackingNumber) {
+        fulfillmentPayload.fulfillment = {
+          ...fulfillmentPayload.fulfillment as object,
+          tracking_info: {
+            number: trackingNumber,
+            company: carrier || undefined,
+          }
+        };
+      }
+
+      const fulfillRes = await fetch(
+        `https://${shopifyDomain}/admin/api/2024-01/fulfillments.json`,
+        {
+          method: 'POST',
+          headers: {
+            'X-Shopify-Access-Token': shopifyToken,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(fulfillmentPayload),
+        }
+      );
+
+      if (!fulfillRes.ok) {
+        const errorText = await fulfillRes.text();
+        console.error('Failed to create fulfillment:', errorText);
+        return { success: false, error: 'Erreur lors de la création du fulfillment Shopify' };
+      }
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error('Shopify fulfillment error:', error);
+    return { success: false, error: 'Erreur de connexion à Shopify' };
+  }
+}
+
+async function cancelShopifyOrder(
+  shopifyDomain: string,
+  shopifyToken: string,
+  shopifyOrderId: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const res = await fetch(
+      `https://${shopifyDomain}/admin/api/2024-01/orders/${shopifyOrderId}/cancel.json`,
+      {
+        method: 'POST',
+        headers: {
+          'X-Shopify-Access-Token': shopifyToken,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          reason: 'customer',
+          email: true,
+        }),
+      }
+    );
+
+    if (!res.ok) {
+      const errorText = await res.text();
+      console.error('Failed to cancel Shopify order:', errorText);
+      return { success: false, error: 'Erreur lors de l\'annulation de la commande Shopify' };
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error('Shopify cancel error:', error);
+    return { success: false, error: 'Erreur de connexion à Shopify' };
+  }
+}
+
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -15,6 +131,8 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const shopifyDomain = Deno.env.get('SHOPIFY_DOMAIN');
+    const shopifyToken = Deno.env.get('SHOPIFY_ADMIN_TOKEN');
     
     // Get the authorization header
     const authHeader = req.headers.get('Authorization');
@@ -74,6 +192,21 @@ serve(async (req) => {
       );
     }
 
+    // Get current order to check shopify_order_id
+    const { data: currentOrder, error: orderError } = await supabaseAdmin
+      .from('orders')
+      .select('*')
+      .eq('id', order_id)
+      .single();
+
+    if (orderError || !currentOrder) {
+      console.error('Order not found:', orderError);
+      return new Response(
+        JSON.stringify({ error: 'Commande non trouvée' }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Build update object
     const updateData: Record<string, unknown> = {};
     if (status) updateData.status = status;
@@ -101,8 +234,46 @@ serve(async (req) => {
 
     console.log('Order updated successfully:', updatedOrder.order_number);
 
+    // Sync with Shopify if applicable
+    let shopifyWarning: string | null = null;
+    const shopifyOrderId = currentOrder.shopify_order_id;
+
+    if (shopifyOrderId && shopifyDomain && shopifyToken && status) {
+      console.log('Syncing status to Shopify:', status, 'for order:', shopifyOrderId);
+
+      if (status === 'shipped') {
+        const result = await createShopifyFulfillment(
+          shopifyDomain,
+          shopifyToken,
+          shopifyOrderId,
+          tracking_number || currentOrder.tracking_number,
+          carrier || currentOrder.carrier
+        );
+        if (!result.success) {
+          shopifyWarning = result.error || 'Erreur de synchronisation Shopify';
+          console.error('Shopify sync failed:', result.error);
+        } else {
+          console.log('Shopify fulfillment created successfully');
+        }
+      } else if (status === 'cancelled') {
+        const result = await cancelShopifyOrder(shopifyDomain, shopifyToken, shopifyOrderId);
+        if (!result.success) {
+          shopifyWarning = result.error || 'Erreur de synchronisation Shopify';
+          console.error('Shopify cancel failed:', result.error);
+        } else {
+          console.log('Shopify order cancelled successfully');
+        }
+      }
+    } else if (status && (status === 'shipped' || status === 'cancelled') && !shopifyOrderId) {
+      console.log('No shopify_order_id, skipping Shopify sync');
+    }
+
     return new Response(
-      JSON.stringify({ success: true, order: updatedOrder }),
+      JSON.stringify({ 
+        success: true, 
+        order: updatedOrder,
+        shopify_warning: shopifyWarning,
+      }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 

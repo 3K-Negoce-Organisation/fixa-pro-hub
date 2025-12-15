@@ -30,6 +30,16 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { 
   Clock, 
@@ -39,8 +49,10 @@ import {
   Home, 
   XCircle,
   RefreshCw,
-  Edit
+  Edit,
+  AlertTriangle
 } from "lucide-react";
+
 type OrderStatus = 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
 
 const ORDER_STATUSES: OrderStatus[] = ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled'];
@@ -59,6 +71,7 @@ interface Order {
   created_at: string;
   updated_at: string;
   user_id: string;
+  shopify_order_id: string | null;
 }
 
 const statusConfig: Record<OrderStatus, { label: string; color: string; icon: React.ElementType }> = {
@@ -72,6 +85,12 @@ const statusConfig: Record<OrderStatus, { label: string; color: string; icon: Re
 
 const statusOrder: OrderStatus[] = ['pending', 'confirmed', 'processing', 'shipped', 'delivered'];
 
+interface ConfirmationState {
+  open: boolean;
+  order: Order | null;
+  newStatus: OrderStatus | null;
+}
+
 const AdminOrdersPage = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -81,6 +100,11 @@ const AdminOrdersPage = () => {
   const [editTrackingNumber, setEditTrackingNumber] = useState('');
   const [editCarrier, setEditCarrier] = useState('');
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
+  const [confirmation, setConfirmation] = useState<ConfirmationState>({
+    open: false,
+    order: null,
+    newStatus: null,
+  });
 
   // Check admin status
   useEffect(() => {
@@ -154,12 +178,17 @@ const AdminOrdersPage = () => {
 
       return response.data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      const shopifyWarning = data?.shopify_warning;
       toast({
         title: "Commande mise à jour",
-        description: "Les modifications ont été enregistrées.",
+        description: shopifyWarning 
+          ? `Modifications enregistrées. Attention: ${shopifyWarning}`
+          : "Les modifications ont été enregistrées.",
+        variant: shopifyWarning ? "destructive" : "default",
       });
       setEditDialogOpen(false);
+      setConfirmation({ open: false, order: null, newStatus: null });
       queryClient.invalidateQueries({ queryKey: ['admin-orders'] });
     },
     onError: (error: Error) => {
@@ -182,18 +211,40 @@ const AdminOrdersPage = () => {
   const handleSave = () => {
     if (!selectedOrder) return;
 
+    // If status changed, show confirmation
+    if (editStatus !== selectedOrder.status) {
+      setConfirmation({
+        open: true,
+        order: selectedOrder,
+        newStatus: editStatus,
+      });
+      setEditDialogOpen(false);
+    } else {
+      // No status change, just update tracking info
+      updateOrderMutation.mutate({
+        order_id: selectedOrder.id,
+        tracking_number: editTrackingNumber || undefined,
+        carrier: editCarrier || undefined,
+      });
+    }
+  };
+
+  const confirmStatusChange = () => {
+    if (!confirmation.order || !confirmation.newStatus) return;
+
     updateOrderMutation.mutate({
-      order_id: selectedOrder.id,
-      status: editStatus,
+      order_id: confirmation.order.id,
+      status: confirmation.newStatus,
       tracking_number: editTrackingNumber || undefined,
       carrier: editCarrier || undefined,
     });
   };
 
   const quickStatusUpdate = (order: Order, newStatus: OrderStatus) => {
-    updateOrderMutation.mutate({
-      order_id: order.id,
-      status: newStatus,
+    setConfirmation({
+      open: true,
+      order,
+      newStatus,
     });
   };
 
@@ -210,6 +261,8 @@ const AdminOrdersPage = () => {
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(price);
   };
+
+  const isCancellation = confirmation.newStatus === 'cancelled';
 
   if (isAdmin === null) {
     return (
@@ -433,6 +486,56 @@ const AdminOrdersPage = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Confirmation Dialog */}
+      <AlertDialog open={confirmation.open} onOpenChange={(open) => !open && setConfirmation({ open: false, order: null, newStatus: null })}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              {isCancellation && <AlertTriangle className="h-5 w-5 text-destructive" />}
+              {isCancellation ? "Confirmer l'annulation" : "Confirmer le changement de statut"}
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <p>
+                  Commande <span className="font-mono font-medium">{confirmation.order?.order_number}</span>
+                </p>
+                <div className="flex items-center gap-2">
+                  <Badge className={statusConfig[confirmation.order?.status || 'pending'].color}>
+                    {statusConfig[confirmation.order?.status || 'pending'].label}
+                  </Badge>
+                  <span>→</span>
+                  <Badge className={statusConfig[confirmation.newStatus || 'pending'].color}>
+                    {statusConfig[confirmation.newStatus || 'pending'].label}
+                  </Badge>
+                </div>
+                {isCancellation && (
+                  <p className="text-destructive font-medium">
+                    Cette action annulera également la commande sur Shopify. Cette action est irréversible.
+                  </p>
+                )}
+                {confirmation.newStatus === 'shipped' && (
+                  <p className="text-muted-foreground">
+                    Un fulfillment sera créé sur Shopify avec les informations de suivi.
+                  </p>
+                )}
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={updateOrderMutation.isPending}>
+              Annuler
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmStatusChange}
+              disabled={updateOrderMutation.isPending}
+              className={isCancellation ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : ""}
+            >
+              {updateOrderMutation.isPending ? 'En cours...' : 'Confirmer'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Footer />
     </div>
