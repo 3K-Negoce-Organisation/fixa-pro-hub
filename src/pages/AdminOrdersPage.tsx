@@ -108,6 +108,11 @@ interface CancelConfirmationState {
   order: Order | null;
 }
 
+interface ValidateConfirmationState {
+  step: 'first' | 'second' | null;
+  order: Order | null;
+}
+
 const AdminOrdersPage = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -115,7 +120,7 @@ const AdminOrdersPage = () => {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editStatus, setEditStatus] = useState<OrderStatus>('pending');
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
-const [confirmation, setConfirmation] = useState<ConfirmationState>({
+  const [confirmation, setConfirmation] = useState<ConfirmationState>({
     open: false,
     order: null,
     newStatus: null,
@@ -125,6 +130,10 @@ const [confirmation, setConfirmation] = useState<ConfirmationState>({
     order: null,
   });
   const [cancelConfirmation, setCancelConfirmation] = useState<CancelConfirmationState>({
+    step: null,
+    order: null,
+  });
+  const [validateConfirmation, setValidateConfirmation] = useState<ValidateConfirmationState>({
     step: null,
     order: null,
   });
@@ -251,6 +260,13 @@ const [confirmation, setConfirmation] = useState<ConfirmationState>({
         return;
       }
       
+      // Use two-step confirmation for validation
+      if (editStatus === 'confirmed') {
+        setValidateConfirmation({ step: 'first', order: selectedOrder });
+        setEditDialogOpen(false);
+        return;
+      }
+      
       setConfirmation({
         open: true,
         order: selectedOrder,
@@ -289,11 +305,31 @@ const quickStatusUpdate = (order: Order, newStatus: OrderStatus) => {
       return;
     }
     
+    // Use two-step confirmation for validation
+    if (newStatus === 'confirmed') {
+      setValidateConfirmation({ step: 'first', order });
+      return;
+    }
+    
     setConfirmation({
       open: true,
       order,
       newStatus,
     });
+  };
+
+  const handleValidateFirstConfirm = () => {
+    setValidateConfirmation((prev) => ({ ...prev, step: 'second' }));
+  };
+
+  const handleValidateSecondConfirm = () => {
+    if (validateConfirmation.order) {
+      updateOrderMutation.mutate({
+        order_id: validateConfirmation.order.id,
+        status: 'confirmed',
+      });
+      setValidateConfirmation({ step: null, order: null });
+    }
   };
 
   const handleCancelFirstConfirm = () => {
@@ -812,6 +848,81 @@ const quickStatusUpdate = (order: Order, newStatus: OrderStatus) => {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {updateOrderMutation.isPending ? 'Annulation...' : 'Confirmer l\'annulation'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* First Validate Confirmation Dialog */}
+      <AlertDialog 
+        open={validateConfirmation.step === 'first'} 
+        onOpenChange={(open) => !open && setValidateConfirmation({ step: null, order: null })}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <CheckCircle className="h-5 w-5 text-blue-500" />
+              Valider la commande
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <p>
+                  Commande <span className="font-mono font-medium">{validateConfirmation.order?.order_number}</span>
+                </p>
+                <p className="text-muted-foreground">
+                  Vous êtes sur le point de valider cette commande. La commande passera au statut "Confirmée".
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Retour</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={(e) => {
+                e.preventDefault();
+                handleValidateFirstConfirm();
+              }}
+            >
+              Continuer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Second Validate Confirmation Dialog */}
+      <AlertDialog 
+        open={validateConfirmation.step === 'second'} 
+        onOpenChange={(open) => !open && setValidateConfirmation({ step: null, order: null })}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <CheckCircle className="h-5 w-5 text-blue-500" />
+              Confirmer la validation
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <p>
+                  Êtes-vous sûr de vouloir valider la commande <span className="font-mono font-medium">{validateConfirmation.order?.order_number}</span> ?
+                </p>
+                <p className="text-blue-600 font-medium">
+                  Cette action confirmera la commande et notifiera le client.
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={updateOrderMutation.isPending}>
+              Annuler
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                handleValidateSecondConfirm();
+              }}
+              disabled={updateOrderMutation.isPending}
+            >
+              {updateOrderMutation.isPending ? 'Validation...' : 'Confirmer la validation'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
