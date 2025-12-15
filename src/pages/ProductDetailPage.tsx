@@ -170,8 +170,8 @@ const ProductDetailPage = () => {
             <span className="text-foreground truncate max-w-xs">{product.title}</span>
           </nav>
 
-          <div className="grid lg:grid-cols-2 gap-8">
-            {/* Product Images */}
+          <div className="grid lg:grid-cols-2 gap-6">
+            {/* Product Images + Characteristics */}
             <div className="space-y-4">
               <div className="aspect-square bg-muted rounded-lg flex items-center justify-center p-8">
                 <img
@@ -180,22 +180,36 @@ const ProductDetailPage = () => {
                   className="w-full h-full object-contain"
                 />
               </div>
+              
+              {/* Technical specifications from tags - moved below image */}
+              {product.tags.length > 0 && (
+                <div>
+                  <h2 className="text-sm font-semibold mb-2">Caractéristiques</h2>
+                  <div className="flex flex-wrap gap-1.5">
+                    {product.tags.map((tag, index) => (
+                      <Badge key={index} variant="outline" className="text-xs">
+                        {tag}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Product Info */}
-            <div className="space-y-6">
+            <div className="space-y-4">
               {/* Title & Badge */}
               <div>
                 {product.productType && (
-                  <Badge variant="secondary" className="mb-2">
+                  <Badge variant="secondary" className="mb-1">
                     {product.productType}
                   </Badge>
                 )}
-                <h1 className="text-2xl font-bold text-foreground mb-2">
+                <h1 className="text-xl font-bold text-foreground mb-1">
                   {product.title}
                 </h1>
                 <div 
-                  className="text-muted-foreground prose prose-sm max-w-none whitespace-pre-line"
+                  className="text-muted-foreground text-sm leading-tight [&_p]:mb-1 [&_ul]:mb-1 [&_li]:mb-0"
                   dangerouslySetInnerHTML={{ __html: product.descriptionHtml || product.description }}
                 />
               </div>
@@ -219,7 +233,7 @@ const ProductDetailPage = () => {
 
               {/* Variant Selection */}
               {variants.length > 1 && (
-                <div className="space-y-3">
+                <div className="space-y-2">
                   <label className="text-sm font-medium">
                     Conditionnement
                   </label>
@@ -244,21 +258,21 @@ const ProductDetailPage = () => {
 
               {/* Price */}
               {currentVariant && (
-                <div className="bg-secondary p-4 rounded-lg">
-                  <div className="flex items-baseline gap-3 mb-1">
-                    <span className="text-3xl font-bold text-foreground">
+                <div className="bg-secondary p-3 rounded-lg">
+                  <div className="flex items-baseline gap-2 mb-0.5">
+                    <span className="text-2xl font-bold text-foreground">
                       {formatPriceHT(currentVariant.priceHT)}
                     </span>
-                    <span className="text-lg font-semibold text-primary">HT</span>
+                    <span className="text-base font-semibold text-primary">HT</span>
                   </div>
-                  <p className="text-muted-foreground">
+                  <p className="text-sm text-muted-foreground">
                     {formatPriceTTC(currentVariant.priceHT)} TTC
                   </p>
                 </div>
               )}
 
               {/* Add to Cart */}
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-3">
                 <div className="flex items-center gap-2">
                   <label className="text-sm font-medium">Qté :</label>
                   <Input
@@ -288,21 +302,21 @@ const ProductDetailPage = () => {
               </div>
 
               {/* Quick benefits */}
-              <div className="grid grid-cols-3 gap-4 pt-4 border-t border-border">
-                <div className="flex flex-col items-center text-center gap-1">
-                  <Truck className="h-5 w-5 text-primary" />
+              <div className="grid grid-cols-3 gap-3 pt-3 border-t border-border">
+                <div className="flex flex-col items-center text-center gap-0.5">
+                  <Truck className="h-4 w-4 text-primary" />
                   <span className="text-xs text-muted-foreground">
                     Livraison 24/48h
                   </span>
                 </div>
-                <div className="flex flex-col items-center text-center gap-1">
-                  <Shield className="h-5 w-5 text-primary" />
+                <div className="flex flex-col items-center text-center gap-0.5">
+                  <Shield className="h-4 w-4 text-primary" />
                   <span className="text-xs text-muted-foreground">
                     Qualité garantie
                   </span>
                 </div>
-                <div className="flex flex-col items-center text-center gap-1">
-                  <RotateCcw className="h-5 w-5 text-primary" />
+                <div className="flex flex-col items-center text-center gap-0.5">
+                  <RotateCcw className="h-4 w-4 text-primary" />
                   <span className="text-xs text-muted-foreground">
                     Retour 30 jours
                   </span>
@@ -310,20 +324,6 @@ const ProductDetailPage = () => {
               </div>
             </div>
           </div>
-
-          {/* Technical specifications from tags */}
-          {product.tags.length > 0 && (
-            <div className="mt-12">
-              <h2 className="text-xl font-bold mb-4">Caractéristiques</h2>
-              <div className="flex flex-wrap gap-2">
-                {product.tags.map((tag, index) => (
-                  <Badge key={index} variant="outline">
-                    {tag}
-                  </Badge>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
       </main>
 
