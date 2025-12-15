@@ -470,11 +470,12 @@ serve(async (req) => {
     const shopifyOrderId = currentOrder.shopify_order_id;
 
     if (shopifyOrderId && shopifyDomain && shopifyToken && status) {
-      console.log('Syncing status to Shopify:', status, 'for order:', shopifyOrderId);
+      const formattedDomain = formatShopifyDomain(shopifyDomain);
+      console.log('Syncing status to Shopify:', status, 'for order:', shopifyOrderId, 'domain:', formattedDomain);
 
       if (status === 'shipped') {
         const result = await createShopifyFulfillment(
-          shopifyDomain,
+          formattedDomain,
           shopifyToken,
           shopifyOrderId,
           tracking_number || currentOrder.tracking_number,
@@ -487,7 +488,7 @@ serve(async (req) => {
           console.log('Shopify fulfillment created successfully');
         }
       } else if (status === 'cancelled') {
-        const result = await cancelShopifyOrder(shopifyDomain, shopifyToken, shopifyOrderId);
+        const result = await cancelShopifyOrder(formattedDomain, shopifyToken, shopifyOrderId);
         if (!result.success) {
           shopifyWarning = result.error || 'Erreur de synchronisation Shopify';
           console.error('Shopify cancel failed:', result.error);
