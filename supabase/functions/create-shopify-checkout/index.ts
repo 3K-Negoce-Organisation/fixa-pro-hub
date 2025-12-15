@@ -95,12 +95,26 @@ serve(async (req) => {
       }
     );
 
-    const result = await response.json();
-    console.log("Shopify cart response:", JSON.stringify(result, null, 2));
+    const rawText = await response.text();
+    console.log("Shopify response status:", response.status, response.statusText);
+    console.log("Shopify raw response:", rawText);
 
-    if (result.errors) {
-      console.error("GraphQL errors:", result.errors);
-      throw new Error(result.errors[0].message);
+    let result: any;
+    try {
+      result = JSON.parse(rawText);
+    } catch {
+      throw new Error(`Shopify returned non-JSON response (status ${response.status})`);
+    }
+
+    if (!response.ok) {
+      throw new Error(`Shopify HTTP ${response.status}: ${rawText}`);
+    }
+
+    if (result.errors?.length) {
+      const first = result.errors[0];
+      const code = first?.extensions?.code;
+      const msg = first?.message || (code === "UNAUTHORIZED" ? "UNAUTHORIZED" : "Shopify error");
+      throw new Error(`Shopify GraphQL ${code || "ERROR"}: ${msg}`);
     }
 
     const cartData = result.data?.cartCreate;
