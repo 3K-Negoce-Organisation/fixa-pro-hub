@@ -3,7 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { User, LogOut, Building2, MapPin, Phone, Package, ChevronRight, Eye } from "lucide-react";
+import { User, LogOut, MapPin, Phone, Package, ChevronRight, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -202,50 +202,41 @@ const AccountPage = () => {
 
           <Tabs defaultValue="profile" className="space-y-6">
             <TabsList>
-              <TabsTrigger value="profile">
-                <Building2 className="h-4 w-4 mr-2" />
-                Mon entreprise
-              </TabsTrigger>
-              <TabsTrigger value="orders">
-                <Package className="h-4 w-4 mr-2" />
-                Mes commandes
-              </TabsTrigger>
-            </TabsList>
+            <TabsTrigger value="profile">
+              <User className="h-4 w-4 mr-2" />
+              Coordonnées
+            </TabsTrigger>
+            <TabsTrigger value="orders">
+              <Package className="h-4 w-4 mr-2" />
+              Mes commandes
+            </TabsTrigger>
+          </TabsList>
 
-            <TabsContent value="profile">
-              <div className="bg-card border border-border rounded-lg p-6">
-                <Form {...form}>
-                  <form onSubmit={form.handleSubmit(handleSaveProfile)} className="space-y-6">
-                    {/* Company Info */}
-                    <div className="space-y-4">
-                      <h2 className="text-lg font-semibold flex items-center gap-2">
-                        <Building2 className="h-5 w-5 text-primary" />
-                        Informations entreprise
-                      </h2>
-                      <div className="grid md:grid-cols-2 gap-4">
-                        <FormField control={form.control} name="company_name" render={({
-                        field
-                      }) => <FormItem>
-                              <FormLabel>Raison sociale</FormLabel>
-                              <FormControl>
-                                <Input placeholder="Mon Entreprise SARL" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>} />
-                        <FormField control={form.control} name="siret" render={({
-                        field
-                      }) => <FormItem>
-                              <FormLabel>SIRET</FormLabel>
-                              <FormControl>
-                                <Input placeholder="12345678901234" maxLength={14} {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>} />
-                        <FormField control={form.control} name="phone" render={({
-                        field
-                      }) => <FormItem>
-                              <FormLabel>Téléphone</FormLabel>
-                              <FormControl>
+          <TabsContent value="profile">
+            <div className="bg-card border border-border rounded-lg p-6">
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(handleSaveProfile)} className="space-y-6">
+                  {/* Personal Info */}
+                  <div className="space-y-4">
+                    <h2 className="text-lg font-semibold flex items-center gap-2">
+                      <User className="h-5 w-5 text-primary" />
+                      Informations personnelles
+                    </h2>
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <FormField control={form.control} name="company_name" render={({
+                      field
+                    }) => <FormItem>
+                            <FormLabel>Nom complet</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Jean Dupont" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>} />
+                      <FormField control={form.control} name="phone" render={({
+                      field
+                    }) => <FormItem>
+                            <FormLabel>Téléphone</FormLabel>
+                            <FormControl>
                                 <div className="relative">
                                   <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                                   <Input placeholder="04 XX XX XX XX" className="pl-10" {...field} />
