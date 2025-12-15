@@ -16,7 +16,7 @@ const CartPage = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  const handleOrder = async () => {
+  const handleCheckout = async () => {
     setIsSubmitting(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -30,85 +30,37 @@ const CartPage = () => {
         return;
       }
 
-      const totalTTC = totalHT * 1.2;
-      const orderNumber = `VB-${Date.now().toString(36).toUpperCase()}`;
-
-      // Create order in Supabase
-      const { data: order, error: orderError } = await supabase
-        .from("orders")
-        .insert({
-          user_id: user.id,
-          order_number: orderNumber,
-          total_ht: totalHT,
-          total_ttc: totalTTC,
-          status: "pending",
-        })
-        .select()
-        .single();
-
-      if (orderError) throw orderError;
-
-      // Create order items in Supabase
-      const orderItems = items.map((item) => ({
-        order_id: order.id,
-        product_id: item.id,
-        product_title: item.title,
-        variant_title: item.variantTitle,
-        product_image: item.image,
-        quantity: item.quantity,
-        unit_price_ht: item.priceHT,
-        unit_price_ttc: item.priceHT * 1.2,
-      }));
-
-      const { error: itemsError } = await supabase
-        .from("order_items")
-        .insert(orderItems);
-
-      if (itemsError) throw itemsError;
-
-      // Send order to Shopify
-      const { data: shopifyResult, error: shopifyError } = await supabase.functions.invoke(
-        'create-shopify-order',
+      // Create Shopify checkout
+      const { data: checkoutResult, error: checkoutError } = await supabase.functions.invoke(
+        'create-shopify-checkout',
         {
           body: {
             items: items.map(item => ({
               variantId: item.variantId,
               quantity: item.quantity,
-              title: item.title,
-              priceHT: item.priceHT,
             })),
-            orderNumber,
             customerEmail: user.email,
           },
         }
       );
 
-      if (shopifyError) {
-        console.error('Shopify order error:', shopifyError);
-        // Continue even if Shopify fails - order is saved locally
-      } else if (shopifyResult?.success) {
-        console.log('Shopify order created:', shopifyResult);
-        // Update order with Shopify reference
-        await supabase
-          .from("orders")
-          .update({ 
-            notes: `Shopify: ${shopifyResult.shopifyOrderName || shopifyResult.shopifyOrderId}`,
-            status: "confirmed"
-          })
-          .eq("id", order.id);
+      if (checkoutError || !checkoutResult?.success) {
+        console.error('Checkout error:', checkoutError || checkoutResult?.error);
+        toast({
+          title: "Erreur",
+          description: "Impossible de créer le checkout. Veuillez réessayer.",
+          variant: "destructive",
+        });
+        return;
       }
 
-      clearCart();
-      toast({
-        title: "Commande confirmée",
-        description: `Votre commande ${orderNumber} a été enregistrée${shopifyResult?.success ? ' et envoyée à Shopify' : ''}.`,
-      });
-      navigate(`/suivi?order=${orderNumber}`);
+      // Redirect to Shopify checkout
+      window.location.href = checkoutResult.checkoutUrl;
     } catch (error) {
-      console.error("Order error:", error);
+      console.error("Checkout error:", error);
       toast({
         title: "Erreur",
-        description: "Impossible de créer la commande. Veuillez réessayer.",
+        description: "Impossible de procéder au paiement. Veuillez réessayer.",
         variant: "destructive",
       });
     } finally {
@@ -290,16 +242,16 @@ const CartPage = () => {
                 <Button 
                   className="w-full btn-cart" 
                   size="lg"
-                  onClick={handleOrder}
+                  onClick={handleCheckout}
                   disabled={isSubmitting}
                 >
                   {isSubmitting ? (
                     <>
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Traitement...
+                      Redirection...
                     </>
                   ) : (
-                    "Commander"
+                    "Payer"
                   )}
                 </Button>
 
