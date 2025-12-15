@@ -43,7 +43,7 @@ export function Header() {
   };
   return <header className="sticky top-0 z-50 bg-primary text-primary-foreground shadow-md">
       {/* Main header */}
-      <div className="container py-3 px-0">
+      <div className="py-3 px-4">
         <div className="flex items-center justify-between gap-6 w-full">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2 shrink-0">
