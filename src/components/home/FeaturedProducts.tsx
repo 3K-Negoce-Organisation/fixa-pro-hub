@@ -31,6 +31,7 @@ export function FeaturedProducts() {
     
     return {
       id: node.id,
+      variantId: variant?.id || node.id,
       handle: node.handle,
       title: node.title,
       priceHT: price,

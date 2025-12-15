@@ -15,10 +15,10 @@ export function ProductGrid({ products, isLoading }: ProductGridProps) {
     if (product) {
       addItem({
         id: product.id,
-        variantId: `${product.id}-default`,
+        variantId: product.variantId,
         handle: product.handle,
         title: product.title,
-        variantTitle: "Unité",
+        variantTitle: "Default",
         priceHT: product.priceHT,
         image: product.image,
       });
