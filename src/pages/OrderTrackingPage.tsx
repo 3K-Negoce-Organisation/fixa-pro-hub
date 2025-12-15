@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Header } from "@/components/layout/Header";
@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/table";
 import { Package, Truck, CheckCircle, Clock, XCircle, Search, AlertCircle, Loader2, ShoppingBag } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 const formatPriceHT = (price: number) => {
   return new Intl.NumberFormat("fr-FR", {
@@ -89,6 +90,7 @@ const OrderTrackingPage = () => {
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(!!orderFromUrl);
   const [error, setError] = useState<string | null>(null);
+  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
   // Fetch user's orders
   const { data: userOrders, isLoading: loadingUserOrders } = useQuery({
@@ -114,6 +116,73 @@ const OrderTrackingPage = () => {
       searchOrder(orderFromUrl);
     }
   }, [orderFromUrl]);
+
+  // Subscribe to realtime updates when order is loaded
+  useEffect(() => {
+    if (!order?.order_number) {
+      // Cleanup previous channel if order is cleared
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
+      return;
+    }
+
+    // Remove previous channel if exists
+    if (channelRef.current) {
+      supabase.removeChannel(channelRef.current);
+    }
+
+    // Subscribe to order updates
+    const channel = supabase
+      .channel(`order-updates-${order.order_number}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'orders',
+          filter: `order_number=eq.${order.order_number}`,
+        },
+        (payload) => {
+          console.log('Order update received:', payload);
+          const newData = payload.new as {
+            status: OrderStatus;
+            tracking_number: string | null;
+            carrier: string | null;
+            updated_at: string;
+          };
+          
+          // Update order state with new data
+          setOrder((prev) => {
+            if (!prev) return prev;
+            return {
+              ...prev,
+              status: newData.status,
+              tracking_number: newData.tracking_number,
+              carrier: newData.carrier,
+              updated_at: newData.updated_at,
+            };
+          });
+
+          // Show toast notification
+          const statusLabel = statusConfig[newData.status]?.label || newData.status;
+          toast.success(`Statut mis à jour : ${statusLabel}`, {
+            description: newData.tracking_number 
+              ? `Numéro de suivi : ${newData.tracking_number}` 
+              : undefined,
+          });
+        }
+      )
+      .subscribe();
+
+    channelRef.current = channel;
+
+    return () => {
+      supabase.removeChannel(channel);
+      channelRef.current = null;
+    };
+  }, [order?.order_number]);
 
   const searchOrder = async (term: string) => {
     if (!term.trim()) return;

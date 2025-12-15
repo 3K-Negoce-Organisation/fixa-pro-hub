@@ -2,3 +2,6 @@ project_id = "dvifxaygfrhhzmnmyiyp"
 
 [functions.create-shopify-order]
 verify_jwt = true
+
+[functions.update-order-status]
+verify_jwt = false
