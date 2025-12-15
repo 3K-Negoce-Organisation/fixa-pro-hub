@@ -333,22 +333,47 @@ serve(async (req) => {
         const draftOrderId = draftData.draft_order?.id;
         console.log('Draft order created:', draftOrderId);
 
-        // Complete the draft order
-        const completeRes = await fetch(
-          `https://${formattedDomain}/admin/api/2024-01/draft_orders/${draftOrderId}/complete.json`,
-          {
-            method: 'PUT',
-            headers: {
-              'X-Shopify-Access-Token': shopifyToken,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ payment_pending: false }),
-          }
-        );
+        // Wait for Shopify to finish calculating before completing
+        const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+        
+        // Retry completing the draft order with delays
+        let completeRes: Response | null = null;
+        let lastError = '';
+        const maxRetries = 3;
+        
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+          // Wait before attempting (longer each retry)
+          await delay(attempt * 1000);
+          console.log(`Attempting to complete draft order (attempt ${attempt}/${maxRetries})`);
+          
+          completeRes = await fetch(
+            `https://${formattedDomain}/admin/api/2024-01/draft_orders/${draftOrderId}/complete.json`,
+            {
+              method: 'PUT',
+              headers: {
+                'X-Shopify-Access-Token': shopifyToken,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ payment_pending: false }),
+            }
+          );
 
-        if (!completeRes.ok) {
-          const errorText = await completeRes.text();
-          console.error('Failed to complete draft order:', errorText);
+          if (completeRes.ok) {
+            console.log('Draft order completed successfully on attempt', attempt);
+            break;
+          }
+          
+          lastError = await completeRes.text();
+          console.log(`Attempt ${attempt} failed:`, lastError);
+          
+          // If it's not a "still calculating" error, don't retry
+          if (!lastError.includes('not finished calculating')) {
+            break;
+          }
+        }
+
+        if (!completeRes || !completeRes.ok) {
+          console.error('Failed to complete draft order after retries:', lastError);
           return new Response(
             JSON.stringify({ 
               success: true, 
