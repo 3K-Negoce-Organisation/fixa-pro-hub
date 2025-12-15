@@ -10,7 +10,7 @@ export function Footer() {
               <Truck className="h-8 w-8 text-accent" />
               <div>
                 <p className="font-semibold">Livraison Express</p>
-                <p className="text-sm text-background/70">24/48h sur stock - Gratuite dès 150€ HT</p>
+                <p className="text-sm text-background/70">24/48h sur stock - Gratuite dès 150€</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -24,7 +24,7 @@ export function Footer() {
               <CreditCard className="h-8 w-8 text-accent" />
               <div>
                 <p className="font-semibold">Paiement Sécurisé</p>
-                <p className="text-sm text-background/70">CB, Virement, Compte Pro 30j</p>
+                <p className="text-sm text-background/70">CB, Virement, PayPal</p>
               </div>
             </div>
           </div>
