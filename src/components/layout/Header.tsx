@@ -43,9 +43,34 @@ export function Header() {
   return (
     <header className="sticky top-0 z-50 bg-primary text-primary-foreground shadow-md">
       {/* Main header */}
-      <div className="container py-3">
+      <div className="container py-3 px-0">
         <div className="flex items-center justify-between gap-6 w-full">
-          {/* Left actions */}
+          {/* Logo */}
+          <Link to="/" className="flex items-center gap-2 shrink-0">
+            <Package className="h-8 w-8" />
+            <span className="font-bold text-lg leading-none">vis-a-bois</span>
+          </Link>
+
+          {/* Search bar */}
+          <form onSubmit={handleSearch} className="flex-1 max-w-2xl">
+            <div className="flex">
+              <Input
+                type="search"
+                placeholder="Rechercher un produit, une référence..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full h-10 pl-4 pr-4 bg-background text-foreground border-0 rounded-l-md rounded-r-none focus-visible:ring-0 focus-visible:ring-offset-0"
+              />
+              <Button
+                type="submit"
+                className="h-10 px-4 bg-accent hover:bg-accent/90 rounded-l-none rounded-r-md"
+              >
+                <Search className="h-5 w-5" />
+              </Button>
+            </div>
+          </form>
+
+          {/* Right actions */}
           <div className="flex items-center gap-3 shrink-0">
             <Link
               to="/panier"
@@ -90,34 +115,8 @@ export function Header() {
               </button>
             )}
           </div>
-
-          {/* Search bar - centered/right */}
-          <form onSubmit={handleSearch} className="flex-1 max-w-2xl">
-            <div className="flex">
-              <Input
-                type="search"
-                placeholder="Rechercher un produit, une référence..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full h-10 pl-4 pr-4 bg-background text-foreground border-0 rounded-l-md rounded-r-none focus-visible:ring-0 focus-visible:ring-offset-0"
-              />
-              <Button
-                type="submit"
-                className="h-10 px-4 bg-accent hover:bg-accent/90 rounded-l-none rounded-r-md"
-              >
-                <Search className="h-5 w-5" />
-              </Button>
-            </div>
-          </form>
-
-          {/* Logo - right aligned */}
-          <Link to="/" className="flex items-center gap-2 shrink-0">
-            <Package className="h-8 w-8" />
-            <span className="font-bold text-lg leading-none">vis-a-bois</span>
-          </Link>
         </div>
       </div>
-
 
       {/* Categories nav */}
       <nav className="bg-primary-foreground/5 border-t border-primary-foreground/10">
