@@ -6,6 +6,16 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Helper to ensure domain is properly formatted
+function formatShopifyDomain(domain: string): string {
+  // If it already includes myshopify.com, return as-is
+  if (domain.includes('.myshopify.com')) {
+    return domain.replace(/^https?:\/\//, ''); // Remove protocol if present
+  }
+  // Otherwise, append .myshopify.com
+  return `${domain.replace(/^https?:\/\//, '')}.myshopify.com`;
+}
+
 // Shopify status sync functions
 async function createShopifyFulfillment(
   shopifyDomain: string,
@@ -234,6 +244,9 @@ serve(async (req) => {
         );
       }
 
+      // Format the domain correctly
+      const formattedDomain = formatShopifyDomain(shopifyDomain);
+
       // Create draft order on Shopify
       const lineItems = orderItems?.map((item: any) => ({
         title: item.product_title,
@@ -258,8 +271,9 @@ serve(async (req) => {
       };
 
       try {
+        console.log('Creating draft order on Shopify domain:', formattedDomain);
         const draftRes = await fetch(
-          `https://${shopifyDomain}/admin/api/2024-01/draft_orders.json`,
+          `https://${formattedDomain}/admin/api/2024-01/draft_orders.json`,
           {
             method: 'POST',
             headers: {
@@ -288,7 +302,7 @@ serve(async (req) => {
 
         // Complete the draft order
         const completeRes = await fetch(
-          `https://${shopifyDomain}/admin/api/2024-01/draft_orders/${draftOrderId}/complete.json`,
+          `https://${formattedDomain}/admin/api/2024-01/draft_orders/${draftOrderId}/complete.json`,
           {
             method: 'PUT',
             headers: {
