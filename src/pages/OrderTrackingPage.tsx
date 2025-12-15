@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
@@ -15,7 +15,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Package, Truck, CheckCircle, Clock, XCircle, Search, AlertCircle } from "lucide-react";
+import { Package, Truck, CheckCircle, Clock, XCircle, Search, AlertCircle, Loader2, ShoppingBag } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 
 const formatPriceHT = (price: number) => {
   return new Intl.NumberFormat("fr-FR", {
@@ -79,27 +80,54 @@ const statusSteps = [
 ];
 
 const OrderTrackingPage = () => {
-  const navigate = useNavigate();
-  const [orderNumber, setOrderNumber] = useState("");
+  const [searchParams] = useSearchParams();
+  const orderFromUrl = searchParams.get("order");
+  
+  const [orderNumber, setOrderNumber] = useState(orderFromUrl || "");
+  const [searchTerm, setSearchTerm] = useState(orderFromUrl || "");
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(false);
-  const [searched, setSearched] = useState(false);
+  const [searched, setSearched] = useState(!!orderFromUrl);
   const [error, setError] = useState<string | null>(null);
 
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!orderNumber.trim()) return;
+  // Fetch user's orders
+  const { data: userOrders, isLoading: loadingUserOrders } = useQuery({
+    queryKey: ["user-orders"],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return [];
+
+      const { data, error } = await supabase
+        .from("orders")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // Auto-search when order number is in URL
+  useEffect(() => {
+    if (orderFromUrl) {
+      searchOrder(orderFromUrl);
+    }
+  }, [orderFromUrl]);
+
+  const searchOrder = async (term: string) => {
+    if (!term.trim()) return;
 
     setLoading(true);
     setError(null);
     setSearched(true);
 
-    const searchTerm = orderNumber.trim().toUpperCase();
+    const searchTermUpper = term.trim().toUpperCase();
 
     const { data: orderData, error: orderError } = await supabase
       .from("orders")
       .select("*")
-      .eq("order_number", searchTerm)
+      .eq("order_number", searchTermUpper)
       .maybeSingle();
 
     if (orderError) {
@@ -134,6 +162,18 @@ const OrderTrackingPage = () => {
     setLoading(false);
   };
 
+  const handleSearch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSearchTerm(orderNumber);
+    await searchOrder(orderNumber);
+  };
+
+  const handleSelectOrder = async (selectedOrderNumber: string) => {
+    setOrderNumber(selectedOrderNumber);
+    setSearchTerm(selectedOrderNumber);
+    await searchOrder(selectedOrderNumber);
+  };
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("fr-FR", {
       day: "numeric",
@@ -141,6 +181,14 @@ const OrderTrackingPage = () => {
       year: "numeric",
       hour: "2-digit",
       minute: "2-digit",
+    });
+  };
+
+  const formatShortDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString("fr-FR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
     });
   };
 
@@ -202,180 +250,257 @@ const OrderTrackingPage = () => {
       <main className="flex-1 container mx-auto px-4 py-8">
         <h1 className="text-2xl font-bold text-foreground mb-6">Suivi de commande</h1>
 
-        {/* Search form */}
-        <Card className="mb-8">
-          <CardHeader>
-            <CardTitle className="text-lg">Rechercher votre commande</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSearch} className="flex gap-3">
-              <Input
-                type="text"
-                placeholder="Entrez votre numéro de commande (ex: CMD-2024-001)"
-                value={orderNumber}
-                onChange={(e) => setOrderNumber(e.target.value)}
-                className="flex-1"
-              />
-              <Button type="submit" disabled={loading}>
-                <Search className="h-4 w-4 mr-2" />
-                {loading ? "Recherche..." : "Rechercher"}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-
-        {/* Error state */}
-        {error && (
-          <Card className="border-destructive">
-            <CardContent className="flex items-center gap-3 py-6">
-              <AlertCircle className="h-6 w-6 text-destructive" />
-              <p className="text-destructive">{error}</p>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* No result state */}
-        {searched && !order && !error && !loading && (
-          <Card>
-            <CardContent className="flex flex-col items-center justify-center py-12">
-              <Package className="h-16 w-16 text-muted-foreground mb-4" />
-              <h2 className="text-xl font-semibold text-foreground mb-2">
-                Commande introuvable
-              </h2>
-              <p className="text-muted-foreground mb-6 text-center">
-                Aucune commande trouvée avec ce numéro. Vérifiez le numéro et réessayez.
-              </p>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Order found */}
-        {order && (
+        <div className="grid lg:grid-cols-3 gap-6">
+          {/* Left column: Search + User orders list */}
           <div className="space-y-6">
-            {/* Order header */}
+            {/* Search form */}
             <Card>
-              <CardContent className="pt-6">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
-                  <div>
-                    <h2 className="text-xl font-bold text-foreground">
-                      Commande #{order.order_number}
-                    </h2>
-                    <p className="text-sm text-muted-foreground">
-                      Passée le {formatDate(order.created_at)}
-                    </p>
-                  </div>
-                  <Badge className={`${statusConfig[order.status].color} flex items-center gap-1 self-start`}>
-                    {statusConfig[order.status].icon}
-                    {statusConfig[order.status].label}
-                  </Badge>
-                </div>
-
-                {/* Progress bar */}
-                {renderProgressBar(order.status)}
+              <CardHeader>
+                <CardTitle className="text-lg">Rechercher une commande</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleSearch} className="flex flex-col gap-3">
+                  <Input
+                    type="text"
+                    placeholder="Numéro de commande (ex: VB-ABC123)"
+                    value={orderNumber}
+                    onChange={(e) => setOrderNumber(e.target.value)}
+                  />
+                  <Button type="submit" disabled={loading}>
+                    <Search className="h-4 w-4 mr-2" />
+                    {loading ? "Recherche..." : "Rechercher"}
+                  </Button>
+                </form>
               </CardContent>
             </Card>
 
-            {/* Tracking info */}
-            {order.tracking_number && (
-              <Card>
-                <CardContent className="pt-6">
-                  <h3 className="font-semibold text-foreground mb-3 flex items-center gap-2">
-                    <Truck className="h-5 w-5" />
-                    Suivi de livraison
-                  </h3>
-                  <div className="grid sm:grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Transporteur</p>
-                      <p className="font-medium text-foreground">{order.carrier || "Non spécifié"}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Numéro de suivi</p>
-                      <p className="font-mono font-medium text-foreground">{order.tracking_number}</p>
-                    </div>
+            {/* User's orders list */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <ShoppingBag className="h-5 w-5" />
+                  Mes commandes
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {loadingUserOrders ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
                   </div>
+                ) : !userOrders || userOrders.length === 0 ? (
+                  <p className="text-muted-foreground text-sm text-center py-4">
+                    Aucune commande pour le moment
+                  </p>
+                ) : (
+                  <div className="space-y-2 max-h-96 overflow-y-auto">
+                    {userOrders.map((o) => (
+                      <button
+                        key={o.id}
+                        onClick={() => handleSelectOrder(o.order_number)}
+                        className={`w-full text-left p-3 rounded-lg border transition-colors hover:bg-muted/50 ${
+                          order?.order_number === o.order_number 
+                            ? "border-primary bg-primary/5" 
+                            : "border-border"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="font-medium text-sm">{o.order_number}</span>
+                          <Badge className={`${statusConfig[o.status as OrderStatus].color} text-xs`}>
+                            {statusConfig[o.status as OrderStatus].label}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                          <span>{formatShortDate(o.created_at)}</span>
+                          <span>{formatPriceHT(o.total_ht)}</span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Right column: Order details */}
+          <div className="lg:col-span-2">
+            {/* Error state */}
+            {error && (
+              <Card className="border-destructive">
+                <CardContent className="flex items-center gap-3 py-6">
+                  <AlertCircle className="h-6 w-6 text-destructive" />
+                  <p className="text-destructive">{error}</p>
                 </CardContent>
               </Card>
             )}
 
-            {/* Shipping address */}
-            {order.shipping_address && (
+            {/* Loading state */}
+            {loading && (
               <Card>
-                <CardContent className="pt-6">
-                  <h3 className="font-semibold text-foreground mb-3">Adresse de livraison</h3>
-                  <p className="text-muted-foreground">
-                    {order.shipping_address}<br />
-                    {order.shipping_postal_code} {order.shipping_city}
+                <CardContent className="flex items-center justify-center py-12">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </CardContent>
+              </Card>
+            )}
+
+            {/* No result state */}
+            {searched && !order && !error && !loading && (
+              <Card>
+                <CardContent className="flex flex-col items-center justify-center py-12">
+                  <Package className="h-16 w-16 text-muted-foreground mb-4" />
+                  <h2 className="text-xl font-semibold text-foreground mb-2">
+                    Commande introuvable
+                  </h2>
+                  <p className="text-muted-foreground mb-6 text-center">
+                    Aucune commande trouvée avec ce numéro. Vérifiez le numéro et réessayez.
                   </p>
                 </CardContent>
               </Card>
             )}
 
-            {/* Order items */}
-            <Card>
-              <CardContent className="pt-6">
-                <h3 className="font-semibold text-foreground mb-4">Articles commandés</h3>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Produit</TableHead>
-                      <TableHead className="text-center">Quantité</TableHead>
-                      <TableHead className="text-right">Prix unitaire HT</TableHead>
-                      <TableHead className="text-right">Total HT</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {order.order_items.map((item) => (
-                      <TableRow key={item.id}>
-                        <TableCell>
-                          <div className="flex items-center gap-3">
-                            {item.product_image && (
-                              <img
-                                src={item.product_image}
-                                alt={item.product_title}
-                                className="w-12 h-12 object-contain rounded border"
-                              />
-                            )}
-                            <div>
-                              <p className="font-medium text-foreground">
-                                {item.product_title}
-                              </p>
-                              {item.variant_title && (
-                                <p className="text-sm text-muted-foreground">
-                                  {item.variant_title}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-center">{item.quantity}</TableCell>
-                        <TableCell className="text-right">
-                          {formatPriceHT(item.unit_price_ht)}
-                        </TableCell>
-                        <TableCell className="text-right font-medium">
-                          {formatPriceHT(item.unit_price_ht * item.quantity)}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+            {/* Initial state - no search yet */}
+            {!searched && !order && (
+              <Card>
+                <CardContent className="flex flex-col items-center justify-center py-12">
+                  <Search className="h-16 w-16 text-muted-foreground mb-4" />
+                  <h2 className="text-xl font-semibold text-foreground mb-2">
+                    Recherchez une commande
+                  </h2>
+                  <p className="text-muted-foreground text-center">
+                    Entrez un numéro de commande ou sélectionnez une commande dans la liste
+                  </p>
+                </CardContent>
+              </Card>
+            )}
 
-                {/* Totals */}
-                <div className="border-t mt-4 pt-4">
-                  <div className="flex justify-end">
-                    <div className="space-y-1 text-right">
-                      <p className="text-sm text-muted-foreground">
-                        Total HT: <span className="font-semibold text-foreground">{formatPriceHT(order.total_ht)}</span>
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        Total TTC: <span className="text-foreground">{formatPriceTTC(order.total_ttc)}</span>
-                      </p>
+            {/* Order found */}
+            {order && !loading && (
+              <div className="space-y-6">
+                {/* Order header */}
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+                      <div>
+                        <h2 className="text-xl font-bold text-foreground">
+                          Commande #{order.order_number}
+                        </h2>
+                        <p className="text-sm text-muted-foreground">
+                          Passée le {formatDate(order.created_at)}
+                        </p>
+                      </div>
+                      <Badge className={`${statusConfig[order.status].color} flex items-center gap-1 self-start`}>
+                        {statusConfig[order.status].icon}
+                        {statusConfig[order.status].label}
+                      </Badge>
                     </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+
+                    {/* Progress bar */}
+                    {renderProgressBar(order.status)}
+                  </CardContent>
+                </Card>
+
+                {/* Tracking info */}
+                {order.tracking_number && (
+                  <Card>
+                    <CardContent className="pt-6">
+                      <h3 className="font-semibold text-foreground mb-3 flex items-center gap-2">
+                        <Truck className="h-5 w-5" />
+                        Suivi de livraison
+                      </h3>
+                      <div className="grid sm:grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-sm text-muted-foreground">Transporteur</p>
+                          <p className="font-medium text-foreground">{order.carrier || "Non spécifié"}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-muted-foreground">Numéro de suivi</p>
+                          <p className="font-mono font-medium text-foreground">{order.tracking_number}</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Shipping address */}
+                {order.shipping_address && (
+                  <Card>
+                    <CardContent className="pt-6">
+                      <h3 className="font-semibold text-foreground mb-3">Adresse de livraison</h3>
+                      <p className="text-muted-foreground">
+                        {order.shipping_address}<br />
+                        {order.shipping_postal_code} {order.shipping_city}
+                      </p>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Order items */}
+                <Card>
+                  <CardContent className="pt-6">
+                    <h3 className="font-semibold text-foreground mb-4">Articles commandés</h3>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Produit</TableHead>
+                          <TableHead className="text-center">Qté</TableHead>
+                          <TableHead className="text-right">Prix HT</TableHead>
+                          <TableHead className="text-right">Total HT</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {order.order_items.map((item) => (
+                          <TableRow key={item.id}>
+                            <TableCell>
+                              <div className="flex items-center gap-3">
+                                {item.product_image && (
+                                  <img
+                                    src={item.product_image}
+                                    alt={item.product_title}
+                                    className="w-12 h-12 object-contain rounded border"
+                                  />
+                                )}
+                                <div>
+                                  <p className="font-medium text-foreground">
+                                    {item.product_title}
+                                  </p>
+                                  {item.variant_title && (
+                                    <p className="text-sm text-muted-foreground">
+                                      {item.variant_title}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-center">{item.quantity}</TableCell>
+                            <TableCell className="text-right">
+                              {formatPriceHT(item.unit_price_ht)}
+                            </TableCell>
+                            <TableCell className="text-right font-medium">
+                              {formatPriceHT(item.unit_price_ht * item.quantity)}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+
+                    {/* Totals */}
+                    <div className="border-t mt-4 pt-4">
+                      <div className="flex justify-end">
+                        <div className="space-y-1 text-right">
+                          <p className="text-sm text-muted-foreground">
+                            Total HT: <span className="font-semibold text-foreground">{formatPriceHT(order.total_ht)}</span>
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            Total TTC: <span className="text-foreground">{formatPriceTTC(order.total_ttc)}</span>
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </main>
       <Footer />
     </div>
