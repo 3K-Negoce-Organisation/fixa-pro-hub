@@ -653,7 +653,10 @@ const quickStatusUpdate = (order: Order, newStatus: OrderStatus) => {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Annuler</AlertDialogCancel>
-            <AlertDialogAction onClick={handleResendFirstConfirm}>
+            <AlertDialogAction onClick={(e) => {
+              e.preventDefault();
+              handleResendFirstConfirm();
+            }}>
               Continuer
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -687,7 +690,10 @@ const quickStatusUpdate = (order: Order, newStatus: OrderStatus) => {
               Annuler
             </AlertDialogCancel>
             <AlertDialogAction
-              onClick={handleResendSecondConfirm}
+              onClick={(e) => {
+                e.preventDefault();
+                handleResendSecondConfirm();
+              }}
               disabled={resendToShopifyMutation.isPending}
               className="bg-amber-500 text-white hover:bg-amber-600"
             >
