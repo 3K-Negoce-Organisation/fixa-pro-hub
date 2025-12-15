@@ -23,6 +23,20 @@ interface OrderRequest {
   };
 }
 
+// Format Shopify domain to ensure it's correct
+function formatShopifyDomain(domain: string): string {
+  let formatted = domain.trim();
+  // Remove protocol if present
+  formatted = formatted.replace(/^https?:\/\//, '');
+  // Remove trailing slash
+  formatted = formatted.replace(/\/$/, '');
+  // Add .myshopify.com if not present
+  if (!formatted.includes('.myshopify.com')) {
+    formatted = `${formatted}.myshopify.com`;
+  }
+  return formatted;
+}
+
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -30,13 +44,16 @@ serve(async (req) => {
   }
 
   try {
-    const shopifyDomain = Deno.env.get('SHOPIFY_DOMAIN');
+    const rawShopifyDomain = Deno.env.get('SHOPIFY_DOMAIN');
     const shopifyAdminToken = Deno.env.get('SHOPIFY_ADMIN_TOKEN');
 
-    if (!shopifyDomain || !shopifyAdminToken) {
+    if (!rawShopifyDomain || !shopifyAdminToken) {
       console.error('Missing Shopify credentials');
       throw new Error('Shopify credentials not configured');
     }
+
+    const shopifyDomain = formatShopifyDomain(rawShopifyDomain);
+    console.log('Using Shopify domain:', shopifyDomain);
 
     const { items, orderNumber, customerEmail, shippingAddress }: OrderRequest = await req.json();
     
