@@ -194,7 +194,10 @@ const ProductDetailPage = () => {
                 <h1 className="text-2xl font-bold text-foreground mb-2">
                   {product.title}
                 </h1>
-                <p className="text-muted-foreground">{product.description}</p>
+                <div 
+                  className="text-muted-foreground prose prose-sm max-w-none whitespace-pre-line"
+                  dangerouslySetInnerHTML={{ __html: product.descriptionHtml || product.description }}
+                />
               </div>
 
               {/* Stock Status */}
