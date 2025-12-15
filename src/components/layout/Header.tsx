@@ -52,7 +52,7 @@ export function Header() {
           </Link>
 
           {/* Search bar */}
-          <form onSubmit={handleSearch} className="flex-1 max-w-2xl">
+          <form onSubmit={handleSearch} className="flex-1">
             <div className="flex">
               <Input type="search" placeholder="Rechercher un produit, une référence..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full h-10 pl-4 pr-4 bg-background text-foreground border-0 rounded-l-md rounded-r-none focus-visible:ring-0 focus-visible:ring-offset-0" />
               <Button type="submit" className="h-10 px-4 bg-accent hover:bg-accent/90 rounded-l-none rounded-r-md">
