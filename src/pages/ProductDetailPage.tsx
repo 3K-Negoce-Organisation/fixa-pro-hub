@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { ShoppingCart, Heart, ChevronRight, Truck, Shield, RotateCcw } from "lucide-react";
+import { ShoppingCart, Heart, ChevronRight, Truck, Shield, RotateCcw, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -19,22 +19,89 @@ import {
 } from "@/components/ui/select";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
-import { getProductByHandle } from "@/lib/mockData";
-import { formatPriceHT, formatPriceTTC } from "@/lib/shopify";
+import { shopifyFetch, PRODUCT_BY_HANDLE_QUERY, formatPriceHT, formatPriceTTC } from "@/lib/shopify";
 import { toast } from "sonner";
 import { useCart } from "@/contexts/CartContext";
+import { useQuery } from "@tanstack/react-query";
+
+interface ShopifyProductDetail {
+  productByHandle: {
+    id: string;
+    title: string;
+    handle: string;
+    description: string;
+    descriptionHtml: string;
+    productType: string;
+    tags: string[];
+    priceRange: {
+      minVariantPrice: {
+        amount: string;
+        currencyCode: string;
+      };
+    };
+    images: {
+      edges: Array<{
+        node: {
+          url: string;
+          altText: string | null;
+        };
+      }>;
+    };
+    variants: {
+      edges: Array<{
+        node: {
+          id: string;
+          title: string;
+          price: {
+            amount: string;
+            currencyCode: string;
+          };
+          availableForSale: boolean;
+          quantityAvailable: number;
+        };
+      }>;
+    };
+  } | null;
+}
 
 const ProductDetailPage = () => {
   const { handle } = useParams<{ handle: string }>();
-  const product = getProductByHandle(handle || "");
   const { addItem } = useCart();
-
-  const [selectedVariant, setSelectedVariant] = useState(
-    product?.variants[0]?.id || ""
-  );
   const [quantity, setQuantity] = useState(1);
 
-  if (!product) {
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["product", handle],
+    queryFn: () => shopifyFetch<ShopifyProductDetail>(PRODUCT_BY_HANDLE_QUERY, { handle }),
+    enabled: !!handle,
+  });
+
+  const product = data?.productByHandle;
+  const [selectedVariantId, setSelectedVariantId] = useState<string>("");
+
+  // Set default variant when product loads
+  const variants = product?.variants.edges.map(e => ({
+    id: e.node.id,
+    title: e.node.title,
+    priceHT: parseFloat(e.node.price.amount),
+    available: e.node.availableForSale,
+    quantity: e.node.quantityAvailable,
+  })) || [];
+
+  const currentVariant = variants.find(v => v.id === selectedVariantId) || variants[0];
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex flex-col bg-background">
+        <Header />
+        <main className="flex-1 container py-16 flex items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (error || !product) {
     return (
       <div className="min-h-screen flex flex-col bg-background">
         <Header />
@@ -52,11 +119,10 @@ const ProductDetailPage = () => {
     );
   }
 
-  const currentVariant =
-    product.variants.find((v) => v.id === selectedVariant) ||
-    product.variants[0];
+  const productImage = product.images.edges[0]?.node.url || "/placeholder.svg";
 
   const handleAddToCart = () => {
+    if (!currentVariant) return;
     addItem(
       {
         id: product.id,
@@ -65,7 +131,7 @@ const ProductDetailPage = () => {
         title: product.title,
         variantTitle: currentVariant.title,
         priceHT: currentVariant.priceHT,
-        image: product.image,
+        image: productImage,
       },
       quantity
     );
@@ -90,13 +156,17 @@ const ProductDetailPage = () => {
               Produits
             </Link>
             <ChevronRight className="h-4 w-4" />
-            <Link
-              to={`/produits?cat=${product.productType.toLowerCase().replace(" ", "-")}`}
-              className="hover:text-foreground"
-            >
-              {product.productType}
-            </Link>
-            <ChevronRight className="h-4 w-4" />
+            {product.productType && (
+              <>
+                <Link
+                  to={`/produits?cat=${product.productType.toLowerCase().replace(" ", "-")}`}
+                  className="hover:text-foreground"
+                >
+                  {product.productType}
+                </Link>
+                <ChevronRight className="h-4 w-4" />
+              </>
+            )}
             <span className="text-foreground truncate max-w-xs">{product.title}</span>
           </nav>
 
@@ -105,7 +175,7 @@ const ProductDetailPage = () => {
             <div className="space-y-4">
               <div className="aspect-square bg-muted rounded-lg flex items-center justify-center p-8">
                 <img
-                  src={product.image}
+                  src={productImage}
                   alt={product.title}
                   className="w-full h-full object-contain"
                 />
@@ -116,9 +186,11 @@ const ProductDetailPage = () => {
             <div className="space-y-6">
               {/* Title & Badge */}
               <div>
-                <Badge variant="secondary" className="mb-2">
-                  {product.productType}
-                </Badge>
+                {product.productType && (
+                  <Badge variant="secondary" className="mb-2">
+                    {product.productType}
+                  </Badge>
+                )}
                 <h1 className="text-2xl font-bold text-foreground mb-2">
                   {product.title}
                 </h1>
@@ -126,52 +198,61 @@ const ProductDetailPage = () => {
               </div>
 
               {/* Stock Status */}
-              <div>
-                {currentVariant.available ? (
-                  <span className="stock-badge stock-available">
-                    <span className="w-2.5 h-2.5 bg-green-500 rounded-full"></span>
-                    En stock ({currentVariant.quantity} disponibles)
-                  </span>
-                ) : (
-                  <span className="stock-badge stock-out">
-                    <span className="w-2.5 h-2.5 bg-red-500 rounded-full"></span>
-                    Rupture de stock
-                  </span>
-                )}
-              </div>
+              {currentVariant && (
+                <div>
+                  {currentVariant.available ? (
+                    <span className="stock-badge stock-available">
+                      <span className="w-2.5 h-2.5 bg-green-500 rounded-full"></span>
+                      En stock ({currentVariant.quantity} disponibles)
+                    </span>
+                  ) : (
+                    <span className="stock-badge stock-out">
+                      <span className="w-2.5 h-2.5 bg-red-500 rounded-full"></span>
+                      Rupture de stock
+                    </span>
+                  )}
+                </div>
+              )}
 
               {/* Variant Selection */}
-              <div className="space-y-3">
-                <label className="text-sm font-medium">
-                  Conditionnement
-                </label>
-                <Select value={selectedVariant} onValueChange={setSelectedVariant}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {product.variants.map((variant) => (
-                      <SelectItem key={variant.id} value={variant.id}>
-                        {variant.title} - {formatPriceHT(variant.priceHT)} HT
-                        {!variant.available && " (Rupture)"}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {variants.length > 1 && (
+                <div className="space-y-3">
+                  <label className="text-sm font-medium">
+                    Conditionnement
+                  </label>
+                  <Select 
+                    value={selectedVariantId || currentVariant?.id} 
+                    onValueChange={setSelectedVariantId}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {variants.map((variant) => (
+                        <SelectItem key={variant.id} value={variant.id}>
+                          {variant.title} - {formatPriceHT(variant.priceHT)} HT
+                          {!variant.available && " (Rupture)"}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
               {/* Price */}
-              <div className="bg-secondary p-4 rounded-lg">
-                <div className="flex items-baseline gap-3 mb-1">
-                  <span className="text-3xl font-bold text-foreground">
-                    {formatPriceHT(currentVariant.priceHT)}
-                  </span>
-                  <span className="text-lg font-semibold text-primary">HT</span>
+              {currentVariant && (
+                <div className="bg-secondary p-4 rounded-lg">
+                  <div className="flex items-baseline gap-3 mb-1">
+                    <span className="text-3xl font-bold text-foreground">
+                      {formatPriceHT(currentVariant.priceHT)}
+                    </span>
+                    <span className="text-lg font-semibold text-primary">HT</span>
+                  </div>
+                  <p className="text-muted-foreground">
+                    {formatPriceTTC(currentVariant.priceHT)} TTC
+                  </p>
                 </div>
-                <p className="text-muted-foreground">
-                  {formatPriceTTC(currentVariant.priceHT)} TTC
-                </p>
-              </div>
+              )}
 
               {/* Add to Cart */}
               <div className="flex items-center gap-4">
@@ -180,20 +261,20 @@ const ProductDetailPage = () => {
                   <Input
                     type="number"
                     min={1}
-                    max={currentVariant.quantity}
+                    max={currentVariant?.quantity || 1}
                     value={quantity}
                     onChange={(e) =>
                       setQuantity(Math.max(1, parseInt(e.target.value) || 1))
                     }
                     className="w-20"
-                    disabled={!currentVariant.available}
+                    disabled={!currentVariant?.available}
                   />
                 </div>
                 <Button
                   className="btn-cart flex-1"
                   size="lg"
                   onClick={handleAddToCart}
-                  disabled={!currentVariant.available}
+                  disabled={!currentVariant?.available}
                 >
                   <ShoppingCart className="h-5 w-5 mr-2" />
                   Ajouter au panier
@@ -227,70 +308,19 @@ const ProductDetailPage = () => {
             </div>
           </div>
 
-          {/* Specifications Table */}
-          <div className="mt-12">
-            <h2 className="text-xl font-bold mb-4">Caractéristiques techniques</h2>
-            <div className="bg-card border border-border rounded-lg overflow-hidden">
-              <Table>
-                <TableBody>
-                  <TableRow>
-                    <TableCell className="font-medium bg-muted/50 w-1/3">
-                      Diamètre
-                    </TableCell>
-                    <TableCell>{product.specs.diameter}</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell className="font-medium bg-muted/50">
-                      Longueur
-                    </TableCell>
-                    <TableCell>{product.specs.length}</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell className="font-medium bg-muted/50">
-                      Type d'empreinte
-                    </TableCell>
-                    <TableCell>{product.specs.driveType}</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell className="font-medium bg-muted/50">
-                      Matière
-                    </TableCell>
-                    <TableCell>{product.specs.material}</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell className="font-medium bg-muted/50">
-                      Type de tête
-                    </TableCell>
-                    <TableCell>{product.specs.headType}</TableCell>
-                  </TableRow>
-                  {product.specs.norm && (
-                    <TableRow>
-                      <TableCell className="font-medium bg-muted/50">
-                        Norme
-                      </TableCell>
-                      <TableCell>{product.specs.norm}</TableCell>
-                    </TableRow>
-                  )}
-                  {product.specs.thread && (
-                    <TableRow>
-                      <TableCell className="font-medium bg-muted/50">
-                        Filetage
-                      </TableCell>
-                      <TableCell>{product.specs.thread}</TableCell>
-                    </TableRow>
-                  )}
-                  {product.specs.coating && (
-                    <TableRow>
-                      <TableCell className="font-medium bg-muted/50">
-                        Revêtement
-                      </TableCell>
-                      <TableCell>{product.specs.coating}</TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
+          {/* Technical specifications from tags */}
+          {product.tags.length > 0 && (
+            <div className="mt-12">
+              <h2 className="text-xl font-bold mb-4">Caractéristiques</h2>
+              <div className="flex flex-wrap gap-2">
+                {product.tags.map((tag, index) => (
+                  <Badge key={index} variant="outline">
+                    {tag}
+                  </Badge>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </main>
 
