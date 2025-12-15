@@ -114,8 +114,6 @@ const AdminOrdersPage = () => {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editStatus, setEditStatus] = useState<OrderStatus>('pending');
-  const [editTrackingNumber, setEditTrackingNumber] = useState('');
-  const [editCarrier, setEditCarrier] = useState('');
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
 const [confirmation, setConfirmation] = useState<ConfirmationState>({
     open: false,
@@ -228,8 +226,6 @@ const [confirmation, setConfirmation] = useState<ConfirmationState>({
   const openEditDialog = (order: Order) => {
     setSelectedOrder(order);
     setEditStatus(order.status);
-    setEditTrackingNumber(order.tracking_number || '');
-    setEditCarrier(order.carrier || '');
     setEditDialogOpen(true);
   };
 
@@ -262,12 +258,8 @@ const [confirmation, setConfirmation] = useState<ConfirmationState>({
       });
       setEditDialogOpen(false);
     } else {
-      // No status change, just update tracking info
-      updateOrderMutation.mutate({
-        order_id: selectedOrder.id,
-        tracking_number: editTrackingNumber || undefined,
-        carrier: editCarrier || undefined,
-      });
+      // No status change, nothing to do
+      setEditDialogOpen(false);
     }
   };
 
@@ -277,8 +269,6 @@ const [confirmation, setConfirmation] = useState<ConfirmationState>({
     updateOrderMutation.mutate({
       order_id: confirmation.order.id,
       status: confirmation.newStatus,
-      tracking_number: editTrackingNumber || undefined,
-      carrier: editCarrier || undefined,
     });
   };
 
@@ -596,32 +586,6 @@ const quickStatusUpdate = (order: Order, newStatus: OrderStatus) => {
                   ))}
                 </SelectContent>
               </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Transporteur</Label>
-              <Select value={editCarrier} onValueChange={setEditCarrier}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Sélectionner un transporteur" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="colissimo">Colissimo</SelectItem>
-                  <SelectItem value="chronopost">Chronopost</SelectItem>
-                  <SelectItem value="dhl">DHL</SelectItem>
-                  <SelectItem value="ups">UPS</SelectItem>
-                  <SelectItem value="fedex">FedEx</SelectItem>
-                  <SelectItem value="mondial_relay">Mondial Relay</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Numéro de suivi</Label>
-              <Input
-                value={editTrackingNumber}
-                onChange={(e) => setEditTrackingNumber(e.target.value)}
-                placeholder="Ex: 1Z999AA10123456784"
-              />
             </div>
 
             {selectedOrder && (
