@@ -33,7 +33,7 @@ const CartPage = () => {
       const totalTTC = totalHT * 1.2;
       const orderNumber = `VB-${Date.now().toString(36).toUpperCase()}`;
 
-      // Create order
+      // Create order in Supabase
       const { data: order, error: orderError } = await supabase
         .from("orders")
         .insert({
@@ -48,7 +48,7 @@ const CartPage = () => {
 
       if (orderError) throw orderError;
 
-      // Create order items
+      // Create order items in Supabase
       const orderItems = items.map((item) => ({
         order_id: order.id,
         product_id: item.id,
@@ -66,10 +66,42 @@ const CartPage = () => {
 
       if (itemsError) throw itemsError;
 
+      // Send order to Shopify
+      const { data: shopifyResult, error: shopifyError } = await supabase.functions.invoke(
+        'create-shopify-order',
+        {
+          body: {
+            items: items.map(item => ({
+              variantId: item.variantId,
+              quantity: item.quantity,
+              title: item.title,
+              priceHT: item.priceHT,
+            })),
+            orderNumber,
+            customerEmail: user.email,
+          },
+        }
+      );
+
+      if (shopifyError) {
+        console.error('Shopify order error:', shopifyError);
+        // Continue even if Shopify fails - order is saved locally
+      } else if (shopifyResult?.success) {
+        console.log('Shopify order created:', shopifyResult);
+        // Update order with Shopify reference
+        await supabase
+          .from("orders")
+          .update({ 
+            notes: `Shopify: ${shopifyResult.shopifyOrderName || shopifyResult.shopifyOrderId}`,
+            status: "confirmed"
+          })
+          .eq("id", order.id);
+      }
+
       clearCart();
       toast({
         title: "Commande confirmée",
-        description: `Votre commande ${orderNumber} a été enregistrée.`,
+        description: `Votre commande ${orderNumber} a été enregistrée${shopifyResult?.success ? ' et envoyée à Shopify' : ''}.`,
       });
       navigate(`/suivi?order=${orderNumber}`);
     } catch (error) {
