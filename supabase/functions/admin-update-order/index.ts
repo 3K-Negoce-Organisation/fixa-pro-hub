@@ -292,6 +292,10 @@ serve(async (req) => {
       const draftOrderPayload = {
         draft_order: {
           line_items: lineItems,
+          // Email and phone at draft order level for "Contact information" section
+          email: customerEmail,
+          phone: profile?.phone || customerPhone,
+          // Customer object for linking to existing customer
           customer: customerEmail ? { 
             email: customerEmail,
             phone: profile?.phone || customerPhone,
