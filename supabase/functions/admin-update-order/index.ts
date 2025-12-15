@@ -182,14 +182,169 @@ serve(async (req) => {
 
     console.log('Admin verified:', user.email);
 
-    // Parse request body
-    const { order_id, status, tracking_number, carrier } = await req.json();
+// Parse request body
+    const { order_id, status, tracking_number, carrier, resend_to_shopify } = await req.json();
 
     if (!order_id) {
       return new Response(
         JSON.stringify({ error: 'order_id requis' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+
+    // Handle resend to Shopify
+    if (resend_to_shopify) {
+      console.log('Resending order to Shopify:', order_id);
+      
+      // Get order with items
+      const { data: order, error: orderError } = await supabaseAdmin
+        .from('orders')
+        .select('*')
+        .eq('id', order_id)
+        .single();
+
+      if (orderError || !order) {
+        return new Response(
+          JSON.stringify({ error: 'Commande non trouvée' }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const { data: orderItems, error: itemsError } = await supabaseAdmin
+        .from('order_items')
+        .select('*')
+        .eq('order_id', order_id);
+
+      if (itemsError) {
+        console.error('Error fetching order items:', itemsError);
+        return new Response(
+          JSON.stringify({ error: 'Erreur lors de la récupération des articles' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Get user email
+      const { data: userData } = await supabaseAdmin.auth.admin.getUserById(order.user_id);
+      const customerEmail = userData?.user?.email;
+
+      if (!shopifyDomain || !shopifyToken) {
+        return new Response(
+          JSON.stringify({ error: 'Configuration Shopify manquante' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Create draft order on Shopify
+      const lineItems = orderItems?.map((item: any) => ({
+        title: item.product_title,
+        variant_title: item.variant_title || undefined,
+        quantity: item.quantity,
+        price: item.unit_price_ttc.toString(),
+      })) || [];
+
+      const draftOrderPayload = {
+        draft_order: {
+          line_items: lineItems,
+          customer: customerEmail ? { email: customerEmail } : undefined,
+          shipping_address: order.shipping_address ? {
+            address1: order.shipping_address,
+            city: order.shipping_city,
+            zip: order.shipping_postal_code,
+            country: 'FR',
+          } : undefined,
+          note: `Renvoi - Commande originale: ${order.order_number}`,
+          use_customer_default_address: false,
+        }
+      };
+
+      try {
+        const draftRes = await fetch(
+          `https://${shopifyDomain}/admin/api/2024-01/draft_orders.json`,
+          {
+            method: 'POST',
+            headers: {
+              'X-Shopify-Access-Token': shopifyToken,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(draftOrderPayload),
+          }
+        );
+
+        if (!draftRes.ok) {
+          const errorText = await draftRes.text();
+          console.error('Failed to create draft order:', errorText);
+          return new Response(
+            JSON.stringify({ 
+              success: false, 
+              shopify_warning: 'Erreur lors de la création du brouillon Shopify' 
+            }),
+            { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        const draftData = await draftRes.json();
+        const draftOrderId = draftData.draft_order?.id;
+        console.log('Draft order created:', draftOrderId);
+
+        // Complete the draft order
+        const completeRes = await fetch(
+          `https://${shopifyDomain}/admin/api/2024-01/draft_orders/${draftOrderId}/complete.json`,
+          {
+            method: 'PUT',
+            headers: {
+              'X-Shopify-Access-Token': shopifyToken,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ payment_pending: false }),
+          }
+        );
+
+        if (!completeRes.ok) {
+          const errorText = await completeRes.text();
+          console.error('Failed to complete draft order:', errorText);
+          return new Response(
+            JSON.stringify({ 
+              success: true, 
+              shopify_warning: 'Brouillon créé mais non finalisé sur Shopify' 
+            }),
+            { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        const completeData = await completeRes.json();
+        const newShopifyOrderId = completeData.draft_order?.order_id;
+        console.log('Draft order completed, new order ID:', newShopifyOrderId);
+
+        // Update local order with new Shopify order ID
+        if (newShopifyOrderId) {
+          await supabaseAdmin
+            .from('orders')
+            .update({ 
+              shopify_order_id: newShopifyOrderId.toString(),
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', order_id);
+        }
+
+        return new Response(
+          JSON.stringify({ 
+            success: true, 
+            message: 'Commande renvoyée à Shopify avec succès',
+            shopify_order_id: newShopifyOrderId,
+          }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+
+      } catch (error) {
+        console.error('Shopify resend error:', error);
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            shopify_warning: 'Erreur de connexion à Shopify' 
+          }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
     }
 
     // Get current order to check shopify_order_id
