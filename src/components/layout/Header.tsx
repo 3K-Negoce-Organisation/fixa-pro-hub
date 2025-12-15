@@ -1,33 +1,54 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Search, ShoppingCart, User, Menu, Package, Phone, LogOut } from "lucide-react";
+import { Search, ShoppingCart, User, Menu, Package, Phone, LogOut, Settings } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/contexts/CartContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+
 export function Header() {
   const [searchQuery, setSearchQuery] = useState("");
   const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const navigate = useNavigate();
   const {
     totalItems
   } = useCart();
+
   useEffect(() => {
+    const checkAdmin = async (userId: string | undefined) => {
+      if (!userId) {
+        setIsAdmin(false);
+        return;
+      }
+      const { data } = await supabase
+        .from('user_roles' as any)
+        .select('role')
+        .eq('user_id', userId)
+        .eq('role', 'admin')
+        .single();
+      setIsAdmin(!!data);
+    };
+
     const {
       data: {
         subscription
       }
     } = supabase.auth.onAuthStateChange((event, session) => {
       setUserEmail(session?.user?.email ?? null);
+      checkAdmin(session?.user?.id);
     });
+
     supabase.auth.getSession().then(({
       data: {
         session
       }
     }) => {
       setUserEmail(session?.user?.email ?? null);
+      checkAdmin(session?.user?.id);
     });
+
     return () => subscription.unsubscribe();
   }, []);
   const handleLogout = async () => {
@@ -67,6 +88,13 @@ export function Header() {
               <User className="h-4 w-4" />
               <span className="hidden md:inline">{userEmail || "Compte"}</span>
             </Link>
+
+            {isAdmin && (
+              <Link to="/admin/commandes" className="flex items-center gap-1.5 px-2 py-1 text-sm text-accent hover:underline">
+                <Settings className="h-4 w-4" />
+                <span className="hidden md:inline">Admin</span>
+              </Link>
+            )}
 
             {userEmail && <button onClick={handleLogout} className="flex items-center gap-1.5 px-2 py-1 text-sm text-primary-foreground hover:underline">
                 <LogOut className="h-4 w-4" />
