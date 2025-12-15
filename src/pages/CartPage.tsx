@@ -1,14 +1,88 @@
-import { Link } from "react-router-dom";
-import { Trash2, Plus, Minus, ShoppingBag, ArrowLeft } from "lucide-react";
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { Trash2, Plus, Minus, ShoppingBag, ArrowLeft, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { useCart } from "@/contexts/CartContext";
 import { formatPriceHT, formatPriceTTC } from "@/lib/shopify";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 const CartPage = () => {
   const { items, removeItem, updateQuantity, clearCart, totalHT } = useCart();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { toast } = useToast();
+  const navigate = useNavigate();
+
+  const handleOrder = async () => {
+    setIsSubmitting(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast({
+          title: "Erreur",
+          description: "Vous devez être connecté pour passer commande.",
+          variant: "destructive",
+        });
+        navigate("/auth");
+        return;
+      }
+
+      const totalTTC = totalHT * 1.2;
+      const orderNumber = `VB-${Date.now().toString(36).toUpperCase()}`;
+
+      // Create order
+      const { data: order, error: orderError } = await supabase
+        .from("orders")
+        .insert({
+          user_id: user.id,
+          order_number: orderNumber,
+          total_ht: totalHT,
+          total_ttc: totalTTC,
+          status: "pending",
+        })
+        .select()
+        .single();
+
+      if (orderError) throw orderError;
+
+      // Create order items
+      const orderItems = items.map((item) => ({
+        order_id: order.id,
+        product_id: item.id,
+        product_title: item.title,
+        variant_title: item.variantTitle,
+        product_image: item.image,
+        quantity: item.quantity,
+        unit_price_ht: item.priceHT,
+        unit_price_ttc: item.priceHT * 1.2,
+      }));
+
+      const { error: itemsError } = await supabase
+        .from("order_items")
+        .insert(orderItems);
+
+      if (itemsError) throw itemsError;
+
+      clearCart();
+      toast({
+        title: "Commande confirmée",
+        description: `Votre commande ${orderNumber} a été enregistrée.`,
+      });
+      navigate(`/suivi?order=${orderNumber}`);
+    } catch (error) {
+      console.error("Order error:", error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de créer la commande. Veuillez réessayer.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   if (items.length === 0) {
     return (
@@ -180,8 +254,20 @@ const CartPage = () => {
                   </p>
                 )}
 
-                <Button className="w-full btn-cart" size="lg">
-                  Commander
+                <Button 
+                  className="w-full btn-cart" 
+                  size="lg"
+                  onClick={handleOrder}
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Traitement...
+                    </>
+                  ) : (
+                    "Commander"
+                  )}
                 </Button>
 
                 <Button variant="outline" className="w-full" asChild>
