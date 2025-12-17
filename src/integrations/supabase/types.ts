@@ -115,6 +115,60 @@ export type Database = {
         }
         Relationships: []
       }
+      products: {
+        Row: {
+          category: string | null
+          created_at: string | null
+          description: string | null
+          handle: string
+          id: string
+          images: Json | null
+          is_active: boolean | null
+          price_ht: number
+          price_ttc: number
+          specifications: Json | null
+          stock: number | null
+          tags: string[] | null
+          title: string
+          updated_at: string | null
+          variants: Json | null
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string | null
+          description?: string | null
+          handle: string
+          id?: string
+          images?: Json | null
+          is_active?: boolean | null
+          price_ht: number
+          price_ttc: number
+          specifications?: Json | null
+          stock?: number | null
+          tags?: string[] | null
+          title: string
+          updated_at?: string | null
+          variants?: Json | null
+        }
+        Update: {
+          category?: string | null
+          created_at?: string | null
+          description?: string | null
+          handle?: string
+          id?: string
+          images?: Json | null
+          is_active?: boolean | null
+          price_ht?: number
+          price_ttc?: number
+          specifications?: Json | null
+          stock?: number | null
+          tags?: string[] | null
+          title?: string
+          updated_at?: string | null
+          variants?: Json | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           billing_address: string | null
