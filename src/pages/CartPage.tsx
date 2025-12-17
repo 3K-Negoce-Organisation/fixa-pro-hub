@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { useCart } from "@/contexts/CartContext";
-import { formatPriceHT, formatPriceTTC } from "@/lib/shopify";
+import { formatPriceHT, formatPrice, calculateTTC } from "@/lib/products";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -15,6 +15,8 @@ const CartPage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  const totalTTC = calculateTTC(totalHT);
 
   const handleCheckout = async () => {
     setIsSubmitting(true);
@@ -30,21 +32,15 @@ const CartPage = () => {
         return;
       }
 
-      // Create Shopify checkout
+      // Create Stripe checkout session
       const { data: checkoutResult, error: checkoutError } = await supabase.functions.invoke(
-        'create-shopify-checkout',
+        'create-stripe-checkout',
         {
-          body: {
-            items: items.map(item => ({
-              variantId: item.variantId,
-              quantity: item.quantity,
-            })),
-            customerEmail: user.email,
-          },
+          body: { items },
         }
       );
 
-      if (checkoutError || !checkoutResult?.success) {
+      if (checkoutError || !checkoutResult?.url) {
         console.error('Checkout error:', checkoutError || checkoutResult?.error);
         toast({
           title: "Erreur",
@@ -54,8 +50,8 @@ const CartPage = () => {
         return;
       }
 
-      // Redirect to Shopify checkout in same window
-      window.location.href = checkoutResult.checkoutUrl;
+      // Redirect to Stripe checkout in same window
+      window.location.href = checkoutResult.url;
     } catch (error) {
       console.error("Checkout error:", error);
       toast({
@@ -130,7 +126,7 @@ const CartPage = () => {
                       {item.variantTitle}
                     </p>
                     <p className="text-sm font-semibold mt-1">
-                      {formatPriceTTC(item.priceHT)}
+                      {formatPrice(calculateTTC(item.priceHT))}
                     </p>
                   </div>
 
@@ -181,7 +177,7 @@ const CartPage = () => {
                     </div>
 
                     <p className="text-sm font-bold">
-                      {formatPriceTTC(item.priceHT * item.quantity)}
+                      {formatPrice(calculateTTC(item.priceHT * item.quantity))}
                     </p>
                   </div>
                 </div>
@@ -206,7 +202,7 @@ const CartPage = () => {
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Sous-total TTC</span>
-                    <span className="font-medium">{formatPriceTTC(totalHT)}</span>
+                    <span className="font-medium">{formatPrice(totalTTC)}</span>
                   </div>
                   <div className="flex justify-between text-muted-foreground">
                     <span>dont TVA (20%)</span>
@@ -215,7 +211,7 @@ const CartPage = () => {
                   <div className="flex justify-between text-muted-foreground">
                     <span>Livraison</span>
                     <span>
-                      {totalHT * 1.2 >= 180 ? "Gratuite" : "Calculée à l'étape suivante"}
+                      {totalTTC >= 180 ? "Gratuite" : "Calculée à l'étape suivante"}
                     </span>
                   </div>
                 </div>
@@ -224,7 +220,7 @@ const CartPage = () => {
                   <div className="flex justify-between items-baseline">
                     <span className="font-bold">Total TTC</span>
                     <span className="text-xl font-bold text-primary">
-                      {formatPriceTTC(totalHT)}
+                      {formatPrice(totalTTC)}
                     </span>
                   </div>
                   <p className="text-xs text-muted-foreground text-right">
@@ -232,9 +228,9 @@ const CartPage = () => {
                   </p>
                 </div>
 
-                {totalHT * 1.2 < 180 && (
+                {totalTTC < 180 && (
                   <p className="text-xs text-muted-foreground text-center">
-                    Plus que {formatPriceTTC((180 / 1.2) - totalHT)} pour la livraison
+                    Plus que {formatPrice(180 - totalTTC)} pour la livraison
                     gratuite !
                   </p>
                 )}

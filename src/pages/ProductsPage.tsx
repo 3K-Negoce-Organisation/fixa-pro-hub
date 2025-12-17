@@ -15,15 +15,7 @@ import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { ProductFilters } from "@/components/products/ProductFilters";
 import { ProductGrid } from "@/components/products/ProductGrid";
-import { shopifyFetch, PRODUCTS_QUERY, ShopifyProduct } from "@/lib/shopify";
-
-interface ShopifyProductsResponse {
-  products: {
-    edges: Array<{
-      node: ShopifyProduct;
-    }>;
-  };
-}
+import { fetchProducts, getProductImage, parseVariants, type Product } from "@/lib/products";
 
 const ProductsPage = () => {
   const [searchParams] = useSearchParams();
@@ -40,69 +32,62 @@ const ProductsPage = () => {
   const [sortBy, setSortBy] = useState("relevance");
   const [showFilters, setShowFilters] = useState(true);
 
-  // Fetch products from Shopify
-  const { data, isLoading, error } = useQuery({
+  // Fetch products from Supabase
+  const { data: products = [], isLoading } = useQuery({
     queryKey: ["products", query],
-    queryFn: async () => {
-      const searchQuery = query ? `title:*${query}*` : undefined;
-      return shopifyFetch<ShopifyProductsResponse>(PRODUCTS_QUERY, {
-        first: 50,
-        query: searchQuery,
-      });
-    },
+    queryFn: () => fetchProducts(query || undefined),
   });
 
-  // Transform Shopify products to display format
-  const shopifyProducts = useMemo(() => {
-    if (!data?.products?.edges) return [];
-    
-    return data.products.edges.map(({ node }) => {
-      const price = parseFloat(node.priceRange.minVariantPrice.amount);
-      const image = node.images.edges[0]?.node.url || "/placeholder.svg";
-      const variant = node.variants.edges[0]?.node;
+  // Transform Supabase products to display format
+  const displayProducts = useMemo(() => {
+    return products.map((product: Product) => {
+      const variants = parseVariants(product);
+      const firstVariant = variants[0];
+      const image = getProductImage(product);
+      const tags = product.tags || [];
       
       return {
-        id: node.id,
-        variantId: variant?.id || node.id,
-        handle: node.handle,
-        title: node.title,
-        priceHT: price,
+        id: product.id,
+        variantId: firstVariant?.id || product.id,
+        handle: product.handle,
+        title: product.title,
+        priceHT: product.price_ht,
         image,
-        category: node.productType || "general",
+        category: product.category || "general",
         specs: {
-          diameter: node.tags.find(t => t.includes("mm") && !t.includes("x"))?.replace("mm", "") || "",
-          length: node.tags.find(t => t.includes("x"))?.split("x")[1] || "",
-          driveType: node.tags.find(t => ["Torx", "Pozidriv", "Phillips"].some(d => t.includes(d))) || "",
-          material: node.tags.find(t => ["Inox", "Acier", "Zingué"].some(m => t.includes(m))) || "",
-          headType: node.tags.find(t => ["Fraisée", "Plate", "Ronde"].some(h => t.includes(h))) || "",
+          diameter: tags.find((t: string) => t.includes("mm") && !t.includes("x"))?.replace("mm", "") || "",
+          length: tags.find((t: string) => t.includes("x"))?.split("x")[1] || "",
+          driveType: tags.find((t: string) => ["Torx", "Pozidriv", "Phillips"].some(d => t.includes(d))) || "",
+          material: tags.find((t: string) => ["Inox", "Acier", "Zingué"].some(m => t.includes(m))) || "",
+          headType: tags.find((t: string) => ["Fraisée", "Plate", "Ronde"].some(h => t.includes(h))) || "",
         },
-        stock: variant?.quantityAvailable ?? 0,
-        inStock: variant?.availableForSale ?? false,
-        tags: node.tags,
+        stock: product.stock ?? 0,
+        inStock: (product.stock ?? 0) > 0,
+        tags,
       };
     });
-  }, [data]);
+  }, [products]);
 
   // Filter products
   const filteredProducts = useMemo(() => {
-    let products = shopifyProducts;
+    let result = displayProducts;
 
     // Filter by category
     if (category) {
-      products = products.filter((p) =>
+      result = result.filter((p) =>
         p.category.toLowerCase().includes(category.toLowerCase()) ||
-        p.tags.some(t => t.toLowerCase().includes(category.toLowerCase()))
+        p.tags.some((t: string) => t.toLowerCase().includes(category.toLowerCase()))
       );
     }
 
     // Apply filters
     Object.entries(filters).forEach(([key, values]) => {
       if (values.length > 0) {
-        products = products.filter((product) => {
+        result = result.filter((product) => {
           const specValue = product.specs[key as keyof typeof product.specs];
           return values.some((v) =>
             specValue?.toLowerCase().includes(v.toLowerCase()) ||
-            product.tags.some(t => t.toLowerCase().includes(v.toLowerCase()))
+            product.tags.some((t: string) => t.toLowerCase().includes(v.toLowerCase()))
           );
         });
       }
@@ -111,18 +96,18 @@ const ProductsPage = () => {
     // Sort products
     switch (sortBy) {
       case "price-asc":
-        products = [...products].sort((a, b) => a.priceHT - b.priceHT);
+        result = [...result].sort((a, b) => a.priceHT - b.priceHT);
         break;
       case "price-desc":
-        products = [...products].sort((a, b) => b.priceHT - a.priceHT);
+        result = [...result].sort((a, b) => b.priceHT - a.priceHT);
         break;
       case "name":
-        products = [...products].sort((a, b) => a.title.localeCompare(b.title));
+        result = [...result].sort((a, b) => a.title.localeCompare(b.title));
         break;
     }
 
-    return products;
-  }, [shopifyProducts, category, filters, sortBy]);
+    return result;
+  }, [displayProducts, category, filters, sortBy]);
 
   const handleFilterChange = (key: string, values: string[]) => {
     setFilters((prev) => ({ ...prev, [key]: values }));
