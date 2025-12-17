@@ -90,10 +90,16 @@ export function Header() {
             </Link>
 
             {isAdmin && (
-              <Link to="/admin/commandes" className="flex items-center gap-1.5 px-2 py-1 text-sm text-accent hover:underline">
-                <Settings className="h-4 w-4" />
-                <span className="hidden md:inline">Admin</span>
-              </Link>
+              <>
+                <Link to="/admin/commandes" className="flex items-center gap-1.5 px-2 py-1 text-sm text-accent hover:underline">
+                  <Settings className="h-4 w-4" />
+                  <span className="hidden md:inline">Commandes</span>
+                </Link>
+                <Link to="/admin/produits" className="flex items-center gap-1.5 px-2 py-1 text-sm text-accent hover:underline">
+                  <Package className="h-4 w-4" />
+                  <span className="hidden md:inline">Produits</span>
+                </Link>
+              </>
             )}
 
             {userEmail && <button onClick={handleLogout} className="flex items-center gap-1.5 px-2 py-1 text-sm text-primary-foreground hover:underline">
