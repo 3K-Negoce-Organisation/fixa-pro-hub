@@ -46,9 +46,14 @@ import {
   Search,
   Loader2
 } from "lucide-react";
+import { ProductImageUpload } from "@/components/admin/ProductImageUpload";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Product = Tables<"products">;
+
+interface ProductImage {
+  url: string;
+}
 
 interface ProductFormData {
   title: string;
@@ -60,7 +65,7 @@ interface ProductFormData {
   stock: number;
   is_active: boolean;
   tags: string;
-  images: string;
+  images: ProductImage[];
 }
 
 const emptyFormData: ProductFormData = {
@@ -73,7 +78,7 @@ const emptyFormData: ProductFormData = {
   stock: 0,
   is_active: true,
   tags: "",
-  images: "",
+  images: [],
 };
 
 const AdminProductsPage = () => {
@@ -145,7 +150,7 @@ const AdminProductsPage = () => {
           stock: data.stock,
           is_active: data.is_active,
           tags: data.tags ? data.tags.split(',').map(t => t.trim()) : [],
-          images: data.images ? JSON.parse(data.images) : [],
+          images: JSON.parse(JSON.stringify(data.images)),
         });
       
       if (error) throw error;
@@ -176,7 +181,7 @@ const AdminProductsPage = () => {
           stock: data.stock,
           is_active: data.is_active,
           tags: data.tags ? data.tags.split(',').map(t => t.trim()) : [],
-          images: data.images ? JSON.parse(data.images) : [],
+          images: JSON.parse(JSON.stringify(data.images)),
         })
         .eq('id', id);
       
@@ -226,6 +231,15 @@ const AdminProductsPage = () => {
 
   const openEditDialog = (product: Product) => {
     setEditingProduct(product);
+    let productImages: ProductImage[] = [];
+    if (Array.isArray(product.images)) {
+      productImages = product.images.map((img: unknown) => {
+        if (typeof img === 'object' && img !== null && 'url' in img) {
+          return { url: String((img as { url: unknown }).url) };
+        }
+        return { url: '' };
+      }).filter(img => img.url);
+    }
     setFormData({
       title: product.title,
       handle: product.handle,
@@ -236,7 +250,7 @@ const AdminProductsPage = () => {
       stock: product.stock || 0,
       is_active: product.is_active ?? true,
       tags: product.tags?.join(', ') || "",
-      images: product.images ? JSON.stringify(product.images) : "[]",
+      images: productImages,
     });
     setDialogOpen(true);
   };
@@ -524,13 +538,10 @@ const AdminProductsPage = () => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="images">Images (JSON array)</Label>
-              <Textarea
-                id="images"
-                value={formData.images}
-                onChange={(e) => setFormData({ ...formData, images: e.target.value })}
-                placeholder='[{"url": "https://..."}]'
-                rows={2}
+              <Label>Images du produit</Label>
+              <ProductImageUpload
+                images={formData.images}
+                onImagesChange={(images) => setFormData({ ...formData, images })}
               />
             </div>
 
