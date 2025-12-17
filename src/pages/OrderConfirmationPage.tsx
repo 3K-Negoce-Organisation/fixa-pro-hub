@@ -8,12 +8,15 @@ import { useCart } from "@/contexts/CartContext";
 
 const OrderConfirmationPage = () => {
   const [searchParams] = useSearchParams();
+  const sessionId = searchParams.get("session_id");
   const { clearCart } = useCart();
 
-  // Clear cart on successful checkout return
+  // Clear cart on successful payment
   useEffect(() => {
-    clearCart();
-  }, [clearCart]);
+    if (sessionId) {
+      clearCart();
+    }
+  }, [sessionId, clearCart]);
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -28,8 +31,14 @@ const OrderConfirmationPage = () => {
           <h1 className="text-3xl font-bold">Commande confirmée !</h1>
 
           <p className="text-muted-foreground">
-            Merci pour votre commande. Vous recevrez un email de confirmation de Shopify avec les détails de votre achat.
+            Merci pour votre commande. Vous recevrez un email de confirmation avec les détails de votre achat.
           </p>
+
+          {sessionId && (
+            <p className="text-sm text-muted-foreground">
+              Référence de paiement : <code className="bg-muted px-2 py-1 rounded">{sessionId.slice(0, 20)}...</code>
+            </p>
+          )}
 
           <div className="bg-card border border-border rounded-lg p-6 space-y-4">
             <div className="flex items-center justify-center gap-2 text-muted-foreground">
@@ -38,21 +47,21 @@ const OrderConfirmationPage = () => {
             </div>
 
             <p className="text-sm text-muted-foreground">
-              Vous pouvez suivre l'état de votre commande depuis votre espace client ou via le lien dans l'email de confirmation.
+              Livraison estimée : 24-48h. Vous recevrez un email avec le numéro de suivi dès l'expédition.
             </p>
           </div>
 
           <div className="flex flex-col sm:flex-row gap-3 justify-center pt-4">
             <Button asChild>
-              <Link to="/produits">
-                Continuer mes achats
+              <Link to="/suivi">
+                Suivre ma commande
                 <ArrowRight className="h-4 w-4 ml-2" />
               </Link>
             </Button>
 
             <Button variant="outline" asChild>
-              <Link to="/compte">
-                Mon compte
+              <Link to="/produits">
+                Continuer mes achats
               </Link>
             </Button>
           </div>

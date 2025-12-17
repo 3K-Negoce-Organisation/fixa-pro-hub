@@ -5,12 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableRow,
-} from "@/components/ui/table";
-import {
   Select,
   SelectContent,
   SelectItem,
@@ -19,75 +13,27 @@ import {
 } from "@/components/ui/select";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
-import { shopifyFetch, PRODUCT_BY_HANDLE_QUERY, formatPriceHT, formatPriceTTC } from "@/lib/shopify";
+import { fetchProductByHandle, getProductImage, parseVariants, formatPriceHT, formatPrice, type ProductVariant } from "@/lib/products";
 import { toast } from "sonner";
 import { useCart } from "@/contexts/CartContext";
 import { useQuery } from "@tanstack/react-query";
-
-interface ShopifyProductDetail {
-  productByHandle: {
-    id: string;
-    title: string;
-    handle: string;
-    description: string;
-    descriptionHtml: string;
-    productType: string;
-    tags: string[];
-    priceRange: {
-      minVariantPrice: {
-        amount: string;
-        currencyCode: string;
-      };
-    };
-    images: {
-      edges: Array<{
-        node: {
-          url: string;
-          altText: string | null;
-        };
-      }>;
-    };
-    variants: {
-      edges: Array<{
-        node: {
-          id: string;
-          title: string;
-          price: {
-            amount: string;
-            currencyCode: string;
-          };
-          availableForSale: boolean;
-          quantityAvailable: number;
-        };
-      }>;
-    };
-  } | null;
-}
 
 const ProductDetailPage = () => {
   const { handle } = useParams<{ handle: string }>();
   const { addItem } = useCart();
   const [quantity, setQuantity] = useState(1);
+  const [selectedVariantId, setSelectedVariantId] = useState<string>("");
 
-  const { data, isLoading, error } = useQuery({
+  const { data: product, isLoading, error } = useQuery({
     queryKey: ["product", handle],
-    queryFn: () => shopifyFetch<ShopifyProductDetail>(PRODUCT_BY_HANDLE_QUERY, { handle }),
+    queryFn: () => fetchProductByHandle(handle!),
     enabled: !!handle,
   });
 
-  const product = data?.productByHandle;
-  const [selectedVariantId, setSelectedVariantId] = useState<string>("");
-
-  // Set default variant when product loads
-  const variants = product?.variants.edges.map(e => ({
-    id: e.node.id,
-    title: e.node.title,
-    priceHT: parseFloat(e.node.price.amount),
-    available: e.node.availableForSale,
-    quantity: e.node.quantityAvailable,
-  })) || [];
-
+  // Parse variants from product
+  const variants: ProductVariant[] = product ? parseVariants(product) : [];
   const currentVariant = variants.find(v => v.id === selectedVariantId) || variants[0];
+  const productImage = product ? getProductImage(product) : "/placeholder.svg";
 
   if (isLoading) {
     return (
@@ -119,8 +65,6 @@ const ProductDetailPage = () => {
     );
   }
 
-  const productImage = product.images.edges[0]?.node.url || "/placeholder.svg";
-
   const handleAddToCart = () => {
     if (!currentVariant) return;
     addItem(
@@ -130,7 +74,7 @@ const ProductDetailPage = () => {
         handle: product.handle,
         title: product.title,
         variantTitle: currentVariant.title,
-        priceHT: currentVariant.priceHT,
+        priceHT: currentVariant.price_ht,
         image: productImage,
       },
       quantity
@@ -139,6 +83,8 @@ const ProductDetailPage = () => {
       description: `${product.title} - ${currentVariant.title} (x${quantity})`,
     });
   };
+
+  const tags = product.tags || [];
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -156,13 +102,13 @@ const ProductDetailPage = () => {
               Produits
             </Link>
             <ChevronRight className="h-4 w-4" />
-            {product.productType && (
+            {product.category && (
               <>
                 <Link
-                  to={`/produits?cat=${product.productType.toLowerCase().replace(" ", "-")}`}
+                  to={`/produits?cat=${product.category.toLowerCase().replace(" ", "-")}`}
                   className="hover:text-foreground"
                 >
-                  {product.productType}
+                  {product.category}
                 </Link>
                 <ChevronRight className="h-4 w-4" />
               </>
@@ -181,12 +127,12 @@ const ProductDetailPage = () => {
                 />
               </div>
               
-              {/* Technical specifications from tags - moved below image */}
-              {product.tags.length > 0 && (
+              {/* Technical specifications from tags */}
+              {tags.length > 0 && (
                 <div>
                   <h2 className="text-sm font-semibold mb-2">Caractéristiques</h2>
                   <div className="flex flex-wrap gap-1.5">
-                    {product.tags.map((tag, index) => (
+                    {tags.map((tag: string, index: number) => (
                       <Badge key={index} variant="outline" className="text-xs">
                         {tag}
                       </Badge>
@@ -200,18 +146,19 @@ const ProductDetailPage = () => {
             <div className="space-y-4">
               {/* Title & Badge */}
               <div>
-                {product.productType && (
+                {product.category && (
                   <Badge variant="secondary" className="mb-1">
-                    {product.productType}
+                    {product.category}
                   </Badge>
                 )}
                 <h1 className="text-xl font-bold text-foreground mb-1">
                   {product.title}
                 </h1>
-                <div 
-                  className="text-muted-foreground text-sm leading-tight [&_p]:mb-1 [&_ul]:mb-1 [&_li]:mb-0"
-                  dangerouslySetInnerHTML={{ __html: product.descriptionHtml || product.description }}
-                />
+                {product.description && (
+                  <p className="text-muted-foreground text-sm leading-tight">
+                    {product.description}
+                  </p>
+                )}
               </div>
 
               {/* Stock Status */}
@@ -247,7 +194,7 @@ const ProductDetailPage = () => {
                     <SelectContent>
                       {variants.map((variant) => (
                         <SelectItem key={variant.id} value={variant.id}>
-                          {variant.title} - {formatPriceTTC(variant.priceHT)}
+                          {variant.title} - {formatPrice(variant.price_ttc)}
                           {!variant.available && " (Rupture)"}
                         </SelectItem>
                       ))}
@@ -261,11 +208,11 @@ const ProductDetailPage = () => {
                 <div className="bg-secondary p-3 rounded-lg">
                   <div className="flex items-baseline gap-2 mb-0.5">
                     <span className="text-2xl font-bold text-foreground">
-                      {formatPriceTTC(currentVariant.priceHT)}
+                      {formatPrice(currentVariant.price_ttc)}
                     </span>
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    {formatPriceHT(currentVariant.priceHT)} HT
+                    {formatPriceHT(currentVariant.price_ht)} HT
                   </p>
                 </div>
               )}
