@@ -54,21 +54,8 @@ const CartPage = () => {
         return;
       }
 
-      // Redirect to Shopify checkout
-      const url: string = checkoutResult.checkoutUrl;
-
-      // Shopify blocks being embedded in an iframe ("n'autorise pas la connexion").
-      // In preview (iframe), open checkout in a new tab.
-      if (window.self !== window.top) {
-        window.open(url, "_blank", "noopener,noreferrer");
-        toast({
-          title: "Checkout ouvert",
-          description: "Le paiement s'ouvre dans un nouvel onglet.",
-        });
-        return;
-      }
-
-      window.location.href = url;
+      // Redirect to Shopify checkout in same window
+      window.location.href = checkoutResult.checkoutUrl;
     } catch (error) {
       console.error("Checkout error:", error);
       toast({
