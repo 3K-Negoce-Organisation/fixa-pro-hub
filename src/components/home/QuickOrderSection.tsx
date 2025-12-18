@@ -2,33 +2,21 @@ import { Link } from "react-router-dom";
 import { Clock, ArrowRight } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { shopifyFetch, PRODUCTS_QUERY, ShopifyProduct, formatPriceTTC } from "@/lib/shopify";
-
-interface ShopifyProductsResponse {
-  products: {
-    edges: Array<{
-      node: ShopifyProduct;
-    }>;
-  };
-}
+import { fetchProducts, getProductImage, formatPrice } from "@/lib/products";
 
 export function QuickOrderSection() {
-  const { data, isLoading } = useQuery({
+  const { data: products, isLoading } = useQuery({
     queryKey: ["quick-order-products"],
-    queryFn: async () => {
-      return shopifyFetch<ShopifyProductsResponse>(PRODUCTS_QUERY, {
-        first: 4,
-      });
-    },
+    queryFn: () => fetchProducts(),
   });
 
-  const recentProducts = data?.products?.edges?.map(({ node }) => ({
-    id: node.id,
-    handle: node.handle,
-    title: node.title,
-    priceHT: parseFloat(node.priceRange.minVariantPrice.amount),
-    image: node.images.edges[0]?.node.url || "/placeholder.svg",
-  })) || [];
+  const recentProducts = (products?.slice(0, 4) || []).map((product) => ({
+    id: product.id,
+    handle: product.handle,
+    title: product.title,
+    priceTTC: product.price_ttc,
+    image: getProductImage(product),
+  }));
 
   if (isLoading) {
     return (
@@ -88,7 +76,7 @@ export function QuickOrderSection() {
                 {product.title.split(" - ")[0]}
               </Link>
               <p className="text-xs text-muted-foreground">
-                {formatPriceTTC(product.priceHT)}
+                {formatPrice(product.priceTTC)}
               </p>
             </div>
             <Button size="sm" variant="outline" className="shrink-0">

@@ -3,52 +3,42 @@ import { ArrowRight, TrendingUp } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { ProductCard, DisplayProduct } from "@/components/products/ProductCard";
-import { shopifyFetch, PRODUCTS_QUERY, ShopifyProduct } from "@/lib/shopify";
+import { fetchProducts, getProductImage, Product } from "@/lib/products";
 import { toast } from "sonner";
 
-interface ShopifyProductsResponse {
-  products: {
-    edges: Array<{
-      node: ShopifyProduct;
-    }>;
+function mapProductToDisplay(product: Product): DisplayProduct {
+  const specs = product.specifications as Record<string, string> | null;
+  const tags = product.tags || [];
+  
+  return {
+    id: product.id,
+    variantId: product.id,
+    handle: product.handle,
+    title: product.title,
+    priceHT: product.price_ht,
+    priceTTC: product.price_ttc,
+    image: getProductImage(product),
+    category: product.category || "",
+    specs: {
+      diameter: specs?.diameter || "",
+      length: specs?.length || "",
+      driveType: specs?.driveType || "",
+      material: specs?.material || "",
+      headType: specs?.headType || "",
+    },
+    stock: product.stock ?? 0,
+    inStock: (product.stock ?? 0) > 0,
+    tags,
   };
 }
 
 export function FeaturedProducts() {
-  const { data, isLoading } = useQuery({
+  const { data: products, isLoading } = useQuery({
     queryKey: ["featured-products"],
-    queryFn: async () => {
-      return shopifyFetch<ShopifyProductsResponse>(PRODUCTS_QUERY, {
-        first: 4,
-      });
-    },
+    queryFn: () => fetchProducts(),
   });
 
-  const featuredProducts: DisplayProduct[] = data?.products?.edges?.map(({ node }) => {
-    const price = parseFloat(node.priceRange.minVariantPrice.amount);
-    const image = node.images.edges[0]?.node.url || "/placeholder.svg";
-    const variant = node.variants.edges[0]?.node;
-    
-    return {
-      id: node.id,
-      variantId: variant?.id || node.id,
-      handle: node.handle,
-      title: node.title,
-      priceHT: price,
-      image,
-      category: node.productType || "",
-      specs: {
-        diameter: node.tags.find(t => t.includes("mm") && !t.includes("x"))?.replace("mm", "") || "",
-        length: node.tags.find(t => t.includes("x"))?.split("x")[1] || "",
-        driveType: node.tags.find(t => ["Torx", "Pozidriv", "Phillips"].some(d => t.includes(d))) || "",
-        material: node.tags.find(t => ["Inox", "Acier", "Zingué"].some(m => t.includes(m))) || "",
-        headType: node.tags.find(t => ["Fraisée", "Plate", "Ronde"].some(h => t.includes(h))) || "",
-      },
-      stock: variant?.quantityAvailable ?? 0,
-      inStock: variant?.availableForSale ?? false,
-      tags: node.tags,
-    };
-  }) || [];
+  const featuredProducts: DisplayProduct[] = (products?.slice(0, 4) || []).map(mapProductToDisplay);
 
   const handleAddToCart = (productId: string) => {
     const product = featuredProducts.find((p) => p.id === productId);
