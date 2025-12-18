@@ -54,7 +54,7 @@ export async function fetchProductByHandle(handle: string) {
 
 // Parse variants from JSON field
 export function parseVariants(product: Product): ProductVariant[] {
-  if (!product.variants || !Array.isArray(product.variants)) {
+  if (!product.variants || !Array.isArray(product.variants) || product.variants.length === 0) {
     // Default variant from main product
     return [{
       id: product.id,
