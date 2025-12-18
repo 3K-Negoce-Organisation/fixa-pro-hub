@@ -26,7 +26,6 @@ const ProductsPage = () => {
     diameter: [],
     length: [],
     material: [],
-    driveType: [],
   });
   const [sortBy, setSortBy] = useState("relevance");
   const [showFilters, setShowFilters] = useState(true);
@@ -42,13 +41,11 @@ const ProductsPage = () => {
     const diameters = new Set<string>();
     const lengths = new Set<string>();
     const materials = new Set<string>();
-    const driveTypes = new Set<string>();
 
     products.forEach((product: Product) => {
       if (product.diameter_mm) diameters.add(String(product.diameter_mm));
       if (product.length_mm) lengths.add(String(product.length_mm));
       if (product.material) materials.add(product.material.trim());
-      if (product.drive_type) driveTypes.add(product.drive_type.trim());
     });
 
     // Sort numerically for diameter and length
@@ -58,7 +55,6 @@ const ProductsPage = () => {
       diameter: Array.from(diameters).sort(sortNumeric),
       length: Array.from(lengths).sort(sortNumeric),
       material: Array.from(materials).sort(),
-      driveType: Array.from(driveTypes).sort(),
     };
   }, [products]);
 
@@ -110,8 +106,6 @@ const ProductsPage = () => {
               return values.some(v => String(product.length_mm) === v);
             case 'material':
               return values.some(v => product.material?.toLowerCase().includes(v.toLowerCase()));
-            case 'driveType':
-              return values.some(v => product.drive_type?.toLowerCase().includes(v.toLowerCase()));
             default:
               return true;
           }
@@ -144,7 +138,6 @@ const ProductsPage = () => {
       diameter: [],
       length: [],
       material: [],
-      driveType: [],
     });
   };
 
