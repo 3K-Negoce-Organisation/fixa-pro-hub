@@ -35,12 +35,14 @@ export function ProductCard({ product, onAddToCart }: ProductCardProps) {
   return (
     <div className="product-card group flex flex-col h-full">
       {/* Image */}
-      <Link to={`/produit/${product.handle}`} className="relative block w-32 h-32 mx-auto bg-muted p-2">
-        <img
-          src={product.image}
-          alt={product.title}
-          className="w-full h-full object-contain"
-        />
+      <div className="relative block w-32 h-32 mx-auto bg-muted p-2">
+        <Link to={`/produit/${product.handle}`}>
+          <img
+            src={product.image}
+            alt={product.title}
+            className="w-full h-full object-contain"
+          />
+        </Link>
         <Button
           variant="secondary"
           size="sm"
@@ -52,7 +54,7 @@ export function ProductCard({ product, onAddToCart }: ProductCardProps) {
             Détails
           </Link>
         </Button>
-      </Link>
+      </div>
 
       {/* Content */}
       <div className="flex flex-col flex-1 p-3">
