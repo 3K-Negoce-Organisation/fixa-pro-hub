@@ -25,9 +25,8 @@ const ProductsPage = () => {
   const [filters, setFilters] = useState<Record<string, string[]>>({
     diameter: [],
     length: [],
-    driveType: [],
     material: [],
-    headType: [],
+    driveType: [],
   });
   const [sortBy, setSortBy] = useState("relevance");
   const [showFilters, setShowFilters] = useState(true);
@@ -38,13 +37,37 @@ const ProductsPage = () => {
     queryFn: () => fetchProducts(query || undefined),
   });
 
+  // Generate filter options from actual product data
+  const filterOptions = useMemo(() => {
+    const diameters = new Set<string>();
+    const lengths = new Set<string>();
+    const materials = new Set<string>();
+    const driveTypes = new Set<string>();
+
+    products.forEach((product: Product) => {
+      if (product.diameter_mm) diameters.add(String(product.diameter_mm));
+      if (product.length_mm) lengths.add(String(product.length_mm));
+      if (product.material) materials.add(product.material.trim());
+      if (product.drive_type) driveTypes.add(product.drive_type.trim());
+    });
+
+    // Sort numerically for diameter and length
+    const sortNumeric = (a: string, b: string) => parseFloat(a) - parseFloat(b);
+
+    return {
+      diameter: Array.from(diameters).sort(sortNumeric),
+      length: Array.from(lengths).sort(sortNumeric),
+      material: Array.from(materials).sort(),
+      driveType: Array.from(driveTypes).sort(),
+    };
+  }, [products]);
+
   // Transform Supabase products to display format
   const displayProducts = useMemo(() => {
     return products.map((product: Product) => {
       const variants = parseVariants(product);
       const firstVariant = variants[0];
       const image = getProductImage(product);
-      const tags = product.tags || [];
       
       return {
         id: product.id,
@@ -55,16 +78,12 @@ const ProductsPage = () => {
         priceTTC: product.price_ttc,
         image,
         category: product.category || "general",
-        specs: {
-          diameter: tags.find((t: string) => t.includes("mm") && !t.includes("x"))?.replace("mm", "") || "",
-          length: tags.find((t: string) => t.includes("x"))?.split("x")[1] || "",
-          driveType: tags.find((t: string) => ["Torx", "Pozidriv", "Phillips"].some(d => t.includes(d))) || "",
-          material: tags.find((t: string) => ["Inox", "Acier", "Zingué"].some(m => t.includes(m))) || "",
-          headType: tags.find((t: string) => ["Fraisée", "Plate", "Ronde"].some(h => t.includes(h))) || "",
-        },
+        diameter_mm: product.diameter_mm,
+        length_mm: product.length_mm,
+        material: product.material,
+        drive_type: product.drive_type,
         stock: product.stock ?? 0,
         inStock: (product.stock ?? 0) > 0,
-        tags,
       };
     });
   }, [products]);
@@ -76,8 +95,7 @@ const ProductsPage = () => {
     // Filter by category
     if (category) {
       result = result.filter((p) =>
-        p.category.toLowerCase().includes(category.toLowerCase()) ||
-        p.tags.some((t: string) => t.toLowerCase().includes(category.toLowerCase()))
+        p.category.toLowerCase().includes(category.toLowerCase())
       );
     }
 
@@ -85,11 +103,18 @@ const ProductsPage = () => {
     Object.entries(filters).forEach(([key, values]) => {
       if (values.length > 0) {
         result = result.filter((product) => {
-          const specValue = product.specs[key as keyof typeof product.specs];
-          return values.some((v) =>
-            specValue?.toLowerCase().includes(v.toLowerCase()) ||
-            product.tags.some((t: string) => t.toLowerCase().includes(v.toLowerCase()))
-          );
+          switch (key) {
+            case 'diameter':
+              return values.some(v => String(product.diameter_mm) === v);
+            case 'length':
+              return values.some(v => String(product.length_mm) === v);
+            case 'material':
+              return values.some(v => product.material?.toLowerCase().includes(v.toLowerCase()));
+            case 'driveType':
+              return values.some(v => product.drive_type?.toLowerCase().includes(v.toLowerCase()));
+            default:
+              return true;
+          }
         });
       }
     });
@@ -118,9 +143,8 @@ const ProductsPage = () => {
     setFilters({
       diameter: [],
       length: [],
-      driveType: [],
       material: [],
-      headType: [],
+      driveType: [],
     });
   };
 
@@ -241,6 +265,7 @@ const ProductsPage = () => {
             {showFilters && (
               <ProductFilters
                 filters={filters}
+                filterOptions={filterOptions}
                 onFilterChange={handleFilterChange}
                 onClearFilters={handleClearFilters}
               />
