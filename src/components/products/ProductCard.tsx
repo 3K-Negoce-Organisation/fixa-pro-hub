@@ -13,16 +13,12 @@ export interface DisplayProduct {
   priceTTC: number;
   image: string;
   category: string;
-  specs: {
-    diameter: string;
-    length: string;
-    driveType: string;
-    material: string;
-    headType: string;
-  };
+  diameter_mm?: number | null;
+  length_mm?: number | null;
+  material?: string | null;
+  drive_type?: string | null;
   stock: number;
   inStock: boolean;
-  tags: string[];
 }
 
 interface ProductCardProps {
@@ -79,14 +75,14 @@ export function ProductCard({ product, onAddToCart }: ProductCardProps) {
 
         {/* Specs preview */}
         <div className="flex flex-wrap gap-1 mb-3 text-[10px] text-muted-foreground">
-          {product.specs.diameter && (
-            <span className="bg-muted px-1.5 py-0.5 rounded">{product.specs.diameter}</span>
+          {product.diameter_mm && (
+            <span className="bg-muted px-1.5 py-0.5 rounded">Ø{product.diameter_mm}mm</span>
           )}
-          {product.specs.length && (
-            <span className="bg-muted px-1.5 py-0.5 rounded">{product.specs.length}</span>
+          {product.length_mm && (
+            <span className="bg-muted px-1.5 py-0.5 rounded">{product.length_mm}mm</span>
           )}
-          {product.specs.driveType && (
-            <span className="bg-muted px-1.5 py-0.5 rounded">{product.specs.driveType}</span>
+          {product.drive_type && (
+            <span className="bg-muted px-1.5 py-0.5 rounded">{product.drive_type}</span>
           )}
         </div>
 

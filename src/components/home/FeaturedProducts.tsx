@@ -7,9 +7,6 @@ import { fetchProducts, getProductImage, Product } from "@/lib/products";
 import { toast } from "sonner";
 
 function mapProductToDisplay(product: Product): DisplayProduct {
-  const specs = product.specifications as Record<string, string> | null;
-  const tags = product.tags || [];
-  
   return {
     id: product.id,
     variantId: product.id,
@@ -19,16 +16,12 @@ function mapProductToDisplay(product: Product): DisplayProduct {
     priceTTC: product.price_ttc,
     image: getProductImage(product),
     category: product.category || "",
-    specs: {
-      diameter: specs?.diameter || "",
-      length: specs?.length || "",
-      driveType: specs?.driveType || "",
-      material: specs?.material || "",
-      headType: specs?.headType || "",
-    },
+    diameter_mm: product.diameter_mm,
+    length_mm: product.length_mm,
+    material: product.material,
+    drive_type: product.drive_type,
     stock: product.stock ?? 0,
     inStock: (product.stock ?? 0) > 0,
-    tags,
   };
 }
 
