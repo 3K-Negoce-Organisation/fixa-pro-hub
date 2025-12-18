@@ -467,7 +467,7 @@ const AdminProductsPage = () => {
                               <img 
                                 src={firstImage} 
                                 alt={product.title} 
-                                className="w-12 h-12 object-cover rounded"
+                                className="w-12 h-12 object-contain rounded bg-muted"
                               />
                             ) : (
                               <div className="w-12 h-12 bg-muted rounded flex items-center justify-center">
