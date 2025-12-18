@@ -128,6 +128,7 @@ const AdminProductsPage = () => {
   const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
   const [bulkStatusDialogOpen, setBulkStatusDialogOpen] = useState(false);
   const [bulkStatusAction, setBulkStatusAction] = useState<"activate" | "deactivate">("activate");
+  const [formErrors, setFormErrors] = useState<{ title?: boolean; price_ht?: boolean; price_ttc?: boolean }>({});
 
   // Check admin status
   useEffect(() => {
@@ -364,6 +365,7 @@ const AdminProductsPage = () => {
   const resetForm = () => {
     setFormData(emptyFormData);
     setEditingProduct(null);
+    setFormErrors({});
   };
 
   const openCreateDialog = () => {
@@ -416,7 +418,14 @@ const AdminProductsPage = () => {
   };
 
   const handleSubmit = () => {
-    if (!formData.title || formData.price_ht <= 0 || formData.price_ttc <= 0) {
+    const errors: { title?: boolean; price_ht?: boolean; price_ttc?: boolean } = {};
+    if (!formData.title.trim()) errors.title = true;
+    if (formData.price_ht <= 0) errors.price_ht = true;
+    if (formData.price_ttc <= 0) errors.price_ttc = true;
+
+    setFormErrors(errors);
+
+    if (Object.keys(errors).length > 0) {
       toast({ title: "Erreur", description: "Veuillez remplir tous les champs obligatoires.", variant: "destructive" });
       return;
     }
@@ -699,13 +708,18 @@ const AdminProductsPage = () => {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="title">Titre *</Label>
+                  <Label htmlFor="title" className={formErrors.title ? "text-destructive" : ""}>Titre *</Label>
                   <Input
                     id="title"
                     value={formData.title}
-                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                    onChange={(e) => {
+                      setFormData({ ...formData, title: e.target.value });
+                      if (formErrors.title) setFormErrors({ ...formErrors, title: false });
+                    }}
                     placeholder="Vis terrasse QS 5 x 40"
+                    className={formErrors.title ? "border-destructive" : ""}
                   />
+                  {formErrors.title && <p className="text-sm text-destructive">Champ obligatoire</p>}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="handle">Handle (URL)</Label>
@@ -754,26 +768,36 @@ const AdminProductsPage = () => {
               <h3 className="font-semibold text-lg border-b pb-2">Prix et quantités</h3>
               <div className="grid grid-cols-4 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="price_ht">Prix vente HT * (€)</Label>
+                  <Label htmlFor="price_ht" className={formErrors.price_ht ? "text-destructive" : ""}>Prix vente HT * (€)</Label>
                   <Input
                     id="price_ht"
                     type="number"
                     step="0.01"
                     min="0"
                     value={formData.price_ht}
-                    onChange={(e) => handlePriceHTChange(parseFloat(e.target.value) || 0)}
+                    onChange={(e) => {
+                      handlePriceHTChange(parseFloat(e.target.value) || 0);
+                      if (formErrors.price_ht) setFormErrors({ ...formErrors, price_ht: false });
+                    }}
+                    className={formErrors.price_ht ? "border-destructive" : ""}
                   />
+                  {formErrors.price_ht && <p className="text-sm text-destructive">Prix requis</p>}
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="price_ttc">Prix vente TTC * (€)</Label>
+                  <Label htmlFor="price_ttc" className={formErrors.price_ttc ? "text-destructive" : ""}>Prix vente TTC * (€)</Label>
                   <Input
                     id="price_ttc"
                     type="number"
                     step="0.01"
                     min="0"
                     value={formData.price_ttc}
-                    onChange={(e) => setFormData({ ...formData, price_ttc: parseFloat(e.target.value) || 0 })}
+                    onChange={(e) => {
+                      setFormData({ ...formData, price_ttc: parseFloat(e.target.value) || 0 });
+                      if (formErrors.price_ttc) setFormErrors({ ...formErrors, price_ttc: false });
+                    }}
+                    className={formErrors.price_ttc ? "border-destructive" : ""}
                   />
+                  {formErrors.price_ttc && <p className="text-sm text-destructive">Prix requis</p>}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="purchase_price_ht">Prix achat HT (€)</Label>
