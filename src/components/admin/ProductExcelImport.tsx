@@ -100,47 +100,73 @@ export const ProductExcelImport = ({ onImportComplete }: ProductExcelImportProps
       const worksheet = workbook.Sheets[sheetName];
       const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
+      // Helper to find column value with flexible matching
+      const getCol = (row: any, ...possibleNames: string[]): any => {
+        // Try exact match first
+        for (const name of possibleNames) {
+          if (row[name] !== undefined) return row[name];
+        }
+        // Try case-insensitive and accent-normalized match
+        const normalize = (s: string) => s.toLowerCase()
+          .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+          .replace(/[^a-z0-9]/g, "");
+        const rowKeys = Object.keys(row);
+        for (const name of possibleNames) {
+          const normalizedName = normalize(name);
+          for (const key of rowKeys) {
+            if (normalize(key) === normalizedName) {
+              return row[key];
+            }
+          }
+        }
+        return undefined;
+      };
+
       // Parse products from Excel - support multiple column name formats
       const rawProducts = jsonData.map((row: any) => {
         // Code ALSAFIX
         const code = String(
-          row["Code ALSAFIX"] || row["Code article"] || row["code_alsafix"] || ""
+          getCol(row, "Code ALSAFIX", "Code article", "code_alsafix") || ""
         ).trim();
         
         // Designation
         const designation = String(
-          row["Désignation FR"] || row["Désignation (FR)"] || row["designation_fr"] || ""
+          getCol(row, "Désignation FR", "Designation FR", "designation_fr") || ""
         ).trim();
         
         // Title (use Titre column, or fallback to designation/code)
         const title = String(
-          row["Titre"] || row["title"] || designation || code
+          getCol(row, "Titre", "title") || designation || code
         ).trim();
         
         // Description
-        const description = row["Description"] || row["description"] || null;
+        const description = getCol(row, "Description", "description") || null;
         
         // Category
-        const category = row["Catégorie"] || row["category"] || null;
+        const category = getCol(row, "Catégorie", "Categorie", "category") || null;
         
-        // Prices - parse € format
+        // Prices - parse € format and handle various number formats
         const parsePrice = (val: unknown): number => {
-          if (!val) return 0;
-          const str = String(val).replace(/[€\s]/g, "").replace(",", ".");
+          if (val === null || val === undefined || val === "") return 0;
+          if (typeof val === "number") return val;
+          // Remove currency symbol, spaces, and handle comma as decimal separator
+          const str = String(val)
+            .replace(/[€\s\u00A0]/g, "") // Remove €, spaces, non-breaking spaces
+            .replace(",", ".");
           return parseFloat(str) || 0;
         };
         
         // Purchase price
         const purchasePrice = parsePrice(
-          row["Prix d'achat à la boite HT"] || row["PA HT"] || row["purchase_price_ht"]
+          getCol(row, "Prix d'achat à la boite HT", "Prix d'achat a la boite HT", "PA HT", "purchase_price_ht")
         );
         
         // Selling prices - use direct values if available, otherwise compute
         let priceHT = parsePrice(
-          row["Prix de vente à la boite HT"] || row["price_ht"]
+          getCol(row, "Prix de vente à la boite HT", "Prix de vente a la boite HT", "PV HT", "price_ht")
         );
         let priceTTC = parsePrice(
-          row["Prix de vente à la boite TTC"] || row["price_ttc"]
+          getCol(row, "Prix de vente à la boite TTC", "Prix de vente a la boite TTC", "PV TTC", "price_ttc")
         );
         
         // Fallback: compute from purchase price if not provided
@@ -158,29 +184,29 @@ export const ProductExcelImport = ({ onImportComplete }: ProductExcelImportProps
           description: description,
           category: category,
           box_quantity: parseNumber(
-            row["Quantité dans la boite"] || row["Qté / Boite"] || row["box_quantity"]
+            getCol(row, "Quantité dans la boite", "Quantite dans la boite", "Qté / Boite", "box_quantity")
           ),
           purchase_price_ht: purchasePrice || null,
           box_weight: parseNumber(
-            row["Poids de la boite"] || row["Poids / Boite"] || row["box_weight"]
+            getCol(row, "Poids de la boite", "Poids / Boite", "box_weight")
           ),
           diameter_mm: parseNumber(
-            row["diamètre (mm)"] || row["Diamètre (mm)"] || row["diameter_mm"]
+            getCol(row, "diamètre (mm)", "Diamètre (mm)", "diametre (mm)", "diameter_mm")
           ),
           length_mm: parseNumber(
-            row["longueur (mm)"] || row["Longueur (mm)"] || row["length_mm"]
+            getCol(row, "longueur (mm)", "Longueur (mm)", "length_mm")
           ),
-          usage: row["utilisation"] || row["Utilisation"] || row["usage"] || null,
-          material: row["matière"] || row["Matière"] || row["material"] || null,
-          drive_type: row["Empreinte"] || row["Type d'entraînement"] || row["drive_type"] || null,
+          usage: getCol(row, "utilisation", "Utilisation", "usage") || null,
+          material: getCol(row, "matière", "Matière", "matiere", "material") || null,
+          drive_type: getCol(row, "Empreinte", "Type d'entraînement", "drive_type") || null,
           thickness_to_fix_mm: parseNumber(
-            row["épaisseur à fixer (mm)"] || row["Epaisseur à fixer (mm)"] || row["thickness_to_fix_mm"]
+            getCol(row, "épaisseur à fixer (mm)", "Epaisseur a fixer (mm)", "epaisseur a fixer (mm)", "thickness_to_fix_mm")
           ),
           thread_length_mm: parseNumber(
-            row["Longueur du filetage (mm)"] || row["Longueur filetée (mm)"] || row["thread_length_mm"]
+            getCol(row, "Longueur du filetage (mm)", "Longueur filetée (mm)", "thread_length_mm")
           ),
           head_diameter_mm: parseNumber(
-            row["Diamètre de la tête (mm)"] || row["Diamètre de tête (mm)"] || row["head_diameter_mm"]
+            getCol(row, "Diamètre de la tête (mm)", "Diametre de la tete (mm)", "head_diameter_mm")
           ),
           handle: generateHandle(code, designation),
           price_ht: priceHT,
