@@ -434,6 +434,7 @@ const AdminProductsPage = () => {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-16">Image</TableHead>
                       <TableHead>Code</TableHead>
                       <TableHead>Titre</TableHead>
                       <TableHead>Catégorie</TableHead>
@@ -448,13 +449,32 @@ const AdminProductsPage = () => {
                   <TableBody>
                     {filteredProducts.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                        <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
                           Aucun produit trouvé
                         </TableCell>
                       </TableRow>
                     ) : (
-                      filteredProducts.map((product) => (
+                      filteredProducts.map((product) => {
+                        const firstImage = Array.isArray(product.images) && product.images.length > 0
+                          ? (typeof product.images[0] === 'object' && product.images[0] !== null && 'url' in product.images[0]
+                            ? (product.images[0] as { url: string }).url
+                            : null)
+                          : null;
+                        return (
                         <TableRow key={product.id}>
+                          <TableCell>
+                            {firstImage ? (
+                              <img 
+                                src={firstImage} 
+                                alt={product.title} 
+                                className="w-12 h-12 object-cover rounded"
+                              />
+                            ) : (
+                              <div className="w-12 h-12 bg-muted rounded flex items-center justify-center">
+                                <Package className="h-5 w-5 text-muted-foreground" />
+                              </div>
+                            )}
+                          </TableCell>
                           <TableCell className="font-mono text-sm">
                             {product.code_alsafix || "-"}
                           </TableCell>
@@ -495,7 +515,8 @@ const AdminProductsPage = () => {
                             </div>
                           </TableCell>
                         </TableRow>
-                      ))
+                        );
+                      })
                     )}
                   </TableBody>
                 </Table>
