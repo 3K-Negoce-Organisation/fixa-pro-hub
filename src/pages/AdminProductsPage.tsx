@@ -44,10 +44,15 @@ import {
   XCircle,
   Package,
   Search,
-  Loader2
+  Loader2,
+  CheckSquare,
+  Square,
+  Power,
+  PowerOff
 } from "lucide-react";
 import { ProductImageUpload } from "@/components/admin/ProductImageUpload";
 import { ProductExcelImport } from "@/components/admin/ProductExcelImport";
+import { Checkbox } from "@/components/ui/checkbox";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Product = Tables<"products">;
@@ -119,6 +124,10 @@ const AdminProductsPage = () => {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
   const [formData, setFormData] = useState<ProductFormData>(emptyFormData);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
+  const [bulkStatusDialogOpen, setBulkStatusDialogOpen] = useState(false);
+  const [bulkStatusAction, setBulkStatusAction] = useState<"activate" | "deactivate">("activate");
 
   // Check admin status
   useEffect(() => {
@@ -273,6 +282,84 @@ const AdminProductsPage = () => {
       toast({ title: "Erreur", description: error.message, variant: "destructive" });
     },
   });
+
+  // Bulk delete mutation
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const { error } = await supabase
+        .from('products')
+        .delete()
+        .in('id', ids);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({ title: "Produits supprimés", description: `${selectedIds.size} produit(s) supprimé(s).` });
+      setBulkDeleteDialogOpen(false);
+      setSelectedIds(new Set());
+      queryClient.invalidateQueries({ queryKey: ['admin-products'] });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    },
+  });
+
+  // Bulk status update mutation
+  const bulkStatusMutation = useMutation({
+    mutationFn: async ({ ids, is_active }: { ids: string[]; is_active: boolean }) => {
+      const { error } = await supabase
+        .from('products')
+        .update({ is_active })
+        .in('id', ids);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      const action = bulkStatusAction === "activate" ? "activé(s)" : "désactivé(s)";
+      toast({ title: "Statut modifié", description: `${selectedIds.size} produit(s) ${action}.` });
+      setBulkStatusDialogOpen(false);
+      setSelectedIds(new Set());
+      queryClient.invalidateQueries({ queryKey: ['admin-products'] });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    },
+  });
+
+  // Selection handlers
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filteredProducts.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredProducts.map(p => p.id)));
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    const newSelected = new Set(selectedIds);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedIds(newSelected);
+  };
+
+  const handleBulkDelete = () => {
+    bulkDeleteMutation.mutate(Array.from(selectedIds));
+  };
+
+  const handleBulkStatusChange = () => {
+    bulkStatusMutation.mutate({
+      ids: Array.from(selectedIds),
+      is_active: bulkStatusAction === "activate",
+    });
+  };
+
+  const openBulkStatusDialog = (action: "activate" | "deactivate") => {
+    setBulkStatusAction(action);
+    setBulkStatusDialogOpen(true);
+  };
 
   const resetForm = () => {
     setFormData(emptyFormData);
@@ -429,13 +516,53 @@ const AdminProductsPage = () => {
         ) : (
           <Card>
             <CardHeader>
-              <CardTitle>Catalogue ({filteredProducts.length} produits)</CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle>Catalogue ({filteredProducts.length} produits)</CardTitle>
+                {selectedIds.size > 0 && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">
+                      {selectedIds.size} sélectionné(s)
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => openBulkStatusDialog("activate")}
+                    >
+                      <Power className="h-4 w-4 mr-1" />
+                      Activer
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => openBulkStatusDialog("deactivate")}
+                    >
+                      <PowerOff className="h-4 w-4 mr-1" />
+                      Désactiver
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => setBulkDeleteDialogOpen(true)}
+                    >
+                      <Trash2 className="h-4 w-4 mr-1" />
+                      Supprimer
+                    </Button>
+                  </div>
+                )}
+              </div>
             </CardHeader>
             <CardContent>
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-10">
+                        <Checkbox
+                          checked={filteredProducts.length > 0 && selectedIds.size === filteredProducts.length}
+                          onCheckedChange={toggleSelectAll}
+                          aria-label="Tout sélectionner"
+                        />
+                      </TableHead>
                       <TableHead className="w-16">Image</TableHead>
                       <TableHead>Code</TableHead>
                       <TableHead>Titre</TableHead>
@@ -451,7 +578,7 @@ const AdminProductsPage = () => {
                   <TableBody>
                     {filteredProducts.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
+                        <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
                           Aucun produit trouvé
                         </TableCell>
                       </TableRow>
@@ -463,7 +590,14 @@ const AdminProductsPage = () => {
                             : null)
                           : null;
                         return (
-                        <TableRow key={product.id}>
+                        <TableRow key={product.id} className={selectedIds.has(product.id) ? "bg-muted/50" : ""}>
+                          <TableCell>
+                            <Checkbox
+                              checked={selectedIds.has(product.id)}
+                              onCheckedChange={() => toggleSelect(product.id)}
+                              aria-label={`Sélectionner ${product.title}`}
+                            />
+                          </TableCell>
                           <TableCell>
                             {firstImage ? (
                               <img 
@@ -836,6 +970,59 @@ const AdminProductsPage = () => {
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 "Supprimer"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Bulk Delete Confirmation Dialog */}
+      <AlertDialog open={bulkDeleteDialogOpen} onOpenChange={setBulkDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer {selectedIds.size} produit(s) ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Êtes-vous sûr de vouloir supprimer ces {selectedIds.size} produit(s) ? 
+              Cette action est irréversible.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleBulkDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {bulkDeleteMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                "Supprimer"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Bulk Status Change Confirmation Dialog */}
+      <AlertDialog open={bulkStatusDialogOpen} onOpenChange={setBulkStatusDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {bulkStatusAction === "activate" ? "Activer" : "Désactiver"} {selectedIds.size} produit(s) ?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {bulkStatusAction === "activate" 
+                ? `Les ${selectedIds.size} produit(s) sélectionné(s) seront visibles sur le site.`
+                : `Les ${selectedIds.size} produit(s) sélectionné(s) ne seront plus visibles sur le site.`
+              }
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction onClick={handleBulkStatusChange}>
+              {bulkStatusMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                bulkStatusAction === "activate" ? "Activer" : "Désactiver"
               )}
             </AlertDialogAction>
           </AlertDialogFooter>
