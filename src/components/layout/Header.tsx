@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Search, ShoppingCart, User, Menu, Package, Phone, LogOut, Settings } from "lucide-react";
+import { Search, ShoppingCart, User, Menu, Package, Phone, LogOut, Settings, ChevronDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/contexts/CartContext";
@@ -11,6 +11,7 @@ export function Header() {
   const [searchQuery, setSearchQuery] = useState("");
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [adminMenuOpen, setAdminMenuOpen] = useState(false);
   const navigate = useNavigate();
   const {
     totalItems
@@ -90,16 +91,37 @@ export function Header() {
             </Link>
 
             {isAdmin && (
-              <>
-                <Link to="/admin/commandes" className="flex items-center gap-1.5 px-2 py-1 text-sm text-accent hover:underline">
+              <div 
+                className="relative"
+                onMouseEnter={() => setAdminMenuOpen(true)}
+                onMouseLeave={() => setAdminMenuOpen(false)}
+              >
+                <button className="flex items-center gap-1.5 px-2 py-1 text-sm text-accent hover:underline">
                   <Settings className="h-4 w-4" />
-                  <span className="hidden md:inline">Commandes</span>
-                </Link>
-                <Link to="/admin/produits" className="flex items-center gap-1.5 px-2 py-1 text-sm text-accent hover:underline">
-                  <Package className="h-4 w-4" />
-                  <span className="hidden md:inline">Produits</span>
-                </Link>
-              </>
+                  <span className="hidden md:inline">Admin</span>
+                  <ChevronDown className="h-3 w-3" />
+                </button>
+                {adminMenuOpen && (
+                  <div className="absolute top-full right-0 mt-1 bg-background border rounded-md shadow-lg py-1 min-w-[160px] z-50">
+                    <Link 
+                      to="/admin/commandes" 
+                      className="flex items-center gap-2 px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors"
+                      onClick={() => setAdminMenuOpen(false)}
+                    >
+                      <Settings className="h-4 w-4" />
+                      Commandes
+                    </Link>
+                    <Link 
+                      to="/admin/produits" 
+                      className="flex items-center gap-2 px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors"
+                      onClick={() => setAdminMenuOpen(false)}
+                    >
+                      <Package className="h-4 w-4" />
+                      Produits
+                    </Link>
+                  </div>
+                )}
+              </div>
             )}
 
             {userEmail && <button onClick={handleLogout} className="flex items-center gap-1.5 px-2 py-1 text-sm text-primary-foreground hover:underline">
