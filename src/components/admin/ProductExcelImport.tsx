@@ -3,13 +3,14 @@ import * as XLSX from "xlsx";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Upload, FileSpreadsheet, Loader2, Check, AlertCircle } from "lucide-react";
+import { Upload, FileSpreadsheet, Loader2, Check, AlertCircle, RefreshCw, Plus } from "lucide-react";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import {
   Table,
@@ -41,6 +42,16 @@ interface ParsedProduct {
   handle: string;
   price_ht: number;
   price_ttc: number;
+  // Status
+  existingId?: string;
+  status: "new" | "update";
+}
+
+interface ImportResult {
+  created: number;
+  updated: number;
+  errors: number;
+  details: { code: string; action: string; error?: string }[];
 }
 
 interface ProductExcelImportProps {
@@ -51,9 +62,12 @@ export const ProductExcelImport = ({ onImportComplete }: ProductExcelImportProps
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isResultDialogOpen, setIsResultDialogOpen] = useState(false);
   const [parsedProducts, setParsedProducts] = useState<ParsedProduct[]>([]);
   const [isImporting, setIsImporting] = useState(false);
+  const [isChecking, setIsChecking] = useState(false);
   const [importProgress, setImportProgress] = useState({ current: 0, total: 0 });
+  const [importResult, setImportResult] = useState<ImportResult | null>(null);
 
   const parseNumber = (value: unknown): number | null => {
     if (value === null || value === undefined || value === "") return null;
@@ -75,6 +89,8 @@ export const ProductExcelImport = ({ onImportComplete }: ProductExcelImportProps
     const file = e.target.files?.[0];
     if (!file) return;
 
+    setIsChecking(true);
+
     try {
       const data = await file.arrayBuffer();
       const workbook = XLSX.read(data);
@@ -82,12 +98,12 @@ export const ProductExcelImport = ({ onImportComplete }: ProductExcelImportProps
       const worksheet = workbook.Sheets[sheetName];
       const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
-      const products: ParsedProduct[] = jsonData.map((row: any) => {
+      // Parse products from Excel
+      const rawProducts = jsonData.map((row: any) => {
         const code = String(row["Code article"] || row["code_alsafix"] || "").trim();
         const designation = String(row["Désignation (FR)"] || row["designation_fr"] || row["title"] || "").trim();
         const purchasePrice = parseNumber(row["PA HT"] || row["purchase_price_ht"]) || 0;
         
-        // Default markup: price_ht = purchase_price * 1.5, price_ttc = price_ht * 1.2
         const priceHT = Math.round(purchasePrice * 1.5 * 100) / 100;
         const priceTTC = Math.round(priceHT * 1.2 * 100) / 100;
 
@@ -109,19 +125,42 @@ export const ProductExcelImport = ({ onImportComplete }: ProductExcelImportProps
           handle: generateHandle(code, designation),
           price_ht: priceHT,
           price_ttc: priceTTC,
+          status: "new" as const,
         };
       }).filter(p => p.code_alsafix || p.designation_fr);
 
-      if (products.length === 0) {
+      if (rawProducts.length === 0) {
         toast({
           title: "Fichier vide",
           description: "Aucun produit valide trouvé dans le fichier.",
           variant: "destructive",
         });
+        setIsChecking(false);
         return;
       }
 
-      setParsedProducts(products);
+      // Check for existing products by code_alsafix
+      const codes = rawProducts.map(p => p.code_alsafix).filter(Boolean);
+      const { data: existingProducts } = await supabase
+        .from("products")
+        .select("id, code_alsafix")
+        .in("code_alsafix", codes);
+
+      const existingMap = new Map(
+        (existingProducts || []).map(p => [p.code_alsafix, p.id])
+      );
+
+      // Mark products as new or update
+      const productsWithStatus: ParsedProduct[] = rawProducts.map(p => {
+        const existingId = existingMap.get(p.code_alsafix);
+        return {
+          ...p,
+          existingId,
+          status: existingId ? "update" : "new",
+        };
+      });
+
+      setParsedProducts(productsWithStatus);
       setIsDialogOpen(true);
     } catch (error) {
       toast({
@@ -129,11 +168,11 @@ export const ProductExcelImport = ({ onImportComplete }: ProductExcelImportProps
         description: "Impossible de lire le fichier Excel.",
         variant: "destructive",
       });
-    }
-
-    // Reset input
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
+    } finally {
+      setIsChecking(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
     }
   };
 
@@ -141,57 +180,80 @@ export const ProductExcelImport = ({ onImportComplete }: ProductExcelImportProps
     setIsImporting(true);
     setImportProgress({ current: 0, total: parsedProducts.length });
 
-    let successCount = 0;
-    let errorCount = 0;
+    const result: ImportResult = {
+      created: 0,
+      updated: 0,
+      errors: 0,
+      details: [],
+    };
 
     for (let i = 0; i < parsedProducts.length; i++) {
       const product = parsedProducts[i];
       setImportProgress({ current: i + 1, total: parsedProducts.length });
 
-      try {
-        const { error } = await supabase.from("products").insert({
-          code_alsafix: product.code_alsafix || null,
-          designation_fr: product.designation_fr || null,
-          title: product.title,
-          handle: product.handle,
-          price_ht: product.price_ht,
-          price_ttc: product.price_ttc,
-          box_quantity: product.box_quantity,
-          purchase_price_ht: product.purchase_price_ht,
-          box_weight: product.box_weight,
-          diameter_mm: product.diameter_mm,
-          length_mm: product.length_mm,
-          usage: product.usage,
-          material: product.material,
-          drive_type: product.drive_type,
-          thickness_to_fix_mm: product.thickness_to_fix_mm,
-          thread_length_mm: product.thread_length_mm,
-          head_diameter_mm: product.head_diameter_mm,
-          is_active: true,
-          stock: 0,
-          images: [],
-        });
+      const productData = {
+        code_alsafix: product.code_alsafix || null,
+        designation_fr: product.designation_fr || null,
+        title: product.title,
+        handle: product.handle,
+        price_ht: product.price_ht,
+        price_ttc: product.price_ttc,
+        box_quantity: product.box_quantity,
+        purchase_price_ht: product.purchase_price_ht,
+        box_weight: product.box_weight,
+        diameter_mm: product.diameter_mm,
+        length_mm: product.length_mm,
+        usage: product.usage,
+        material: product.material,
+        drive_type: product.drive_type,
+        thickness_to_fix_mm: product.thickness_to_fix_mm,
+        thread_length_mm: product.thread_length_mm,
+        head_diameter_mm: product.head_diameter_mm,
+      };
 
-        if (error) {
-          console.error("Insert error:", error);
-          errorCount++;
+      try {
+        if (product.existingId) {
+          // Update existing product
+          const { error } = await supabase
+            .from("products")
+            .update(productData)
+            .eq("id", product.existingId);
+
+          if (error) {
+            result.errors++;
+            result.details.push({ code: product.code_alsafix, action: "Erreur", error: error.message });
+          } else {
+            result.updated++;
+            result.details.push({ code: product.code_alsafix, action: "Mis à jour" });
+          }
         } else {
-          successCount++;
+          // Insert new product
+          const { error } = await supabase.from("products").insert({
+            ...productData,
+            is_active: true,
+            stock: 0,
+            images: [],
+          });
+
+          if (error) {
+            result.errors++;
+            result.details.push({ code: product.code_alsafix, action: "Erreur", error: error.message });
+          } else {
+            result.created++;
+            result.details.push({ code: product.code_alsafix, action: "Créé" });
+          }
         }
       } catch (err) {
-        errorCount++;
+        result.errors++;
+        result.details.push({ code: product.code_alsafix, action: "Erreur", error: "Erreur inattendue" });
       }
     }
 
     setIsImporting(false);
     setIsDialogOpen(false);
     setParsedProducts([]);
-
-    toast({
-      title: "Import terminé",
-      description: `${successCount} produit(s) importé(s)${errorCount > 0 ? `, ${errorCount} erreur(s)` : ""}.`,
-      variant: errorCount > 0 ? "destructive" : "default",
-    });
+    setImportResult(result);
+    setIsResultDialogOpen(true);
 
     onImportComplete();
   };
@@ -200,11 +262,18 @@ export const ProductExcelImport = ({ onImportComplete }: ProductExcelImportProps
     return new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(price);
   };
 
+  const newCount = parsedProducts.filter(p => p.status === "new").length;
+  const updateCount = parsedProducts.filter(p => p.status === "update").length;
+
   return (
     <>
-      <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
-        <FileSpreadsheet className="h-4 w-4 mr-2" />
-        Importer Excel
+      <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={isChecking}>
+        {isChecking ? (
+          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+        ) : (
+          <FileSpreadsheet className="h-4 w-4 mr-2" />
+        )}
+        {isChecking ? "Analyse..." : "Importer Excel"}
       </Button>
       <input
         ref={fileInputRef}
@@ -214,6 +283,7 @@ export const ProductExcelImport = ({ onImportComplete }: ProductExcelImportProps
         onChange={handleFileSelect}
       />
 
+      {/* Preview Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="max-w-4xl max-h-[90vh]">
           <DialogHeader>
@@ -221,24 +291,49 @@ export const ProductExcelImport = ({ onImportComplete }: ProductExcelImportProps
               <FileSpreadsheet className="h-5 w-5" />
               Aperçu de l'import ({parsedProducts.length} produits)
             </DialogTitle>
+            <DialogDescription>
+              <div className="flex gap-4 mt-2">
+                <Badge variant="default" className="gap-1">
+                  <Plus className="h-3 w-3" />
+                  {newCount} nouveau(x)
+                </Badge>
+                <Badge variant="secondary" className="gap-1">
+                  <RefreshCw className="h-3 w-3" />
+                  {updateCount} mise(s) à jour
+                </Badge>
+              </div>
+            </DialogDescription>
           </DialogHeader>
 
-          <ScrollArea className="max-h-[60vh]">
+          <ScrollArea className="max-h-[55vh]">
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>Statut</TableHead>
                   <TableHead>Code</TableHead>
                   <TableHead>Désignation</TableHead>
                   <TableHead>Qté/Boite</TableHead>
                   <TableHead>PA HT</TableHead>
                   <TableHead>PV HT</TableHead>
                   <TableHead>PV TTC</TableHead>
-                  <TableHead>Dimensions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {parsedProducts.map((product, index) => (
                   <TableRow key={index}>
+                    <TableCell>
+                      {product.status === "update" ? (
+                        <Badge variant="secondary" className="gap-1">
+                          <RefreshCw className="h-3 w-3" />
+                          MAJ
+                        </Badge>
+                      ) : (
+                        <Badge variant="default" className="gap-1">
+                          <Plus className="h-3 w-3" />
+                          Nouveau
+                        </Badge>
+                      )}
+                    </TableCell>
                     <TableCell className="font-mono text-sm">
                       {product.code_alsafix || "-"}
                     </TableCell>
@@ -249,11 +344,6 @@ export const ProductExcelImport = ({ onImportComplete }: ProductExcelImportProps
                     <TableCell>{product.purchase_price_ht ? formatPrice(product.purchase_price_ht) : "-"}</TableCell>
                     <TableCell>{formatPrice(product.price_ht)}</TableCell>
                     <TableCell>{formatPrice(product.price_ttc)}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {product.diameter_mm && product.length_mm
-                        ? `Ø${product.diameter_mm} × ${product.length_mm}mm`
-                        : "-"}
-                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -279,9 +369,61 @@ export const ProductExcelImport = ({ onImportComplete }: ProductExcelImportProps
                 ) : (
                   <Upload className="h-4 w-4 mr-2" />
                 )}
-                Importer {parsedProducts.length} produits
+                Importer
               </Button>
             </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Result Dialog */}
+      <Dialog open={isResultDialogOpen} onOpenChange={setIsResultDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Check className="h-5 w-5 text-green-500" />
+              Import terminé
+            </DialogTitle>
+            <DialogDescription>Résumé de l'opération</DialogDescription>
+          </DialogHeader>
+
+          {importResult && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-3 gap-4">
+                <div className="bg-green-50 dark:bg-green-950 p-4 rounded-lg text-center">
+                  <div className="text-2xl font-bold text-green-600">{importResult.created}</div>
+                  <div className="text-sm text-muted-foreground">Créé(s)</div>
+                </div>
+                <div className="bg-blue-50 dark:bg-blue-950 p-4 rounded-lg text-center">
+                  <div className="text-2xl font-bold text-blue-600">{importResult.updated}</div>
+                  <div className="text-sm text-muted-foreground">Mis à jour</div>
+                </div>
+                <div className="bg-red-50 dark:bg-red-950 p-4 rounded-lg text-center">
+                  <div className="text-2xl font-bold text-red-600">{importResult.errors}</div>
+                  <div className="text-sm text-muted-foreground">Erreur(s)</div>
+                </div>
+              </div>
+
+              {importResult.errors > 0 && (
+                <ScrollArea className="max-h-[200px] border rounded-lg p-2">
+                  <div className="space-y-1">
+                    {importResult.details
+                      .filter(d => d.action === "Erreur")
+                      .map((detail, index) => (
+                        <div key={index} className="flex items-center gap-2 text-sm text-red-600">
+                          <AlertCircle className="h-4 w-4" />
+                          <span className="font-mono">{detail.code}</span>
+                          <span className="text-muted-foreground">- {detail.error}</span>
+                        </div>
+                      ))}
+                  </div>
+                </ScrollArea>
+              )}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button onClick={() => setIsResultDialogOpen(false)}>Fermer</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
