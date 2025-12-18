@@ -47,6 +47,7 @@ import {
   Loader2
 } from "lucide-react";
 import { ProductImageUpload } from "@/components/admin/ProductImageUpload";
+import { ProductExcelImport } from "@/components/admin/ProductExcelImport";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Product = Tables<"products">;
@@ -398,6 +399,7 @@ const AdminProductsPage = () => {
             Gestion des produits
           </h1>
           <div className="flex items-center gap-2">
+            <ProductExcelImport onImportComplete={() => refetch()} />
             <Button variant="outline" onClick={() => refetch()}>
               <RefreshCw className="h-4 w-4 mr-2" />
               Actualiser
