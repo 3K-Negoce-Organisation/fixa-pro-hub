@@ -289,10 +289,10 @@ export const ProductExcelImport = ({ onImportComplete }: ProductExcelImportProps
             result.details.push({ code: product.code_alsafix, action: "Mis à jour" });
           }
         } else {
-          // Insert new product
+          // Insert new product - inactive by default
           const { error } = await supabase.from("products").insert({
             ...productData,
-            is_active: true,
+            is_active: false,
             stock: 0,
             images: [],
           });
