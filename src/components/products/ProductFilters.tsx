@@ -7,7 +7,6 @@ interface FilterOptions {
   diameter: string[];
   length: string[];
   material: string[];
-  driveType: string[];
 }
 
 interface ProductFiltersProps {
@@ -102,11 +101,6 @@ export function ProductFilters({
           options={filterOptions.material} 
         />
 
-        <FilterSection 
-          title="Type d'empreinte" 
-          filterKey="driveType" 
-          options={filterOptions.driveType} 
-        />
       </div>
     </aside>
   );
