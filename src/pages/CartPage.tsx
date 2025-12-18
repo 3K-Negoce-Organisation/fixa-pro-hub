@@ -33,6 +33,7 @@ const CartPage = () => {
       }
 
       // Create Stripe checkout session
+      console.log('Creating Stripe checkout session...');
       const { data: checkoutResult, error: checkoutError } = await supabase.functions.invoke(
         'create-stripe-checkout',
         {
@@ -40,18 +41,28 @@ const CartPage = () => {
         }
       );
 
+      console.log('Checkout result:', checkoutResult);
+      console.log('Checkout error:', checkoutError);
+
       if (checkoutError || !checkoutResult?.url) {
         console.error('Checkout error:', checkoutError || checkoutResult?.error);
         toast({
           title: "Erreur",
-          description: "Impossible de créer le checkout. Veuillez réessayer.",
+          description: checkoutResult?.error || "Impossible de créer le checkout. Veuillez réessayer.",
           variant: "destructive",
         });
         return;
       }
 
-      // Redirect to Stripe checkout in same window
-      window.location.href = checkoutResult.url;
+      // Redirect to Stripe checkout - try opening in new window first
+      console.log('Redirecting to:', checkoutResult.url);
+      const stripeWindow = window.open(checkoutResult.url, '_blank');
+      
+      // If popup was blocked, fallback to redirect
+      if (!stripeWindow) {
+        console.log('Popup blocked, using redirect...');
+        window.location.href = checkoutResult.url;
+      }
     } catch (error) {
       console.error("Checkout error:", error);
       toast({
