@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { ShoppingCart, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { formatPriceHT, formatPriceTTC } from "@/lib/shopify";
+import { formatPriceHT, formatPrice } from "@/lib/products";
 
 export interface DisplayProduct {
   id: string;
@@ -10,6 +10,7 @@ export interface DisplayProduct {
   handle: string;
   title: string;
   priceHT: number;
+  priceTTC: number;
   image: string;
   category: string;
   specs: {
@@ -108,7 +109,7 @@ export function ProductCard({ product, onAddToCart }: ProductCardProps) {
         <div className="mt-auto">
           <div className="flex items-baseline gap-2 mb-2">
             <span className="price-ttc text-lg font-bold text-foreground">
-              {formatPriceTTC(product.priceHT)}
+              {formatPrice(product.priceTTC)}
             </span>
           </div>
           <p className="price-ht text-xs text-muted-foreground">

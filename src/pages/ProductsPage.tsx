@@ -52,6 +52,7 @@ const ProductsPage = () => {
         handle: product.handle,
         title: product.title,
         priceHT: product.price_ht,
+        priceTTC: product.price_ttc,
         image,
         category: product.category || "general",
         specs: {
