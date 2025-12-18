@@ -52,6 +52,7 @@ import {
 } from "lucide-react";
 import { ProductImageUpload } from "@/components/admin/ProductImageUpload";
 import { ProductExcelImport } from "@/components/admin/ProductExcelImport";
+import { BulkImageUpload } from "@/components/admin/BulkImageUpload";
 import { Checkbox } from "@/components/ui/checkbox";
 import type { Tables } from "@/integrations/supabase/types";
 
@@ -532,6 +533,13 @@ const AdminProductsPage = () => {
                     <span className="text-sm text-muted-foreground">
                       {selectedIds.size} sélectionné(s)
                     </span>
+                    <BulkImageUpload 
+                      selectedProductIds={Array.from(selectedIds)} 
+                      onSuccess={() => {
+                        queryClient.invalidateQueries({ queryKey: ["admin-products"] });
+                        setSelectedIds(new Set());
+                      }}
+                    />
                     <Button
                       variant="outline"
                       size="sm"
