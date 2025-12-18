@@ -119,11 +119,11 @@ const ProductDetailPage = () => {
           <div className="grid lg:grid-cols-2 gap-6">
             {/* Product Images + Characteristics */}
             <div className="space-y-4">
-              <div className="aspect-square bg-muted rounded-lg flex items-center justify-center p-8">
+              <div className="aspect-square bg-muted rounded-lg flex items-center justify-center p-4">
                 <img
                   src={productImage}
                   alt={product.title}
-                  className="w-full h-full object-contain"
+                  className="max-w-full max-h-full object-contain"
                 />
               </div>
               
