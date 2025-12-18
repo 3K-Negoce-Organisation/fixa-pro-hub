@@ -636,7 +636,10 @@ const AdminProductsPage = () => {
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            <Badge variant={product.is_active ? "default" : "secondary"}>
+                            <Badge 
+                              variant={product.is_active ? "outline" : "secondary"}
+                              className={product.is_active ? "border-green-500 bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-400" : ""}
+                            >
                               {product.is_active ? "Actif" : "Inactif"}
                             </Badge>
                           </TableCell>
