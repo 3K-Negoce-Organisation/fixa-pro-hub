@@ -155,9 +155,33 @@ const ProductDetailPage = () => {
                   {product.title}
                 </h1>
                 {product.description && (
-                  <p className="text-muted-foreground text-sm leading-tight">
-                    {product.description}
-                  </p>
+                  <div className="text-muted-foreground text-sm leading-relaxed space-y-2 mt-2">
+                    {product.description.split(/\r?\n/).map((line, index) => {
+                      const trimmedLine = line.trim();
+                      if (!trimmedLine) return null;
+                      
+                      // Check if it's a bullet point line
+                      if (trimmedLine.startsWith('•') || trimmedLine.startsWith('-')) {
+                        return (
+                          <div key={index} className="flex items-start gap-2 pl-2">
+                            <span className="text-primary mt-0.5">•</span>
+                            <span>{trimmedLine.replace(/^[•\-]\s*/, '').replace(/^\t/, '')}</span>
+                          </div>
+                        );
+                      }
+                      
+                      // Check if it's a header/title line (ends with specific keywords or is short and bold-looking)
+                      if (trimmedLine.endsWith(':') || trimmedLine.includes('Avantages') || trimmedLine.includes('Pourquoi choisir')) {
+                        return (
+                          <p key={index} className="font-medium text-foreground mt-3 first:mt-0">
+                            {trimmedLine}
+                          </p>
+                        );
+                      }
+                      
+                      return <p key={index}>{trimmedLine}</p>;
+                    })}
+                  </div>
                 )}
               </div>
 
