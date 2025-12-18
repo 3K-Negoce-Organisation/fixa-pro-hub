@@ -26,6 +26,9 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 interface ParsedProduct {
   code_alsafix: string;
   designation_fr: string;
+  title: string;
+  description: string | null;
+  category: string | null;
   box_quantity: number | null;
   purchase_price_ht: number | null;
   box_weight: number | null;
@@ -38,7 +41,6 @@ interface ParsedProduct {
   thread_length_mm: number | null;
   head_diameter_mm: number | null;
   // Computed fields
-  title: string;
   handle: string;
   price_ht: number;
   price_ttc: number;
@@ -98,36 +100,94 @@ export const ProductExcelImport = ({ onImportComplete }: ProductExcelImportProps
       const worksheet = workbook.Sheets[sheetName];
       const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
-      // Parse products from Excel
+      // Parse products from Excel - support multiple column name formats
       const rawProducts = jsonData.map((row: any) => {
-        const code = String(row["Code article"] || row["code_alsafix"] || "").trim();
-        const designation = String(row["Désignation (FR)"] || row["designation_fr"] || row["title"] || "").trim();
-        const purchasePrice = parseNumber(row["PA HT"] || row["purchase_price_ht"]) || 0;
+        // Code ALSAFIX
+        const code = String(
+          row["Code ALSAFIX"] || row["Code article"] || row["code_alsafix"] || ""
+        ).trim();
         
-        const priceHT = Math.round(purchasePrice * 1.5 * 100) / 100;
-        const priceTTC = Math.round(priceHT * 1.2 * 100) / 100;
+        // Designation
+        const designation = String(
+          row["Désignation FR"] || row["Désignation (FR)"] || row["designation_fr"] || ""
+        ).trim();
+        
+        // Title (use Titre column, or fallback to designation/code)
+        const title = String(
+          row["Titre"] || row["title"] || designation || code
+        ).trim();
+        
+        // Description
+        const description = row["Description"] || row["description"] || null;
+        
+        // Category
+        const category = row["Catégorie"] || row["category"] || null;
+        
+        // Prices - parse € format
+        const parsePrice = (val: unknown): number => {
+          if (!val) return 0;
+          const str = String(val).replace(/[€\s]/g, "").replace(",", ".");
+          return parseFloat(str) || 0;
+        };
+        
+        // Purchase price
+        const purchasePrice = parsePrice(
+          row["Prix d'achat à la boite HT"] || row["PA HT"] || row["purchase_price_ht"]
+        );
+        
+        // Selling prices - use direct values if available, otherwise compute
+        let priceHT = parsePrice(
+          row["Prix de vente à la boite HT"] || row["price_ht"]
+        );
+        let priceTTC = parsePrice(
+          row["Prix de vente à la boite TTC"] || row["price_ttc"]
+        );
+        
+        // Fallback: compute from purchase price if not provided
+        if (!priceHT && purchasePrice) {
+          priceHT = Math.round(purchasePrice * 1.5 * 100) / 100;
+        }
+        if (!priceTTC && priceHT) {
+          priceTTC = Math.round(priceHT * 1.2 * 100) / 100;
+        }
 
         return {
           code_alsafix: code,
           designation_fr: designation,
-          box_quantity: parseNumber(row["Qté / Boite"] || row["box_quantity"]),
-          purchase_price_ht: purchasePrice,
-          box_weight: parseNumber(row["Poids / Boite"] || row["box_weight"]),
-          diameter_mm: parseNumber(row["Diamètre (mm)"] || row["diameter_mm"]),
-          length_mm: parseNumber(row["Longueur (mm)"] || row["length_mm"]),
-          usage: row["Utilisation"] || row["usage"] || null,
-          material: row["Matière"] || row["material"] || null,
-          drive_type: row["Type d'entraînement"] || row["drive_type"] || null,
-          thickness_to_fix_mm: parseNumber(row["Epaisseur à fixer (mm)"] || row["thickness_to_fix_mm"]),
-          thread_length_mm: parseNumber(row["Longueur filetée (mm)"] || row["thread_length_mm"]),
-          head_diameter_mm: parseNumber(row["Diamètre de tête (mm)"] || row["head_diameter_mm"]),
-          title: designation || code,
+          title: title,
+          description: description,
+          category: category,
+          box_quantity: parseNumber(
+            row["Quantité dans la boite"] || row["Qté / Boite"] || row["box_quantity"]
+          ),
+          purchase_price_ht: purchasePrice || null,
+          box_weight: parseNumber(
+            row["Poids de la boite"] || row["Poids / Boite"] || row["box_weight"]
+          ),
+          diameter_mm: parseNumber(
+            row["diamètre (mm)"] || row["Diamètre (mm)"] || row["diameter_mm"]
+          ),
+          length_mm: parseNumber(
+            row["longueur (mm)"] || row["Longueur (mm)"] || row["length_mm"]
+          ),
+          usage: row["utilisation"] || row["Utilisation"] || row["usage"] || null,
+          material: row["matière"] || row["Matière"] || row["material"] || null,
+          drive_type: row["Empreinte"] || row["Type d'entraînement"] || row["drive_type"] || null,
+          thickness_to_fix_mm: parseNumber(
+            row["épaisseur à fixer (mm)"] || row["Epaisseur à fixer (mm)"] || row["thickness_to_fix_mm"]
+          ),
+          thread_length_mm: parseNumber(
+            row["Longueur du filetage (mm)"] || row["Longueur filetée (mm)"] || row["thread_length_mm"]
+          ),
+          head_diameter_mm: parseNumber(
+            row["Diamètre de la tête (mm)"] || row["Diamètre de tête (mm)"] || row["head_diameter_mm"]
+          ),
           handle: generateHandle(code, designation),
           price_ht: priceHT,
           price_ttc: priceTTC,
           status: "new" as const,
         };
-      }).filter(p => p.code_alsafix || p.designation_fr);
+      }).filter(p => p.code_alsafix || p.designation_fr || p.title);
 
       if (rawProducts.length === 0) {
         toast({
@@ -195,6 +255,8 @@ export const ProductExcelImport = ({ onImportComplete }: ProductExcelImportProps
         code_alsafix: product.code_alsafix || null,
         designation_fr: product.designation_fr || null,
         title: product.title,
+        description: product.description || null,
+        category: product.category || null,
         handle: product.handle,
         price_ht: product.price_ht,
         price_ttc: product.price_ttc,
