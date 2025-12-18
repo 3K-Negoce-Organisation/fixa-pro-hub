@@ -117,54 +117,93 @@ export type Database = {
       }
       products: {
         Row: {
+          box_quantity: number | null
+          box_weight: number | null
           category: string | null
+          code_alsafix: string | null
           created_at: string | null
           description: string | null
+          designation_fr: string | null
+          diameter_mm: number | null
+          drive_type: string | null
           handle: string
+          head_diameter_mm: number | null
           id: string
           images: Json | null
           is_active: boolean | null
+          length_mm: number | null
+          material: string | null
           price_ht: number
           price_ttc: number
+          purchase_price_ht: number | null
           specifications: Json | null
           stock: number | null
           tags: string[] | null
+          thickness_to_fix_mm: number | null
+          thread_length_mm: number | null
           title: string
           updated_at: string | null
+          usage: string | null
           variants: Json | null
         }
         Insert: {
+          box_quantity?: number | null
+          box_weight?: number | null
           category?: string | null
+          code_alsafix?: string | null
           created_at?: string | null
           description?: string | null
+          designation_fr?: string | null
+          diameter_mm?: number | null
+          drive_type?: string | null
           handle: string
+          head_diameter_mm?: number | null
           id?: string
           images?: Json | null
           is_active?: boolean | null
+          length_mm?: number | null
+          material?: string | null
           price_ht: number
           price_ttc: number
+          purchase_price_ht?: number | null
           specifications?: Json | null
           stock?: number | null
           tags?: string[] | null
+          thickness_to_fix_mm?: number | null
+          thread_length_mm?: number | null
           title: string
           updated_at?: string | null
+          usage?: string | null
           variants?: Json | null
         }
         Update: {
+          box_quantity?: number | null
+          box_weight?: number | null
           category?: string | null
+          code_alsafix?: string | null
           created_at?: string | null
           description?: string | null
+          designation_fr?: string | null
+          diameter_mm?: number | null
+          drive_type?: string | null
           handle?: string
+          head_diameter_mm?: number | null
           id?: string
           images?: Json | null
           is_active?: boolean | null
+          length_mm?: number | null
+          material?: string | null
           price_ht?: number
           price_ttc?: number
+          purchase_price_ht?: number | null
           specifications?: Json | null
           stock?: number | null
           tags?: string[] | null
+          thickness_to_fix_mm?: number | null
+          thread_length_mm?: number | null
           title?: string
           updated_at?: string | null
+          usage?: string | null
           variants?: Json | null
         }
         Relationships: []

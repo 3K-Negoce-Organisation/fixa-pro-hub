@@ -66,6 +66,20 @@ interface ProductFormData {
   is_active: boolean;
   tags: string;
   images: ProductImage[];
+  // New fields from Excel
+  code_alsafix: string;
+  designation_fr: string;
+  box_quantity: number;
+  purchase_price_ht: number;
+  box_weight: number;
+  diameter_mm: number;
+  length_mm: number;
+  usage: string;
+  material: string;
+  drive_type: string;
+  thickness_to_fix_mm: number;
+  thread_length_mm: number;
+  head_diameter_mm: number;
 }
 
 const emptyFormData: ProductFormData = {
@@ -79,6 +93,19 @@ const emptyFormData: ProductFormData = {
   is_active: true,
   tags: "",
   images: [],
+  code_alsafix: "",
+  designation_fr: "",
+  box_quantity: 0,
+  purchase_price_ht: 0,
+  box_weight: 0,
+  diameter_mm: 0,
+  length_mm: 0,
+  usage: "",
+  material: "",
+  drive_type: "",
+  thickness_to_fix_mm: 0,
+  thread_length_mm: 0,
+  head_diameter_mm: 0,
 };
 
 const AdminProductsPage = () => {
@@ -132,7 +159,8 @@ const AdminProductsPage = () => {
   const filteredProducts = products?.filter(p => 
     p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
     p.handle.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    p.category?.toLowerCase().includes(searchQuery.toLowerCase())
+    p.category?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    p.code_alsafix?.toLowerCase().includes(searchQuery.toLowerCase())
   ) || [];
 
   // Create product mutation
@@ -151,6 +179,19 @@ const AdminProductsPage = () => {
           is_active: data.is_active,
           tags: data.tags ? data.tags.split(',').map(t => t.trim()) : [],
           images: JSON.parse(JSON.stringify(data.images)),
+          code_alsafix: data.code_alsafix || null,
+          designation_fr: data.designation_fr || null,
+          box_quantity: data.box_quantity || null,
+          purchase_price_ht: data.purchase_price_ht || null,
+          box_weight: data.box_weight || null,
+          diameter_mm: data.diameter_mm || null,
+          length_mm: data.length_mm || null,
+          usage: data.usage || null,
+          material: data.material || null,
+          drive_type: data.drive_type || null,
+          thickness_to_fix_mm: data.thickness_to_fix_mm || null,
+          thread_length_mm: data.thread_length_mm || null,
+          head_diameter_mm: data.head_diameter_mm || null,
         });
       
       if (error) throw error;
@@ -182,6 +223,19 @@ const AdminProductsPage = () => {
           is_active: data.is_active,
           tags: data.tags ? data.tags.split(',').map(t => t.trim()) : [],
           images: JSON.parse(JSON.stringify(data.images)),
+          code_alsafix: data.code_alsafix || null,
+          designation_fr: data.designation_fr || null,
+          box_quantity: data.box_quantity || null,
+          purchase_price_ht: data.purchase_price_ht || null,
+          box_weight: data.box_weight || null,
+          diameter_mm: data.diameter_mm || null,
+          length_mm: data.length_mm || null,
+          usage: data.usage || null,
+          material: data.material || null,
+          drive_type: data.drive_type || null,
+          thickness_to_fix_mm: data.thickness_to_fix_mm || null,
+          thread_length_mm: data.thread_length_mm || null,
+          head_diameter_mm: data.head_diameter_mm || null,
         })
         .eq('id', id);
       
@@ -251,6 +305,19 @@ const AdminProductsPage = () => {
       is_active: product.is_active ?? true,
       tags: product.tags?.join(', ') || "",
       images: productImages,
+      code_alsafix: product.code_alsafix || "",
+      designation_fr: product.designation_fr || "",
+      box_quantity: product.box_quantity || 0,
+      purchase_price_ht: product.purchase_price_ht || 0,
+      box_weight: product.box_weight || 0,
+      diameter_mm: product.diameter_mm || 0,
+      length_mm: product.length_mm || 0,
+      usage: product.usage || "",
+      material: product.material || "",
+      drive_type: product.drive_type || "",
+      thickness_to_fix_mm: product.thickness_to_fix_mm || 0,
+      thread_length_mm: product.thread_length_mm || 0,
+      head_diameter_mm: product.head_diameter_mm || 0,
     });
     setDialogOpen(true);
   };
@@ -346,7 +413,7 @@ const AdminProductsPage = () => {
         <div className="relative mb-6">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Rechercher par titre, handle ou catégorie..."
+            placeholder="Rechercher par titre, handle, catégorie ou code ALSAFIX..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-10"
@@ -367,11 +434,12 @@ const AdminProductsPage = () => {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead>Code</TableHead>
                       <TableHead>Titre</TableHead>
-                      <TableHead>Handle</TableHead>
                       <TableHead>Catégorie</TableHead>
                       <TableHead>Prix HT</TableHead>
                       <TableHead>Prix TTC</TableHead>
+                      <TableHead>Qté/boite</TableHead>
                       <TableHead>Stock</TableHead>
                       <TableHead>Statut</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
@@ -380,22 +448,23 @@ const AdminProductsPage = () => {
                   <TableBody>
                     {filteredProducts.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                        <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                           Aucun produit trouvé
                         </TableCell>
                       </TableRow>
                     ) : (
                       filteredProducts.map((product) => (
                         <TableRow key={product.id}>
+                          <TableCell className="font-mono text-sm">
+                            {product.code_alsafix || "-"}
+                          </TableCell>
                           <TableCell className="font-medium max-w-[200px] truncate">
                             {product.title}
-                          </TableCell>
-                          <TableCell className="font-mono text-sm text-muted-foreground">
-                            {product.handle}
                           </TableCell>
                           <TableCell>{product.category || "-"}</TableCell>
                           <TableCell>{formatPrice(product.price_ht)}</TableCell>
                           <TableCell>{formatPrice(product.price_ttc)}</TableCell>
+                          <TableCell>{product.box_quantity || "-"}</TableCell>
                           <TableCell>
                             <Badge variant={product.stock && product.stock > 0 ? "default" : "destructive"}>
                               {product.stock || 0}
@@ -440,112 +509,264 @@ const AdminProductsPage = () => {
 
       {/* Create/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {editingProduct ? "Modifier le produit" : "Ajouter un produit"}
             </DialogTitle>
           </DialogHeader>
 
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="title">Titre *</Label>
-                <Input
-                  id="title"
-                  value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  placeholder="Vis à bois 5x50mm"
-                />
+          <div className="grid gap-6 py-4">
+            {/* Basic Info */}
+            <div className="space-y-4">
+              <h3 className="font-semibold text-lg border-b pb-2">Informations générales</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="code_alsafix">Code ALSAFIX</Label>
+                  <Input
+                    id="code_alsafix"
+                    value={formData.code_alsafix}
+                    onChange={(e) => setFormData({ ...formData, code_alsafix: e.target.value })}
+                    placeholder="QS5040TX"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="designation_fr">Désignation FR</Label>
+                  <Input
+                    id="designation_fr"
+                    value={formData.designation_fr}
+                    onChange={(e) => setFormData({ ...formData, designation_fr: e.target.value })}
+                    placeholder="Vis QS 5,0 x 40 inox TX25"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="title">Titre *</Label>
+                  <Input
+                    id="title"
+                    value={formData.title}
+                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                    placeholder="Vis terrasse QS 5 x 40"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="handle">Handle (URL)</Label>
+                  <Input
+                    id="handle"
+                    value={formData.handle}
+                    onChange={(e) => setFormData({ ...formData, handle: e.target.value })}
+                    placeholder="vis-terrasse-qs-5-x-40"
+                  />
+                </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="handle">Handle (URL)</Label>
-                <Input
-                  id="handle"
-                  value={formData.handle}
-                  onChange={(e) => setFormData({ ...formData, handle: e.target.value })}
-                  placeholder="vis-a-bois-5x50mm"
+                <Label htmlFor="description">Description</Label>
+                <Textarea
+                  id="description"
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  placeholder="Description du produit..."
+                  rows={4}
                 />
               </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
-              <Textarea
-                id="description"
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder="Description du produit..."
-                rows={3}
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="price_ht">Prix HT * (€)</Label>
-                <Input
-                  id="price_ht"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={formData.price_ht}
-                  onChange={(e) => handlePriceHTChange(parseFloat(e.target.value) || 0)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="price_ttc">Prix TTC * (€)</Label>
-                <Input
-                  id="price_ttc"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={formData.price_ttc}
-                  onChange={(e) => setFormData({ ...formData, price_ttc: parseFloat(e.target.value) || 0 })}
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="category">Catégorie</Label>
-                <Input
-                  id="category"
-                  value={formData.category}
-                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                  placeholder="Vis terrasse"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="stock">Stock</Label>
-                <Input
-                  id="stock"
-                  type="number"
-                  min="0"
-                  value={formData.stock}
-                  onChange={(e) => setFormData({ ...formData, stock: parseInt(e.target.value) || 0 })}
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="category">Catégorie</Label>
+                  <Input
+                    id="category"
+                    value={formData.category}
+                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                    placeholder="Vis terrasse"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="tags">Tags (séparés par des virgules)</Label>
+                  <Input
+                    id="tags"
+                    value={formData.tags}
+                    onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
+                    placeholder="Torx, Inox A2, 5x50"
+                  />
+                </div>
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="tags">Tags (séparés par des virgules)</Label>
-              <Input
-                id="tags"
-                value={formData.tags}
-                onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
-                placeholder="Torx, Inox A2, 5x50"
-              />
+            {/* Pricing */}
+            <div className="space-y-4">
+              <h3 className="font-semibold text-lg border-b pb-2">Prix et quantités</h3>
+              <div className="grid grid-cols-4 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="price_ht">Prix vente HT * (€)</Label>
+                  <Input
+                    id="price_ht"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={formData.price_ht}
+                    onChange={(e) => handlePriceHTChange(parseFloat(e.target.value) || 0)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="price_ttc">Prix vente TTC * (€)</Label>
+                  <Input
+                    id="price_ttc"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={formData.price_ttc}
+                    onChange={(e) => setFormData({ ...formData, price_ttc: parseFloat(e.target.value) || 0 })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="purchase_price_ht">Prix achat HT (€)</Label>
+                  <Input
+                    id="purchase_price_ht"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={formData.purchase_price_ht}
+                    onChange={(e) => setFormData({ ...formData, purchase_price_ht: parseFloat(e.target.value) || 0 })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="box_quantity">Quantité par boite</Label>
+                  <Input
+                    id="box_quantity"
+                    type="number"
+                    min="0"
+                    value={formData.box_quantity}
+                    onChange={(e) => setFormData({ ...formData, box_quantity: parseInt(e.target.value) || 0 })}
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="stock">Stock (boites)</Label>
+                  <Input
+                    id="stock"
+                    type="number"
+                    min="0"
+                    value={formData.stock}
+                    onChange={(e) => setFormData({ ...formData, stock: parseInt(e.target.value) || 0 })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="box_weight">Poids boite (kg)</Label>
+                  <Input
+                    id="box_weight"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={formData.box_weight}
+                    onChange={(e) => setFormData({ ...formData, box_weight: parseFloat(e.target.value) || 0 })}
+                  />
+                </div>
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <Label>Images du produit</Label>
+            {/* Technical Specifications */}
+            <div className="space-y-4">
+              <h3 className="font-semibold text-lg border-b pb-2">Caractéristiques techniques</h3>
+              <div className="grid grid-cols-4 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="diameter_mm">Diamètre (mm)</Label>
+                  <Input
+                    id="diameter_mm"
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    value={formData.diameter_mm}
+                    onChange={(e) => setFormData({ ...formData, diameter_mm: parseFloat(e.target.value) || 0 })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="length_mm">Longueur (mm)</Label>
+                  <Input
+                    id="length_mm"
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    value={formData.length_mm}
+                    onChange={(e) => setFormData({ ...formData, length_mm: parseFloat(e.target.value) || 0 })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="head_diameter_mm">Diamètre tête (mm)</Label>
+                  <Input
+                    id="head_diameter_mm"
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    value={formData.head_diameter_mm}
+                    onChange={(e) => setFormData({ ...formData, head_diameter_mm: parseFloat(e.target.value) || 0 })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="thread_length_mm">Longueur filetage (mm)</Label>
+                  <Input
+                    id="thread_length_mm"
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    value={formData.thread_length_mm}
+                    onChange={(e) => setFormData({ ...formData, thread_length_mm: parseFloat(e.target.value) || 0 })}
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-4 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="thickness_to_fix_mm">Épaisseur à fixer (mm)</Label>
+                  <Input
+                    id="thickness_to_fix_mm"
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    value={formData.thickness_to_fix_mm}
+                    onChange={(e) => setFormData({ ...formData, thickness_to_fix_mm: parseFloat(e.target.value) || 0 })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="usage">Utilisation</Label>
+                  <Input
+                    id="usage"
+                    value={formData.usage}
+                    onChange={(e) => setFormData({ ...formData, usage: e.target.value })}
+                    placeholder="extérieur"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="material">Matière</Label>
+                  <Input
+                    id="material"
+                    value={formData.material}
+                    onChange={(e) => setFormData({ ...formData, material: e.target.value })}
+                    placeholder="Inox"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="drive_type">Empreinte</Label>
+                  <Input
+                    id="drive_type"
+                    value={formData.drive_type}
+                    onChange={(e) => setFormData({ ...formData, drive_type: e.target.value })}
+                    placeholder="TX 25"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Images */}
+            <div className="space-y-4">
+              <h3 className="font-semibold text-lg border-b pb-2">Images</h3>
               <ProductImageUpload
                 images={formData.images}
                 onImagesChange={(images) => setFormData({ ...formData, images })}
               />
             </div>
 
-            <div className="flex items-center space-x-2">
+            {/* Status */}
+            <div className="flex items-center space-x-2 pt-2">
               <Switch
                 id="is_active"
                 checked={formData.is_active}
