@@ -57,9 +57,10 @@ const CartPage = () => {
       }
 
       // Redirect to Stripe checkout in same page
-      // Don't reset isSubmitting here - let the page navigate
+      // NOTE: Stripe Checkout can't render inside an iframe; force top-level navigation.
       console.log('Redirecting to:', checkoutResult.url);
-      window.location.href = checkoutResult.url;
+      (window.top ?? window).location.href = checkoutResult.url;
+      return;
     } catch (error) {
       console.error("Checkout error:", error);
       toast({
