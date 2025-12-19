@@ -297,6 +297,7 @@ export type Database = {
       app_role: "admin" | "user"
       order_status:
         | "pending"
+        | "paid"
         | "confirmed"
         | "processing"
         | "shipped"
@@ -432,6 +433,7 @@ export const Constants = {
       app_role: ["admin", "user"],
       order_status: [
         "pending",
+        "paid",
         "confirmed",
         "processing",
         "shipped",
