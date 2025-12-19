@@ -54,15 +54,9 @@ const CartPage = () => {
         return;
       }
 
-      // Redirect to Stripe checkout - try opening in new window first
+      // Redirect to Stripe checkout in same page
       console.log('Redirecting to:', checkoutResult.url);
-      const stripeWindow = window.open(checkoutResult.url, '_blank');
-      
-      // If popup was blocked, fallback to redirect
-      if (!stripeWindow) {
-        console.log('Popup blocked, using redirect...');
-        window.location.href = checkoutResult.url;
-      }
+      window.location.href = checkoutResult.url;
     } catch (error) {
       console.error("Checkout error:", error);
       toast({
