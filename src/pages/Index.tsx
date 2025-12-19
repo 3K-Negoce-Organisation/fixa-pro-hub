@@ -12,10 +12,10 @@ import { FeaturedProducts } from "@/components/home/FeaturedProducts";
 import { supabase } from "@/integrations/supabase/client";
 
 const categoryConfig = [
-  { id: "terrasse", name: "Vis Terrasse", icon: "deck" },
-  { id: "charpente", name: "Vis Charpente", icon: "frame" },
-  { id: "agglo", name: "Vis Agglo", icon: "panel" },
-  { id: "boulonnerie", name: "Boulonnerie", icon: "bolt" },
+  { id: "terrasse", name: "Vis Terrasse", icon: "deck", dbCategory: "Vis terrasse" },
+  { id: "charpente", name: "Vis Charpente", icon: "frame", dbCategory: "Vis de charpente" },
+  { id: "menuiserie", name: "Vis Menuiserie", icon: "panel", dbCategory: "Vis menuiserie" },
+  { id: "tirefond", name: "Tirefond", icon: "bolt", dbCategory: "Tirefond" },
 ];
 
 const Index = () => {
@@ -35,7 +35,7 @@ const Index = () => {
 
       const counts: Record<string, number> = {};
       data?.forEach((product) => {
-        const cat = product.category?.toLowerCase() || "autre";
+        const cat = product.category?.trim() || "";
         counts[cat] = (counts[cat] || 0) + 1;
       });
       return counts;
@@ -44,7 +44,7 @@ const Index = () => {
 
   const categories = categoryConfig.map((cat) => ({
     ...cat,
-    count: categoryCounts?.[cat.id] || 0,
+    count: categoryCounts?.[cat.dbCategory] || 0,
   }));
 
   const handleSearch = (e: React.FormEvent) => {
