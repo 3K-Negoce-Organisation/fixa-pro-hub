@@ -110,12 +110,16 @@ const OrderTrackingPage = () => {
     },
   });
 
-  // Auto-search when order number is in URL
+  // Auto-search when order number is in URL or select most recent order
   useEffect(() => {
     if (orderFromUrl) {
       searchOrder(orderFromUrl);
+    } else if (userOrders && userOrders.length > 0 && !order && !searched) {
+      // Auto-select most recent order if no search has been made
+      const mostRecentOrder = userOrders[0];
+      handleSelectOrder(mostRecentOrder.order_number);
     }
-  }, [orderFromUrl]);
+  }, [orderFromUrl, userOrders]);
 
   // Subscribe to realtime updates when order is loaded
   useEffect(() => {
