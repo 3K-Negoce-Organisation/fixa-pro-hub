@@ -28,6 +28,7 @@ const CartPage = () => {
           description: "Vous devez être connecté pour passer commande.",
           variant: "destructive",
         });
+        setIsSubmitting(false);
         navigate("/auth");
         return;
       }
@@ -51,10 +52,12 @@ const CartPage = () => {
           description: checkoutResult?.error || "Impossible de créer le checkout. Veuillez réessayer.",
           variant: "destructive",
         });
+        setIsSubmitting(false);
         return;
       }
 
       // Redirect to Stripe checkout in same page
+      // Don't reset isSubmitting here - let the page navigate
       console.log('Redirecting to:', checkoutResult.url);
       window.location.href = checkoutResult.url;
     } catch (error) {
@@ -64,7 +67,6 @@ const CartPage = () => {
         description: "Impossible de procéder au paiement. Veuillez réessayer.",
         variant: "destructive",
       });
-    } finally {
       setIsSubmitting(false);
     }
   };
