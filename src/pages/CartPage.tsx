@@ -28,7 +28,6 @@ const CartPage = () => {
           description: "Vous devez être connecté pour passer commande.",
           variant: "destructive",
         });
-        setIsSubmitting(false);
         navigate("/auth");
         return;
       }
@@ -52,15 +51,12 @@ const CartPage = () => {
           description: checkoutResult?.error || "Impossible de créer le checkout. Veuillez réessayer.",
           variant: "destructive",
         });
-        setIsSubmitting(false);
         return;
       }
 
       // Redirect to Stripe checkout in same page
-      // NOTE: Stripe Checkout can't render inside an iframe; force top-level navigation.
       console.log('Redirecting to:', checkoutResult.url);
-      (window.top ?? window).location.href = checkoutResult.url;
-      return;
+      window.location.href = checkoutResult.url;
     } catch (error) {
       console.error("Checkout error:", error);
       toast({
@@ -68,6 +64,7 @@ const CartPage = () => {
         description: "Impossible de procéder au paiement. Veuillez réessayer.",
         variant: "destructive",
       });
+    } finally {
       setIsSubmitting(false);
     }
   };
