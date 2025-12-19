@@ -1,10 +1,15 @@
 import { Link } from "react-router-dom";
-import { Clock, ArrowRight } from "lucide-react";
+import { Clock, ArrowRight, Plus } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { fetchProducts, getProductImage, formatPrice } from "@/lib/products";
+import { useCart } from "@/contexts/CartContext";
+import { useToast } from "@/hooks/use-toast";
 
 export function QuickOrderSection() {
+  const { addItem } = useCart();
+  const { toast } = useToast();
+  
   const { data: products, isLoading } = useQuery({
     queryKey: ["quick-order-products"],
     queryFn: () => fetchProducts(),
@@ -14,9 +19,26 @@ export function QuickOrderSection() {
     id: product.id,
     handle: product.handle,
     title: product.title,
+    priceHT: product.price_ht,
     priceTTC: product.price_ttc,
     image: getProductImage(product),
   }));
+
+  const handleAddToCart = (product: typeof recentProducts[0]) => {
+    addItem({
+      id: product.id,
+      variantId: `${product.id}-unit`,
+      handle: product.handle,
+      title: product.title,
+      variantTitle: "Unité",
+      priceHT: product.priceHT,
+      image: product.image,
+    }, 1);
+    toast({
+      title: "Produit ajouté",
+      description: `${product.title.split(" - ")[0]} ajouté au panier`,
+    });
+  };
 
   if (isLoading) {
     return (
@@ -79,8 +101,13 @@ export function QuickOrderSection() {
                 {formatPrice(product.priceTTC)}
               </p>
             </div>
-            <Button size="sm" variant="outline" className="shrink-0">
-              +
+            <Button 
+              size="sm" 
+              variant="outline" 
+              className="shrink-0"
+              onClick={() => handleAddToCart(product)}
+            >
+              <Plus className="h-4 w-4" />
             </Button>
           </div>
         ))}
