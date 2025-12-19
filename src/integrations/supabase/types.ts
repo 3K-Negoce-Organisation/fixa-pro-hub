@@ -259,6 +259,45 @@ export type Database = {
         }
         Relationships: []
       }
+      supplier_settings: {
+        Row: {
+          address: string | null
+          city: string | null
+          created_at: string | null
+          email: string
+          id: string
+          name: string
+          phone: string | null
+          postal_code: string | null
+          status_email: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          address?: string | null
+          city?: string | null
+          created_at?: string | null
+          email?: string
+          id?: string
+          name?: string
+          phone?: string | null
+          postal_code?: string | null
+          status_email?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          address?: string | null
+          city?: string | null
+          created_at?: string | null
+          email?: string
+          id?: string
+          name?: string
+          phone?: string | null
+          postal_code?: string | null
+          status_email?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
