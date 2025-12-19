@@ -178,6 +178,14 @@ serve(async (req) => {
 
     const displayName = profile?.company_name || customerName || customerEmail;
 
+    // Get supplier settings
+    const { data: supplierSettings } = await supabaseAdmin
+      .from('supplier_settings')
+      .select('*')
+      .maybeSingle();
+
+    logStep("Supplier settings fetched", { hasSettings: !!supplierSettings });
+
     if (!n8nWebhookUrl) {
       return new Response(
         JSON.stringify({ error: 'N8N_WEBHOOK_URL non configuré' }),
@@ -218,6 +226,15 @@ serve(async (req) => {
           country: 'FR',
         },
       },
+      supplier: supplierSettings ? {
+        name: supplierSettings.name || null,
+        email: supplierSettings.email || null,
+        status_email: supplierSettings.status_email || null,
+        address: supplierSettings.address || null,
+        postal_code: supplierSettings.postal_code || null,
+        city: supplierSettings.city || null,
+        phone: supplierSettings.phone || null,
+      } : null,
       items: (orderItems || []).map(item => ({
         product_id: item.product_id,
         title: item.product_title,

@@ -225,6 +225,14 @@ serve(async (req) => {
       // Send webhook to n8n for fulfillment
       if (n8nWebhookUrl) {
         try {
+          // Get supplier settings
+          const { data: supplierSettings } = await supabaseAdmin
+            .from('supplier_settings')
+            .select('*')
+            .maybeSingle();
+
+          logStep("Supplier settings fetched", { hasSettings: !!supplierSettings });
+
           // Generate Excel recap file
           const excelBase64 = generateOrderExcel(
             orderNumber,
@@ -259,6 +267,15 @@ serve(async (req) => {
                 country: shippingAddress.country,
               } : null,
             },
+            supplier: supplierSettings ? {
+              name: supplierSettings.name || null,
+              email: supplierSettings.email || null,
+              status_email: supplierSettings.status_email || null,
+              address: supplierSettings.address || null,
+              postal_code: supplierSettings.postal_code || null,
+              city: supplierSettings.city || null,
+              phone: supplierSettings.phone || null,
+            } : null,
             items: cartItems.map(item => ({
               product_id: item.id,
               variant_id: item.variantId,

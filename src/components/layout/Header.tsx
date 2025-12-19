@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Search, ShoppingCart, User, Menu, Package, Phone, LogOut, Settings, ChevronDown } from "lucide-react";
+import { Search, ShoppingCart, User, Menu, Package, Phone, LogOut, Settings, ChevronDown, Truck } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/contexts/CartContext";
@@ -118,6 +118,14 @@ export function Header() {
                     >
                       <Package className="h-4 w-4" />
                       Produits
+                    </Link>
+                    <Link 
+                      to="/admin/fournisseur" 
+                      className="flex items-center gap-2 px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors"
+                      onClick={() => setAdminMenuOpen(false)}
+                    >
+                      <Truck className="h-4 w-4" />
+                      Fournisseur
                     </Link>
                   </div>
                 )}
