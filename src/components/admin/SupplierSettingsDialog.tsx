@@ -1,12 +1,17 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { ArrowLeft, Save, Building2, Mail, MapPin, Phone } from "lucide-react";
+import { Save, Building2, Mail, MapPin, Phone } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface SupplierSettings {
   id: string;
@@ -19,15 +24,21 @@ interface SupplierSettings {
   phone: string | null;
 }
 
-const AdminSupplierPage = () => {
-  const navigate = useNavigate();
+interface SupplierSettingsDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+export function SupplierSettingsDialog({ open, onOpenChange }: SupplierSettingsDialogProps) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [settings, setSettings] = useState<SupplierSettings | null>(null);
 
   useEffect(() => {
-    fetchSettings();
-  }, []);
+    if (open) {
+      fetchSettings();
+    }
+  }, [open]);
 
   const fetchSettings = async () => {
     try {
@@ -66,6 +77,7 @@ const AdminSupplierPage = () => {
 
       if (error) throw error;
       toast.success("Paramètres enregistrés");
+      onOpenChange(false);
     } catch (error: any) {
       console.error("Error saving supplier settings:", error);
       toast.error("Erreur lors de l'enregistrement");
@@ -79,42 +91,32 @@ const AdminSupplierPage = () => {
     setSettings({ ...settings, [field]: value || null });
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-8">
-        <div className="flex items-center gap-4 mb-8">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/admin/commandes")}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div>
-            <h1 className="text-3xl font-bold">Paramètres Fournisseur</h1>
-            <p className="text-muted-foreground">
-              Configurez les informations du fournisseur pour l'envoi des commandes
-            </p>
-          </div>
-        </div>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Building2 className="h-5 w-5" />
+            Paramètres Fournisseur
+          </DialogTitle>
+          <DialogDescription>
+            Configurez les informations du fournisseur pour l'envoi des commandes
+          </DialogDescription>
+        </DialogHeader>
 
-        {settings && (
-          <div className="grid gap-6 max-w-2xl">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Building2 className="h-5 w-5" />
-                  Informations générales
-                </CardTitle>
-                <CardDescription>
-                  Nom et coordonnées du fournisseur
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
+        {loading ? (
+          <div className="flex items-center justify-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          </div>
+        ) : settings ? (
+          <div className="space-y-6 py-4">
+            {/* Informations générales */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-medium flex items-center gap-2">
+                <Building2 className="h-4 w-4" />
+                Informations générales
+              </h3>
+              <div className="space-y-3">
                 <div className="space-y-2">
                   <Label htmlFor="name">Nom du fournisseur</Label>
                   <Input
@@ -137,20 +139,16 @@ const AdminSupplierPage = () => {
                     />
                   </div>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Mail className="h-5 w-5" />
-                  Emails
-                </CardTitle>
-                <CardDescription>
-                  Adresses email pour l'envoi et la réception des commandes
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            {/* Emails */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-medium flex items-center gap-2">
+                <Mail className="h-4 w-4" />
+                Emails
+              </h3>
+              <div className="space-y-3">
                 <div className="space-y-2">
                   <Label htmlFor="email">Email d'envoi des commandes *</Label>
                   <Input
@@ -177,20 +175,16 @@ const AdminSupplierPage = () => {
                     Email pour recevoir les mises à jour de statut (optionnel)
                   </p>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <MapPin className="h-5 w-5" />
-                  Adresse
-                </CardTitle>
-                <CardDescription>
-                  Adresse postale du fournisseur
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            {/* Adresse */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-medium flex items-center gap-2">
+                <MapPin className="h-4 w-4" />
+                Adresse
+              </h3>
+              <div className="space-y-3">
                 <div className="space-y-2">
                   <Label htmlFor="address">Adresse</Label>
                   <Input
@@ -220,18 +214,20 @@ const AdminSupplierPage = () => {
                     />
                   </div>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
 
             <Button onClick={handleSave} disabled={saving} className="w-full">
               <Save className="h-4 w-4 mr-2" />
               {saving ? "Enregistrement..." : "Enregistrer les paramètres"}
             </Button>
           </div>
+        ) : (
+          <p className="text-center text-muted-foreground py-8">
+            Aucun paramètre trouvé
+          </p>
         )}
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
-};
-
-export default AdminSupplierPage;
+}
