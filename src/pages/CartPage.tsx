@@ -116,7 +116,7 @@ const CartPage = () => {
                   {/* Image */}
                   <Link
                     to={`/produit/${item.handle}`}
-                    className="shrink-0 w-24 h-24 bg-muted rounded flex items-center justify-center"
+                    className="shrink-0 w-24 h-24 bg-white rounded border border-border flex items-center justify-center"
                   >
                     <img
                       src={item.image}
