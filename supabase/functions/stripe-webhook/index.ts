@@ -172,12 +172,16 @@ serve(async (req) => {
       const shippingDetails = fullSession.shipping_details;
       const shippingAddress = shippingDetails?.address;
 
+      // Extract customer email
+      const customerEmail = fullSession.customer_details?.email || fullSession.customer_email || null;
+
       // Create order in Supabase
       const { data: order, error: orderError } = await supabaseAdmin
         .from("orders")
         .insert({
           order_number: orderNumber,
           user_id: userId,
+          user_email: customerEmail,
           status: "paid",
           total_ht: totalHT,
           total_ttc: totalTTC,
