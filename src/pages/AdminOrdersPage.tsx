@@ -575,31 +575,23 @@ const quickStatusUpdate = (order: Order, newStatus: OrderStatus) => {
                           </div>
                         </TableCell>
 <TableCell>
-                          <div className="flex gap-1">
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() => simulateWebhookMutation.mutate(order)}
-                                    disabled={simulateWebhookMutation.isPending}
-                                  >
-                                    <Send className="h-4 w-4" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>Simuler webhook n8n</p>
-                                  <p className="text-xs text-muted-foreground">Envoie le fichier Excel au fournisseur</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
+                          <div className="flex gap-2">
                             <Button
                               size="sm"
-                              variant="ghost"
+                              variant="outline"
+                              onClick={() => simulateWebhookMutation.mutate(order)}
+                              disabled={simulateWebhookMutation.isPending}
+                            >
+                              <Send className="h-4 w-4 mr-1" />
+                              Envoyer
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
                               onClick={() => openEditDialog(order)}
                             >
-                              <Edit className="h-4 w-4" />
+                              <Edit className="h-4 w-4 mr-1" />
+                              Modifier
                             </Button>
                           </div>
                         </TableCell>
