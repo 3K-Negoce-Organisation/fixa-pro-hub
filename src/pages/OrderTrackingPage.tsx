@@ -33,7 +33,7 @@ const formatPriceTTC = (price: number) => {
   }).format(price) + " TTC";
 };
 
-type OrderStatus = 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
+type OrderStatus = 'pending' | 'paid' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
 
 interface OrderItem {
   id: string;
@@ -65,15 +65,17 @@ interface Order {
 
 const statusConfig: Record<OrderStatus, { label: string; color: string; icon: React.ReactNode; step: number }> = {
   pending: { label: "En attente", color: "bg-yellow-100 text-yellow-800", icon: <Clock className="h-4 w-4" />, step: 1 },
-  confirmed: { label: "Confirmée", color: "bg-blue-100 text-blue-800", icon: <CheckCircle className="h-4 w-4" />, step: 2 },
-  processing: { label: "En préparation", color: "bg-purple-100 text-purple-800", icon: <Package className="h-4 w-4" />, step: 3 },
-  shipped: { label: "Expédiée", color: "bg-indigo-100 text-indigo-800", icon: <Truck className="h-4 w-4" />, step: 4 },
-  delivered: { label: "Livrée", color: "bg-green-100 text-green-800", icon: <CheckCircle className="h-4 w-4" />, step: 5 },
+  paid: { label: "Payée", color: "bg-emerald-100 text-emerald-800", icon: <CheckCircle className="h-4 w-4" />, step: 2 },
+  confirmed: { label: "Confirmée fournisseur", color: "bg-blue-100 text-blue-800", icon: <CheckCircle className="h-4 w-4" />, step: 3 },
+  processing: { label: "En préparation", color: "bg-purple-100 text-purple-800", icon: <Package className="h-4 w-4" />, step: 4 },
+  shipped: { label: "Expédiée", color: "bg-indigo-100 text-indigo-800", icon: <Truck className="h-4 w-4" />, step: 5 },
+  delivered: { label: "Livrée", color: "bg-green-100 text-green-800", icon: <CheckCircle className="h-4 w-4" />, step: 6 },
   cancelled: { label: "Annulée", color: "bg-red-100 text-red-800", icon: <XCircle className="h-4 w-4" />, step: 0 },
 };
 
 const statusSteps = [
   { key: 'pending', label: 'En attente' },
+  { key: 'paid', label: 'Payée' },
   { key: 'confirmed', label: 'Confirmée' },
   { key: 'processing', label: 'Préparation' },
   { key: 'shipped', label: 'Expédiée' },

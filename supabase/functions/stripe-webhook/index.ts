@@ -104,7 +104,7 @@ serve(async (req) => {
         .insert({
           order_number: orderNumber,
           user_id: userId,
-          status: "confirmed",
+          status: "paid",
           total_ht: totalHT,
           total_ttc: totalTTC,
           shipping_address: shippingAddress 

@@ -60,9 +60,9 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
-type OrderStatus = 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
+type OrderStatus = 'pending' | 'paid' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
 
-const ORDER_STATUSES: OrderStatus[] = ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled'];
+const ORDER_STATUSES: OrderStatus[] = ['pending', 'paid', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled'];
 
 interface Order {
   id: string;
@@ -83,14 +83,15 @@ interface Order {
 
 const statusConfig: Record<OrderStatus, { label: string; color: string; icon: React.ElementType }> = {
   pending: { label: "En attente", color: "bg-yellow-100 text-yellow-800 border-yellow-300", icon: Clock },
-  confirmed: { label: "Confirmée", color: "bg-blue-100 text-blue-800 border-blue-300", icon: CheckCircle },
+  paid: { label: "Payée", color: "bg-emerald-100 text-emerald-800 border-emerald-300", icon: CheckCircle },
+  confirmed: { label: "Confirmée fournisseur", color: "bg-blue-100 text-blue-800 border-blue-300", icon: CheckCircle },
   processing: { label: "En préparation", color: "bg-purple-100 text-purple-800 border-purple-300", icon: Package },
   shipped: { label: "Expédiée", color: "bg-indigo-100 text-indigo-800 border-indigo-300", icon: Truck },
   delivered: { label: "Livrée", color: "bg-green-100 text-green-800 border-green-300", icon: Home },
   cancelled: { label: "Annulée", color: "bg-red-100 text-red-800 border-red-300", icon: XCircle },
 };
 
-const statusOrder: OrderStatus[] = ['pending', 'confirmed', 'processing', 'shipped', 'delivered'];
+const statusOrder: OrderStatus[] = ['pending', 'paid', 'confirmed', 'processing', 'shipped', 'delivered'];
 
 interface ConfirmationState {
   open: boolean;
