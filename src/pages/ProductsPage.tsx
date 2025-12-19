@@ -65,13 +65,22 @@ const ProductsPage = () => {
       const firstVariant = variants[0];
       const image = getProductImage(product);
       
+      // Use promo price if available
+      const isPromo = !!(product.is_promo && product.promo_price_ht);
+      const displayPriceHT = isPromo ? product.promo_price_ht! : product.price_ht;
+      const displayPriceTTC = isPromo 
+        ? Math.round(product.promo_price_ht! * 1.2 * 100) / 100 
+        : product.price_ttc;
+
       return {
         id: product.id,
         variantId: firstVariant?.id || product.id,
         handle: product.handle,
         title: product.title,
-        priceHT: product.price_ht,
-        priceTTC: product.price_ttc,
+        priceHT: displayPriceHT,
+        priceTTC: displayPriceTTC,
+        originalPriceHT: isPromo ? product.price_ht : undefined,
+        originalPriceTTC: isPromo ? product.price_ttc : undefined,
         image,
         category: product.category || "general",
         diameter_mm: product.diameter_mm,
@@ -80,6 +89,7 @@ const ProductsPage = () => {
         drive_type: product.drive_type,
         stock: product.stock ?? 0,
         inStock: (product.stock ?? 0) > 0,
+        isPromo: isPromo,
       };
     });
   }, [products]);

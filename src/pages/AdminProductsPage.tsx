@@ -48,7 +48,8 @@ import {
   CheckSquare,
   Square,
   Power,
-  PowerOff
+  PowerOff,
+  Percent
 } from "lucide-react";
 import { ProductImageUpload } from "@/components/admin/ProductImageUpload";
 import { ProductExcelImport } from "@/components/admin/ProductExcelImport";
@@ -71,6 +72,8 @@ interface ProductFormData {
   category: string;
   stock: number;
   is_active: boolean;
+  is_promo: boolean;
+  promo_price_ht: number;
   tags: string;
   images: ProductImage[];
   // New fields from Excel
@@ -98,6 +101,8 @@ const emptyFormData: ProductFormData = {
   category: "",
   stock: 0,
   is_active: true,
+  is_promo: false,
+  promo_price_ht: 0,
   tags: "",
   images: [],
   code_alsafix: "",
@@ -189,6 +194,8 @@ const AdminProductsPage = () => {
           category: data.category || null,
           stock: data.stock,
           is_active: data.is_active,
+          is_promo: data.is_promo,
+          promo_price_ht: data.is_promo && data.promo_price_ht > 0 ? data.promo_price_ht : null,
           tags: data.tags ? data.tags.split(',').map(t => t.trim()) : [],
           images: JSON.parse(JSON.stringify(data.images)),
           code_alsafix: data.code_alsafix || null,
@@ -233,6 +240,8 @@ const AdminProductsPage = () => {
           category: data.category || null,
           stock: data.stock,
           is_active: data.is_active,
+          is_promo: data.is_promo,
+          promo_price_ht: data.is_promo && data.promo_price_ht > 0 ? data.promo_price_ht : null,
           tags: data.tags ? data.tags.split(',').map(t => t.trim()) : [],
           images: JSON.parse(JSON.stringify(data.images)),
           code_alsafix: data.code_alsafix || null,
@@ -394,6 +403,8 @@ const AdminProductsPage = () => {
       category: product.category || "",
       stock: product.stock || 0,
       is_active: product.is_active ?? true,
+      is_promo: product.is_promo ?? false,
+      promo_price_ht: product.promo_price_ht || 0,
       tags: product.tags?.join(', ') || "",
       images: productImages,
       code_alsafix: product.code_alsafix || "",
@@ -586,16 +597,17 @@ const AdminProductsPage = () => {
                       <TableHead>Catégorie</TableHead>
                       <TableHead>Prix HT</TableHead>
                       <TableHead>Prix TTC</TableHead>
-                      <TableHead>Qté/boite</TableHead>
-                      <TableHead>Stock</TableHead>
-                      <TableHead>Statut</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
+                    <TableHead>Qté/boite</TableHead>
+                    <TableHead>Stock</TableHead>
+                    <TableHead>Promo</TableHead>
+                    <TableHead>Statut</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredProducts.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
+                        <TableCell colSpan={12} className="text-center py-8 text-muted-foreground">
                           Aucun produit trouvé
                         </TableCell>
                       </TableRow>
@@ -642,6 +654,16 @@ const AdminProductsPage = () => {
                             <Badge variant={product.stock && product.stock > 0 ? "default" : "destructive"}>
                               {product.stock || 0}
                             </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {product.is_promo ? (
+                              <Badge className="bg-destructive text-destructive-foreground">
+                                <Percent className="h-3 w-3 mr-1" />
+                                {product.promo_price_ht ? formatPrice(product.promo_price_ht) : 'Oui'}
+                              </Badge>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
                           </TableCell>
                           <TableCell>
                             <Badge 
@@ -855,6 +877,50 @@ const AdminProductsPage = () => {
                   />
                 </div>
               </div>
+            </div>
+
+            {/* Promotion */}
+            <div className="space-y-4">
+              <h3 className="font-semibold text-lg border-b pb-2 flex items-center gap-2">
+                <Percent className="h-5 w-5 text-destructive" />
+                Promotion
+              </h3>
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="is_promo"
+                  checked={formData.is_promo}
+                  onCheckedChange={(checked) => setFormData({ ...formData, is_promo: checked })}
+                />
+                <Label htmlFor="is_promo">Produit en promotion</Label>
+              </div>
+              {formData.is_promo && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="promo_price_ht">Prix promo HT (€)</Label>
+                    <Input
+                      id="promo_price_ht"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={formData.promo_price_ht}
+                      onChange={(e) => setFormData({ ...formData, promo_price_ht: parseFloat(e.target.value) || 0 })}
+                      placeholder="Prix réduit HT"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Prix normal: {formatPrice(formData.price_ht)} HT
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Prix promo TTC (calculé)</Label>
+                    <Input
+                      type="text"
+                      value={formatPrice(Math.round(formData.promo_price_ht * 1.2 * 100) / 100)}
+                      disabled
+                      className="bg-muted"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Technical Specifications */}

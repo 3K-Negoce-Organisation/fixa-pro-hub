@@ -15,6 +15,7 @@ import OrderTrackingPage from "./pages/OrderTrackingPage";
 import OrderConfirmationPage from "./pages/OrderConfirmationPage";
 import AdminOrdersPage from "./pages/AdminOrdersPage";
 import AdminProductsPage from "./pages/AdminProductsPage";
+import PromosPage from "./pages/PromosPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -32,6 +33,7 @@ const App = () => (
             <Route path="/confirmation" element={<OrderConfirmationPage />} />
             <Route path="/" element={<AuthGuard><Index /></AuthGuard>} />
             <Route path="/produits" element={<AuthGuard><ProductsPage /></AuthGuard>} />
+            <Route path="/promos" element={<AuthGuard><PromosPage /></AuthGuard>} />
             <Route path="/produit/:handle" element={<AuthGuard><ProductDetailPage /></AuthGuard>} />
             <Route path="/panier" element={<AuthGuard><CartPage /></AuthGuard>} />
             <Route path="/compte" element={<AuthGuard><AccountPage /></AuthGuard>} />
