@@ -11,10 +11,15 @@ const OrderConfirmationPage = () => {
   const sessionId = searchParams.get("session_id");
   const { clearCart } = useCart();
 
-  // Clear cart on successful payment
+  // Clear cart on successful payment and close window
   useEffect(() => {
     if (sessionId) {
       clearCart();
+      // Close the tab after a short delay to let the user see the confirmation
+      const timer = setTimeout(() => {
+        window.close();
+      }, 3000);
+      return () => clearTimeout(timer);
     }
   }, [sessionId, clearCart]);
 

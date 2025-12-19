@@ -54,9 +54,9 @@ const CartPage = () => {
         return;
       }
 
-      // Redirect to Stripe checkout in same page
-      console.log('Redirecting to:', checkoutResult.url);
-      window.location.href = checkoutResult.url;
+      // Open Stripe checkout in new tab
+      console.log('Opening checkout in new tab:', checkoutResult.url);
+      window.open(checkoutResult.url, '_blank');
     } catch (error) {
       console.error("Checkout error:", error);
       toast({
