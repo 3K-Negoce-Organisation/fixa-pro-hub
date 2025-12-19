@@ -119,7 +119,7 @@ const ProductDetailPage = () => {
           <div className="grid lg:grid-cols-2 gap-6">
             {/* Product Images + Characteristics */}
             <div className="space-y-4">
-              <div className="aspect-square bg-muted rounded-lg flex items-center justify-center p-4">
+              <div className="aspect-square bg-white rounded-lg flex items-center justify-center p-4 border border-border">
                 <img
                   src={productImage}
                   alt={product.title}
