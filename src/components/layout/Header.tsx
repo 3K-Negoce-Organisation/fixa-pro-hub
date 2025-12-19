@@ -96,13 +96,13 @@ export function Header() {
                 onMouseEnter={() => setAdminMenuOpen(true)}
                 onMouseLeave={() => setAdminMenuOpen(false)}
               >
-                <button className="flex items-center gap-1.5 px-2 py-1 text-sm text-accent hover:underline">
+                <button className="flex items-center gap-1.5 px-2 py-1 pb-3 text-sm text-accent hover:underline">
                   <Settings className="h-4 w-4" />
                   <span className="hidden md:inline">Admin</span>
                   <ChevronDown className="h-3 w-3" />
                 </button>
                 {adminMenuOpen && (
-                  <div className="absolute top-full right-0 mt-1 bg-background border rounded-md shadow-lg py-1 min-w-[160px] z-50">
+                  <div className="absolute top-full right-0 bg-background border rounded-md shadow-lg py-1 min-w-[160px] z-50">
                     <Link 
                       to="/admin/commandes" 
                       className="flex items-center gap-2 px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors"
