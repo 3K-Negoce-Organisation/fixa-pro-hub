@@ -51,7 +51,8 @@ import {
   RefreshCw,
   Edit,
   AlertTriangle,
-  RotateCcw
+  RotateCcw,
+  Send
 } from "lucide-react";
 import {
   Tooltip,
@@ -388,6 +389,37 @@ const quickStatusUpdate = (order: Order, newStatus: OrderStatus) => {
     },
   });
 
+  // Simulate webhook mutation
+  const simulateWebhookMutation = useMutation({
+    mutationFn: async (order: Order) => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('Non authentifié');
+
+      const response = await supabase.functions.invoke('simulate-order-webhook', {
+        body: { order_id: order.id },
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message || 'Erreur lors de la simulation');
+      }
+
+      return response.data;
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Webhook simulé",
+        description: `Webhook n8n envoyé pour la commande ${data.order_number} (status: ${data.n8n_status})`,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erreur",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleResendClick = (order: Order) => {
     setResendConfirmation({ step: 'first', order });
   };
@@ -550,15 +582,15 @@ const quickStatusUpdate = (order: Order, newStatus: OrderStatus) => {
                                   <Button
                                     size="sm"
                                     variant="ghost"
-                                    onClick={() => handleResendClick(order)}
-                                    disabled={resendToShopifyMutation.isPending}
+                                    onClick={() => simulateWebhookMutation.mutate(order)}
+                                    disabled={simulateWebhookMutation.isPending}
                                   >
-                                    <RotateCcw className="h-4 w-4" />
+                                    <Send className="h-4 w-4" />
                                   </Button>
                                 </TooltipTrigger>
                                 <TooltipContent>
-                                  <p>Renvoyer à Shopify</p>
-                                  <p className="text-xs text-muted-foreground">En cas de problème technique</p>
+                                  <p>Simuler webhook n8n</p>
+                                  <p className="text-xs text-muted-foreground">Envoie le fichier Excel au fournisseur</p>
                                 </TooltipContent>
                               </Tooltip>
                             </TooltipProvider>
