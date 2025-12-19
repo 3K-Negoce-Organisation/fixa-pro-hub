@@ -35,7 +35,7 @@ export function ProductCard({ product, onAddToCart }: ProductCardProps) {
   return (
     <div className="product-card group flex flex-col h-full">
       {/* Image */}
-      <div className="relative block w-32 h-32 mx-auto bg-muted p-2">
+      <div className="relative block w-32 h-32 mx-auto bg-white p-2 rounded-lg">
         <Link to={`/produit/${product.handle}`}>
           <img
             src={product.image}
