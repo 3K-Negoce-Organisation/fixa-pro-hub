@@ -11,6 +11,8 @@ export interface DisplayProduct {
   title: string;
   priceHT: number;
   priceTTC: number;
+  originalPriceHT?: number;
+  originalPriceTTC?: number;
   image: string;
   category: string;
   diameter_mm?: number | null;
@@ -19,6 +21,7 @@ export interface DisplayProduct {
   drive_type?: string | null;
   stock: number;
   inStock: boolean;
+  isPromo?: boolean;
 }
 
 interface ProductCardProps {
@@ -36,6 +39,11 @@ export function ProductCard({ product, onAddToCart }: ProductCardProps) {
     <div className="product-card group flex flex-col h-full">
       {/* Image */}
       <div className="relative block w-32 h-32 mx-auto bg-white p-2 rounded-lg">
+        {product.isPromo && (
+          <Badge className="absolute -top-2 -right-2 z-10 bg-destructive text-destructive-foreground text-[10px]">
+            PROMO
+          </Badge>
+        )}
         <Link to={`/produit/${product.handle}`}>
           <img
             src={product.image}
@@ -106,12 +114,20 @@ export function ProductCard({ product, onAddToCart }: ProductCardProps) {
         {/* Price section */}
         <div className="mt-auto">
           <div className="flex items-baseline gap-2 mb-2">
-            <span className="price-ttc text-lg font-bold text-foreground">
+            <span className={`price-ttc text-lg font-bold ${product.isPromo ? 'text-destructive' : 'text-foreground'}`}>
               {formatPrice(product.priceTTC)}
             </span>
+            {product.originalPriceTTC && (
+              <span className="text-sm text-muted-foreground line-through">
+                {formatPrice(product.originalPriceTTC)}
+              </span>
+            )}
           </div>
           <p className="price-ht text-xs text-muted-foreground">
             {formatPriceHT(product.priceHT)} HT
+            {product.originalPriceHT && (
+              <span className="ml-1 line-through">{formatPriceHT(product.originalPriceHT)}</span>
+            )}
           </p>
         </div>
 

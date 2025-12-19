@@ -134,10 +134,12 @@ export type Database = {
           id: string
           images: Json | null
           is_active: boolean | null
+          is_promo: boolean | null
           length_mm: number | null
           material: string | null
           price_ht: number
           price_ttc: number
+          promo_price_ht: number | null
           purchase_price_ht: number | null
           specifications: Json | null
           stock: number | null
@@ -164,10 +166,12 @@ export type Database = {
           id?: string
           images?: Json | null
           is_active?: boolean | null
+          is_promo?: boolean | null
           length_mm?: number | null
           material?: string | null
           price_ht: number
           price_ttc: number
+          promo_price_ht?: number | null
           purchase_price_ht?: number | null
           specifications?: Json | null
           stock?: number | null
@@ -194,10 +198,12 @@ export type Database = {
           id?: string
           images?: Json | null
           is_active?: boolean | null
+          is_promo?: boolean | null
           length_mm?: number | null
           material?: string | null
           price_ht?: number
           price_ttc?: number
+          promo_price_ht?: number | null
           purchase_price_ht?: number | null
           specifications?: Json | null
           stock?: number | null
