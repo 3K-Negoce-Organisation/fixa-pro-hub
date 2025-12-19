@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search, Shield, Truck } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Header } from "@/components/layout/Header";
@@ -8,11 +9,43 @@ import { Footer } from "@/components/layout/Footer";
 import { CategoryCard } from "@/components/home/CategoryCard";
 import { QuickOrderSection } from "@/components/home/QuickOrderSection";
 import { FeaturedProducts } from "@/components/home/FeaturedProducts";
-import { categories } from "@/lib/mockData";
+import { supabase } from "@/integrations/supabase/client";
+
+const categoryConfig = [
+  { id: "terrasse", name: "Vis Terrasse", icon: "deck" },
+  { id: "charpente", name: "Vis Charpente", icon: "frame" },
+  { id: "agglo", name: "Vis Agglo", icon: "panel" },
+  { id: "boulonnerie", name: "Boulonnerie", icon: "bolt" },
+];
 
 const Index = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const navigate = useNavigate();
+
+  // Fetch product counts by category
+  const { data: categoryCounts } = useQuery({
+    queryKey: ["category-counts"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("products")
+        .select("category")
+        .eq("is_active", true);
+
+      if (error) throw error;
+
+      const counts: Record<string, number> = {};
+      data?.forEach((product) => {
+        const cat = product.category?.toLowerCase() || "autre";
+        counts[cat] = (counts[cat] || 0) + 1;
+      });
+      return counts;
+    },
+  });
+
+  const categories = categoryConfig.map((cat) => ({
+    ...cat,
+    count: categoryCounts?.[cat.id] || 0,
+  }));
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
