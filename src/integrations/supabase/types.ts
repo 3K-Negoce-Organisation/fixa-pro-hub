@@ -77,6 +77,7 @@ export type Database = {
           total_ttc: number
           tracking_number: string | null
           updated_at: string
+          user_email: string | null
           user_id: string
         }
         Insert: {
@@ -94,6 +95,7 @@ export type Database = {
           total_ttc: number
           tracking_number?: string | null
           updated_at?: string
+          user_email?: string | null
           user_id: string
         }
         Update: {
@@ -111,6 +113,7 @@ export type Database = {
           total_ttc?: number
           tracking_number?: string | null
           updated_at?: string
+          user_email?: string | null
           user_id?: string
         }
         Relationships: []

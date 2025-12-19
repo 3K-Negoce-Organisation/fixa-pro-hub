@@ -79,6 +79,7 @@ interface Order {
   created_at: string;
   updated_at: string;
   user_id: string;
+  user_email: string | null;
   shopify_order_id: string | null;
 }
 
@@ -506,6 +507,7 @@ const quickStatusUpdate = (order: Order, newStatus: OrderStatus) => {
                 <TableHeader>
                   <TableRow>
                     <TableHead>N° Commande</TableHead>
+                    <TableHead>Client</TableHead>
                     <TableHead>Date</TableHead>
                     <TableHead>Statut</TableHead>
                     <TableHead>Total HT</TableHead>
@@ -526,6 +528,9 @@ const quickStatusUpdate = (order: Order, newStatus: OrderStatus) => {
                       <TableRow key={order.id}>
                         <TableCell className="font-mono font-medium">
                           {order.order_number}
+                        </TableCell>
+                        <TableCell className="text-sm">
+                          {order.user_email || <span className="text-muted-foreground">-</span>}
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground">
                           {formatDate(order.created_at)}
