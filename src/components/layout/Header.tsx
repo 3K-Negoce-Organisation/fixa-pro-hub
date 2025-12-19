@@ -158,14 +158,17 @@ export function Header() {
                 <Menu className="h-4 w-4" />
                 Tous les produits
               </Link>
-              <Link to="/produits?cat=terrasse" className="px-3 py-1.5 text-sm hover:bg-primary-foreground/10 rounded transition-colors whitespace-nowrap">
+              <Link to="/produits?category=terrasse" className="px-3 py-1.5 text-sm hover:bg-primary-foreground/10 rounded transition-colors whitespace-nowrap">
                 Vis Terrasse
               </Link>
-              <Link to="/produits?cat=charpente" className="px-3 py-1.5 text-sm hover:bg-primary-foreground/10 rounded transition-colors whitespace-nowrap">
+              <Link to="/produits?category=charpente" className="px-3 py-1.5 text-sm hover:bg-primary-foreground/10 rounded transition-colors whitespace-nowrap">
                 Vis Charpente
               </Link>
-              <Link to="/produits?cat=menuiserie" className="px-3 py-1.5 text-sm hover:bg-primary-foreground/10 rounded transition-colors whitespace-nowrap">
+              <Link to="/produits?category=menuiserie" className="px-3 py-1.5 text-sm hover:bg-primary-foreground/10 rounded transition-colors whitespace-nowrap">
                 Vis Menuiserie
+              </Link>
+              <Link to="/produits?category=tirefond" className="px-3 py-1.5 text-sm hover:bg-primary-foreground/10 rounded transition-colors whitespace-nowrap">
+                Tirefond
               </Link>
               <Link to="/promos" className="px-3 py-1.5 text-sm font-medium text-accent hover:bg-primary-foreground/10 rounded transition-colors whitespace-nowrap">
                 Promos
