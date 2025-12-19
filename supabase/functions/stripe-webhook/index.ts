@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import * as XLSX from "https://esm.sh/xlsx@0.18.5";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -19,6 +20,79 @@ function generateOrderNumber(): string {
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const random = Math.random().toString(36).substring(2, 8).toUpperCase();
   return `VIS-${year}${month}-${random}`;
+}
+
+// Generate Excel order recap file
+function generateOrderExcel(
+  orderNumber: string,
+  customerName: string,
+  customerEmail: string,
+  items: any[],
+  totalHT: number,
+  shippingAddress: { line1?: string; line2?: string; city?: string; postal_code?: string } | null
+): string {
+  const date = new Date();
+  const dateStr = `${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}/${String(date.getFullYear()).slice(-2)}`;
+  
+  // Build worksheet data
+  const wsData: any[][] = [
+    [dateStr, '', '', '', '', '', `clt ${customerName || customerEmail}`],
+    [`commande`, orderNumber, '', '', '', '', ''],
+    ['', '', '', '', '', '', ''],
+    ['code', 'désignation', 'quantité', 'Prix unitaire HT', 'Prix total HT net', '', ''],
+  ];
+
+  // Add items
+  items.forEach(item => {
+    const totalItemHT = (item.priceHT || item.unit_price_ht) * item.quantity;
+    wsData.push([
+      item.id || item.product_id || '',
+      item.title || item.product_title || '',
+      item.quantity,
+      `${(item.priceHT || item.unit_price_ht || 0).toFixed(2)} €`,
+      `${totalItemHT.toFixed(2)} €`,
+      '',
+      ''
+    ]);
+  });
+
+  // Add total
+  wsData.push(['', '', '', '', `${totalHT.toFixed(2)} €`, '', '']);
+  wsData.push(['', '', '', '', '', '', '']);
+  
+  // Add shipping address
+  wsData.push(['Adresse de livraison', '', '', '', '', '', '']);
+  if (shippingAddress) {
+    wsData.push(['', customerName || '', '', '', '', '', '']);
+    if (shippingAddress.line1) wsData.push(['', shippingAddress.line1, '', '', '', '', '']);
+    if (shippingAddress.line2) wsData.push(['', shippingAddress.line2, '', '', '', '', '']);
+    if (shippingAddress.postal_code || shippingAddress.city) {
+      wsData.push(['', `${shippingAddress.postal_code || ''} ${shippingAddress.city || ''}`.trim(), '', '', '', '', '']);
+    }
+  }
+  wsData.push(['', '', '', '', '', '', '']);
+  wsData.push(['Livraison direct sans BL chiffré', '', '', '', '', '', '']);
+
+  // Create workbook and worksheet
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+  
+  // Set column widths
+  ws['!cols'] = [
+    { wch: 15 }, // code
+    { wch: 35 }, // désignation
+    { wch: 10 }, // quantité
+    { wch: 20 }, // Prix unitaire
+    { wch: 18 }, // Prix total
+    { wch: 5 },
+    { wch: 15 },
+  ];
+
+  XLSX.utils.book_append_sheet(wb, ws, 'Commande');
+  
+  // Generate base64
+  const xlsxBuffer = XLSX.write(wb, { type: 'base64', bookType: 'xlsx' });
+  return xlsxBuffer;
 }
 
 serve(async (req) => {
@@ -151,8 +225,25 @@ serve(async (req) => {
       // Send webhook to n8n for fulfillment
       if (n8nWebhookUrl) {
         try {
+          // Generate Excel recap file
+          const excelBase64 = generateOrderExcel(
+            orderNumber,
+            shippingDetails?.name || fullSession.customer_details?.name || '',
+            fullSession.customer_details?.email || fullSession.customer_email || '',
+            cartItems,
+            totalHT,
+            shippingAddress ? {
+              line1: shippingAddress.line1 || undefined,
+              line2: shippingAddress.line2 || undefined,
+              city: shippingAddress.city || undefined,
+              postal_code: shippingAddress.postal_code || undefined,
+            } : null
+          );
+
+          logStep("Excel file generated", { size: excelBase64.length });
+
           const n8nPayload = {
-            event: "order.created",
+            event: "order.paid",
             order_number: orderNumber,
             order_id: order.id,
             stripe_session_id: session.id,
@@ -181,6 +272,12 @@ serve(async (req) => {
               ht: totalHT,
               ttc: totalTTC,
               currency: "EUR",
+            },
+            // Excel file as base64
+            excel_file: {
+              filename: `commande_${orderNumber}.xlsx`,
+              content_base64: excelBase64,
+              content_type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             },
             created_at: new Date().toISOString(),
           };
