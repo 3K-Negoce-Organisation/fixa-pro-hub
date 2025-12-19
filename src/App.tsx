@@ -15,7 +15,6 @@ import OrderTrackingPage from "./pages/OrderTrackingPage";
 import OrderConfirmationPage from "./pages/OrderConfirmationPage";
 import AdminOrdersPage from "./pages/AdminOrdersPage";
 import AdminProductsPage from "./pages/AdminProductsPage";
-import AdminSupplierPage from "./pages/AdminSupplierPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -38,7 +37,6 @@ const App = () => (
             <Route path="/compte" element={<AuthGuard><AccountPage /></AuthGuard>} />
             <Route path="/admin/commandes" element={<AuthGuard><AdminOrdersPage /></AuthGuard>} />
             <Route path="/admin/produits" element={<AuthGuard><AdminProductsPage /></AuthGuard>} />
-            <Route path="/admin/fournisseur" element={<AuthGuard><AdminSupplierPage /></AuthGuard>} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

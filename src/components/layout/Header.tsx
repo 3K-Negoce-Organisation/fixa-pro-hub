@@ -6,12 +6,14 @@ import { Button } from "@/components/ui/button";
 import { useCart } from "@/contexts/CartContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { SupplierSettingsDialog } from "@/components/admin/SupplierSettingsDialog";
 
 export function Header() {
   const [searchQuery, setSearchQuery] = useState("");
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [adminMenuOpen, setAdminMenuOpen] = useState(false);
+  const [supplierDialogOpen, setSupplierDialogOpen] = useState(false);
   const navigate = useNavigate();
   const {
     totalItems
@@ -119,18 +121,25 @@ export function Header() {
                       <Package className="h-4 w-4" />
                       Produits
                     </Link>
-                    <Link 
-                      to="/admin/fournisseur" 
-                      className="flex items-center gap-2 px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors"
-                      onClick={() => setAdminMenuOpen(false)}
+                    <button 
+                      className="flex items-center gap-2 px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors w-full text-left"
+                      onClick={() => {
+                        setAdminMenuOpen(false);
+                        setSupplierDialogOpen(true);
+                      }}
                     >
                       <Truck className="h-4 w-4" />
                       Fournisseur
-                    </Link>
+                    </button>
                   </div>
                 )}
               </div>
             )}
+
+            <SupplierSettingsDialog 
+              open={supplierDialogOpen} 
+              onOpenChange={setSupplierDialogOpen} 
+            />
 
             {userEmail && <button onClick={handleLogout} className="flex items-center gap-1.5 px-2 py-1 text-sm text-primary-foreground hover:underline">
                 <LogOut className="h-4 w-4" />
