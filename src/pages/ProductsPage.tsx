@@ -19,7 +19,7 @@ import { fetchProducts, getProductImage, parseVariants, type Product } from "@/l
 
 const ProductsPage = () => {
   const [searchParams] = useSearchParams();
-  const category = searchParams.get("cat");
+  const categoryParam = searchParams.get("category");
   const query = searchParams.get("q");
 
   const [filters, setFilters] = useState<Record<string, string[]>>({
@@ -98,11 +98,20 @@ const ProductsPage = () => {
   const filteredProducts = useMemo(() => {
     let result = displayProducts;
 
+    // Map URL category param to database category
+    const categoryMap: Record<string, string> = {
+      terrasse: "Vis terrasse",
+      charpente: "Vis de charpente",
+      menuiserie: "Vis menuiserie",
+      tirefond: "Tirefond",
+    };
+
     // Filter by category
-    if (category) {
-      result = result.filter((p) =>
-        p.category.toLowerCase().includes(category.toLowerCase())
-      );
+    if (categoryParam) {
+      const dbCategory = categoryMap[categoryParam];
+      if (dbCategory) {
+        result = result.filter((p) => p.category?.trim() === dbCategory);
+      }
     }
 
     // Apply filters
@@ -137,7 +146,7 @@ const ProductsPage = () => {
     }
 
     return result;
-  }, [displayProducts, category, filters, sortBy]);
+  }, [displayProducts, categoryParam, filters, sortBy]);
 
   const handleFilterChange = (key: string, values: string[]) => {
     setFilters((prev) => ({ ...prev, [key]: values }));
@@ -155,15 +164,15 @@ const ProductsPage = () => {
 
   const getCategoryTitle = () => {
     if (query) return `Résultats pour "${query}"`;
-    switch (category) {
+    switch (categoryParam) {
       case "terrasse":
         return "Vis Terrasse";
       case "charpente":
         return "Vis Charpente";
-      case "agglo":
-        return "Vis Aggloméré";
-      case "boulonnerie":
-        return "Boulonnerie";
+      case "menuiserie":
+        return "Vis Menuiserie";
+      case "tirefond":
+        return "Tirefond";
       default:
         return "Tous les produits";
     }
