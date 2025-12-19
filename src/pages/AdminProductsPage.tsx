@@ -134,6 +134,8 @@ const AdminProductsPage = () => {
   const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
   const [bulkStatusDialogOpen, setBulkStatusDialogOpen] = useState(false);
   const [bulkStatusAction, setBulkStatusAction] = useState<"activate" | "deactivate">("activate");
+  const [bulkPromoDialogOpen, setBulkPromoDialogOpen] = useState(false);
+  const [promoDiscount, setPromoDiscount] = useState<number>(10);
   const [formErrors, setFormErrors] = useState<{ title?: boolean; price_ht?: boolean; price_ttc?: boolean }>({});
 
   // Check admin status
@@ -337,6 +339,43 @@ const AdminProductsPage = () => {
     },
   });
 
+  // Bulk promo mutation
+  const bulkPromoMutation = useMutation({
+    mutationFn: async ({ ids, discount }: { ids: string[]; discount: number }) => {
+      // Get current products to calculate promo prices
+      const { data: productsToUpdate, error: fetchError } = await supabase
+        .from('products')
+        .select('id, price_ht')
+        .in('id', ids);
+      
+      if (fetchError) throw fetchError;
+      
+      // Update each product with calculated promo price
+      for (const product of productsToUpdate || []) {
+        const promoPrice = Math.round(product.price_ht * (1 - discount / 100) * 100) / 100;
+        const { error } = await supabase
+          .from('products')
+          .update({ 
+            is_promo: true, 
+            promo_price_ht: promoPrice 
+          })
+          .eq('id', product.id);
+        
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      toast({ title: "Promo appliquée", description: `${selectedIds.size} produit(s) mis en promo avec -${promoDiscount}%.` });
+      setBulkPromoDialogOpen(false);
+      setSelectedIds(new Set());
+      setPromoDiscount(10);
+      queryClient.invalidateQueries({ queryKey: ['admin-products'] });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    },
+  });
+
   // Selection handlers
   const toggleSelectAll = () => {
     if (selectedIds.size === filteredProducts.length) {
@@ -370,6 +409,13 @@ const AdminProductsPage = () => {
   const openBulkStatusDialog = (action: "activate" | "deactivate") => {
     setBulkStatusAction(action);
     setBulkStatusDialogOpen(true);
+  };
+
+  const handleBulkPromo = () => {
+    bulkPromoMutation.mutate({
+      ids: Array.from(selectedIds),
+      discount: promoDiscount,
+    });
   };
 
   const resetForm = () => {
@@ -566,6 +612,15 @@ const AdminProductsPage = () => {
                     >
                       <PowerOff className="h-4 w-4 mr-1" />
                       Désactiver
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="border-orange-500 text-orange-600 hover:bg-orange-50"
+                      onClick={() => setBulkPromoDialogOpen(true)}
+                    >
+                      <Percent className="h-4 w-4 mr-1" />
+                      Promo
                     </Button>
                     <Button
                       variant="destructive"
@@ -1129,6 +1184,58 @@ const AdminProductsPage = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Bulk Promo Dialog */}
+      <Dialog open={bulkPromoDialogOpen} onOpenChange={setBulkPromoDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Percent className="h-5 w-5 text-orange-500" />
+              Mettre en promotion
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <p className="text-sm text-muted-foreground">
+              {selectedIds.size} produit(s) sélectionné(s). Le prix promo sera calculé automatiquement.
+            </p>
+            <div className="space-y-2">
+              <Label htmlFor="discount">Réduction (%)</Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  id="discount"
+                  type="number"
+                  min="1"
+                  max="99"
+                  value={promoDiscount}
+                  onChange={(e) => setPromoDiscount(Math.min(99, Math.max(1, parseInt(e.target.value) || 0)))}
+                  className="w-24"
+                />
+                <span className="text-muted-foreground">%</span>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Le prix promo HT sera calculé : Prix HT × (1 - {promoDiscount}%)
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBulkPromoDialogOpen(false)}>
+              Annuler
+            </Button>
+            <Button 
+              onClick={handleBulkPromo}
+              disabled={bulkPromoMutation.isPending || promoDiscount < 1 || promoDiscount > 99}
+              className="bg-orange-500 hover:bg-orange-600"
+            >
+              {bulkPromoMutation.isPending ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Percent className="h-4 w-4 mr-2" />
+              )}
+              Appliquer -{promoDiscount}%
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
