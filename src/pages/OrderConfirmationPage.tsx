@@ -51,9 +51,6 @@ const OrderConfirmationPage = () => {
             </p>
           </div>
 
-          <p className="text-sm text-muted-foreground">
-            Vous pouvez fermer cet onglet et retourner à la boutique.
-          </p>
 
           <div className="flex flex-col sm:flex-row gap-3 justify-center pt-4">
             <Button asChild>
