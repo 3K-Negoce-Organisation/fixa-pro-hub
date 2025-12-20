@@ -167,25 +167,26 @@ serve(async (req) => {
       .select('*')
       .eq('order_id', order_id);
 
-    // Get product codes (code_alsafix) for each item
-    const productIds = (orderItems || []).map(item => item.product_id);
+    // Get product codes (code_alsafix) for each item by matching on product_title
+    // Since order_items.product_id may contain Shopify IDs, we match by title instead
+    const productTitles = (orderItems || []).map(item => item.product_title);
     const { data: products } = await supabaseAdmin
       .from('products')
-      .select('id, code_alsafix')
-      .in('id', productIds);
+      .select('id, title, code_alsafix')
+      .in('title', productTitles);
 
-    // Create a map of product_id to code_alsafix
+    // Create a map of product_title to code_alsafix
     const productCodeMap = new Map<string, string>();
     (products || []).forEach(p => {
       if (p.code_alsafix) {
-        productCodeMap.set(p.id, p.code_alsafix);
+        productCodeMap.set(p.title, p.code_alsafix);
       }
     });
 
-    // Enrich order items with code_alsafix
+    // Enrich order items with code_alsafix (matched by title)
     const enrichedItems = (orderItems || []).map(item => ({
       ...item,
-      code_alsafix: productCodeMap.get(item.product_id) || item.product_id,
+      code_alsafix: productCodeMap.get(item.product_title) || item.product_id,
     }));
 
     // Get user info
