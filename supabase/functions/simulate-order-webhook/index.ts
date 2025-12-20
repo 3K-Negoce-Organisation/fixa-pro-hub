@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import * as XLSX from "https://esm.sh/xlsx-js-style@1.2.0";
+import * as XLSX from "https://esm.sh/xlsx@0.18.5";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -12,44 +12,7 @@ const logStep = (step: string, details?: any) => {
   console.log(`[SIMULATE-WEBHOOK] ${step}${detailsStr}`);
 };
 
-// Style definitions matching the reference template
-const headerStyle = {
-  font: { bold: true, color: { rgb: "FFFFFF" } },
-  fill: { fgColor: { rgb: "4472C4" } },
-  alignment: { horizontal: "center", vertical: "center" },
-  border: {
-    top: { style: "thin", color: { rgb: "000000" } },
-    bottom: { style: "thin", color: { rgb: "000000" } },
-    left: { style: "thin", color: { rgb: "000000" } },
-    right: { style: "thin", color: { rgb: "000000" } },
-  }
-};
-
-const dataStyle = {
-  border: {
-    top: { style: "thin", color: { rgb: "D9D9D9" } },
-    bottom: { style: "thin", color: { rgb: "D9D9D9" } },
-    left: { style: "thin", color: { rgb: "D9D9D9" } },
-    right: { style: "thin", color: { rgb: "D9D9D9" } },
-  }
-};
-
-const totalStyle = {
-  font: { bold: true },
-  fill: { fgColor: { rgb: "E2EFDA" } },
-  border: {
-    top: { style: "thin", color: { rgb: "000000" } },
-    bottom: { style: "thin", color: { rgb: "000000" } },
-    left: { style: "thin", color: { rgb: "000000" } },
-    right: { style: "thin", color: { rgb: "000000" } },
-  }
-};
-
-const infoStyle = {
-  font: { bold: true, color: { rgb: "305496" } },
-};
-
-// Generate Excel order recap file matching the exact template format
+// Generate Excel order recap file matching the template format
 function generateOrderExcel(
   orderNumber: string,
   customerName: string,
@@ -65,41 +28,33 @@ function generateOrderExcel(
   // Customer name in uppercase for column G
   const customerNameUpper = (customerName || customerEmail).toUpperCase();
   
-  // Build worksheet data - matching exact template format
+  // Build worksheet data - matching template format
   const wsData: any[][] = [
-    [{ v: dateStr, s: infoStyle }, '', '', '', '', '', { v: `clt ${customerNameUpper}`, s: infoStyle }],
-    [{ v: 'commande', s: infoStyle }, { v: orderNumber, s: infoStyle }, '', '', '', '', { v: `N° clt ${customerNumber}`, s: infoStyle }],
+    [dateStr, '', '', '', '', '', `clt ${customerNameUpper}`],
+    ['commande', orderNumber, '', '', '', '', `N° clt ${customerNumber}`],
     ['', '', '', '', '', '', ''],
-    [
-      { v: 'code', s: headerStyle },
-      { v: 'désignation', s: headerStyle },
-      { v: 'quantité', s: headerStyle },
-      { v: 'Prix au conditionnment', s: headerStyle },
-      { v: 'Prix total HT net', s: headerStyle },
-      '',
-      ''
-    ],
+    ['code', 'désignation', 'quantité', 'Prix au conditionnment', 'Prix total HT net', '', ''],
   ];
 
-  // Add items with code_alsafix and styling
+  // Add items with code_alsafix
   items.forEach(item => {
     const totalItemHT = (item.unit_price_ht || 0) * item.quantity;
     wsData.push([
-      { v: item.code_alsafix || item.product_id || '', s: dataStyle },
-      { v: item.product_title || '', s: dataStyle },
-      { v: item.quantity, s: dataStyle },
-      { v: `${(item.unit_price_ht || 0).toFixed(2)} €`, s: dataStyle },
-      { v: `${totalItemHT.toFixed(2)} €`, s: dataStyle },
+      item.code_alsafix || item.product_id || '',
+      item.product_title || '',
+      item.quantity,
+      `${(item.unit_price_ht || 0).toFixed(2)} €`,
+      `${totalItemHT.toFixed(2)} €`,
       '',
       ''
     ]);
   });
 
-  // Add total row with styling
-  wsData.push(['', '', '', '', { v: `${totalHT.toFixed(2)} €`, s: totalStyle }, '', '']);
+  // Add total row
+  wsData.push(['', '', '', '', `${totalHT.toFixed(2)} €`, '', '']);
   
   // Add shipping address section
-  wsData.push([{ v: 'Adresse de livraison', s: { font: { bold: true } } }, '', '', '', '', '', '']);
+  wsData.push(['Adresse de livraison', '', '', '', '', '', '']);
   if (shippingAddress) {
     wsData.push(['', customerName || '', '', '', '', '', '']);
     if (shippingAddress.line1) wsData.push(['', shippingAddress.line1, '', '', '', '', '']);
@@ -110,7 +65,7 @@ function generateOrderExcel(
   }
   wsData.push(['', '', '', '', '', '', '']);
   wsData.push(['', '', '', '', '', '', '']);
-  wsData.push([{ v: 'Livraison direct sans BL chiffré', s: { font: { italic: true, color: { rgb: "808080" } } } }, '', '', '', '', '', '']);
+  wsData.push(['Livraison direct sans BL chiffré', '', '', '', '', '', '']);
 
   // Create workbook and worksheet
   const wb = XLSX.utils.book_new();
@@ -125,14 +80,6 @@ function generateOrderExcel(
     { wch: 16 },   // E: Prix total HT net
     { wch: 2 },    // F: empty spacer
     { wch: 14 },   // G: clt info
-  ];
-
-  // Set row heights
-  ws['!rows'] = [
-    { hpt: 18 },  // Row 1
-    { hpt: 18 },  // Row 2
-    { hpt: 12 },  // Row 3 (spacer)
-    { hpt: 22 },  // Row 4 (header)
   ];
 
   XLSX.utils.book_append_sheet(wb, ws, 'Commande');
