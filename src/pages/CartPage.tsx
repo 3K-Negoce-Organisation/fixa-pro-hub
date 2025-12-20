@@ -54,9 +54,13 @@ const CartPage = () => {
         return;
       }
 
-      // Redirect to Stripe checkout in the current tab (escape preview iframe if needed)
+      // Redirect to Stripe checkout - use top frame to escape preview iframe
       console.log('Redirecting to checkout:', checkoutResult.url);
-      window.open(checkoutResult.url, "_top");
+      if (window.top) {
+        window.top.location.href = checkoutResult.url;
+      } else {
+        window.location.href = checkoutResult.url;
+      }
     } catch (error) {
       console.error("Checkout error:", error);
       toast({
