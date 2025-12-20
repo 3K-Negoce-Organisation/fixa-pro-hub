@@ -9,86 +9,64 @@ import { useCart } from "@/contexts/CartContext";
 import { formatPriceHT, formatPrice, calculateTTC } from "@/lib/products";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { StripePaymentForm } from "@/components/checkout/StripePaymentForm";
 
 const CartPage = () => {
   const { items, removeItem, updateQuantity, clearCart, totalHT } = useCart();
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPaymentForm, setShowPaymentForm] = useState(false);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
   const totalTTC = calculateTTC(totalHT);
 
   const handleCheckout = async () => {
-    // Open a popup window synchronously (to avoid popup blockers)
-    const width = 500;
-    const height = 700;
-    const left = window.screenX + (window.innerWidth - width) / 2;
-    const top = window.screenY + (window.innerHeight - height) / 2;
-    const popup = window.open(
-      "about:blank",
-      "StripeCheckout",
-      `width=${width},height=${height},left=${left},top=${top},scrollbars=yes,resizable=yes`
-    );
-
-    setIsSubmitting(true);
+    setIsCheckingAuth(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        popup?.close();
         toast({
-          title: "Erreur",
+          title: "Connexion requise",
           description: "Vous devez être connecté pour passer commande.",
           variant: "destructive",
         });
         navigate("/auth");
         return;
       }
-
-      console.log("Creating Stripe checkout session...");
-      const { data: checkoutResult, error: checkoutError } = await supabase.functions.invoke(
-        "create-stripe-checkout",
-        { body: { items } }
-      );
-
-      console.log("Checkout result:", checkoutResult);
-      console.log("Checkout error:", checkoutError);
-
-      if (checkoutError || !checkoutResult?.url) {
-        popup?.close();
-        console.error("Checkout error:", checkoutError || checkoutResult?.error);
-        toast({
-          title: "Erreur",
-          description: checkoutResult?.error || "Impossible de créer le checkout. Veuillez réessayer.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      console.log("Redirecting popup to checkout:", checkoutResult.url);
-
-      if (!popup || popup.closed) {
-        // Popup was blocked, fallback
-        toast({
-          title: "Popup bloquée",
-          description: "Veuillez autoriser les popups pour ce site et réessayer.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      popup.location.href = checkoutResult.url;
-    } catch (error) {
-      popup?.close();
-      console.error("Checkout error:", error);
-      toast({
-        title: "Erreur",
-        description: "Impossible de procéder au paiement. Veuillez réessayer.",
-        variant: "destructive",
-      });
+      setShowPaymentForm(true);
     } finally {
-      setIsSubmitting(false);
+      setIsCheckingAuth(false);
     }
   };
+
+  const handlePaymentSuccess = () => {
+    setShowPaymentForm(false);
+  };
+
+  const handlePaymentCancel = () => {
+    setShowPaymentForm(false);
+  };
+
+  if (items.length === 0) {
+    return (
+      <div className="min-h-screen flex flex-col bg-background">
+        <Header />
+        <main className="flex-1 flex items-center justify-center">
+          <div className="text-center space-y-4">
+            <ShoppingBag className="h-16 w-16 mx-auto text-muted-foreground" />
+            <h1 className="text-2xl font-bold">Votre panier est vide</h1>
+            <p className="text-muted-foreground">
+              Découvrez nos produits et ajoutez-les à votre panier
+            </p>
+            <Button asChild>
+              <Link to="/produits">Voir les produits</Link>
+            </Button>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -198,69 +176,91 @@ const CartPage = () => {
               </Button>
             </div>
 
-            {/* Summary */}
+            {/* Summary / Payment */}
             <div className="lg:col-span-1">
               <div className="sticky top-24 bg-card border border-border rounded-lg p-6 space-y-4">
-                <h2 className="text-lg font-bold">Récapitulatif</h2>
+                {showPaymentForm ? (
+                  <>
+                    <h2 className="text-lg font-bold">Paiement sécurisé</h2>
+                    <div className="border-b border-border pb-4 mb-4">
+                      <div className="flex justify-between items-baseline">
+                        <span className="text-muted-foreground">Total à payer</span>
+                        <span className="text-xl font-bold text-primary">
+                          {formatPrice(totalTTC)}
+                        </span>
+                      </div>
+                    </div>
+                    <StripePaymentForm
+                      items={items}
+                      totalTTC={totalTTC}
+                      onSuccess={handlePaymentSuccess}
+                      onCancel={handlePaymentCancel}
+                    />
+                  </>
+                ) : (
+                  <>
+                    <h2 className="text-lg font-bold">Récapitulatif</h2>
 
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Sous-total TTC</span>
-                    <span className="font-medium">{formatPrice(totalTTC)}</span>
-                  </div>
-                  <div className="flex justify-between text-muted-foreground">
-                    <span>dont TVA (20%)</span>
-                    <span>{formatPriceHT(totalHT * 0.2)}</span>
-                  </div>
-                  <div className="flex justify-between text-muted-foreground">
-                    <span>Livraison</span>
-                    <span>
-                      {totalTTC >= 180 ? "Gratuite" : "Calculée à l'étape suivante"}
-                    </span>
-                  </div>
-                </div>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Sous-total TTC</span>
+                        <span className="font-medium">{formatPrice(totalTTC)}</span>
+                      </div>
+                      <div className="flex justify-between text-muted-foreground">
+                        <span>dont TVA (20%)</span>
+                        <span>{formatPriceHT(totalHT * 0.2)}</span>
+                      </div>
+                      <div className="flex justify-between text-muted-foreground">
+                        <span>Livraison</span>
+                        <span>
+                          {totalTTC >= 180 ? "Gratuite" : "Calculée à l'étape suivante"}
+                        </span>
+                      </div>
+                    </div>
 
-                <div className="border-t border-border pt-4">
-                  <div className="flex justify-between items-baseline">
-                    <span className="font-bold">Total TTC</span>
-                    <span className="text-xl font-bold text-primary">
-                      {formatPrice(totalTTC)}
-                    </span>
-                  </div>
-                  <p className="text-xs text-muted-foreground text-right">
-                    {formatPriceHT(totalHT)} HT
-                  </p>
-                </div>
+                    <div className="border-t border-border pt-4">
+                      <div className="flex justify-between items-baseline">
+                        <span className="font-bold">Total TTC</span>
+                        <span className="text-xl font-bold text-primary">
+                          {formatPrice(totalTTC)}
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground text-right">
+                        {formatPriceHT(totalHT)} HT
+                      </p>
+                    </div>
 
-                {totalTTC < 180 && (
-                  <p className="text-xs text-muted-foreground text-center">
-                    Plus que {formatPrice(180 - totalTTC)} pour la livraison
-                    gratuite !
-                  </p>
+                    {totalTTC < 180 && (
+                      <p className="text-xs text-muted-foreground text-center">
+                        Plus que {formatPrice(180 - totalTTC)} pour la livraison
+                        gratuite !
+                      </p>
+                    )}
+
+                    <Button 
+                      className="w-full btn-cart" 
+                      size="lg"
+                      onClick={handleCheckout}
+                      disabled={isCheckingAuth}
+                    >
+                      {isCheckingAuth ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Vérification...
+                        </>
+                      ) : (
+                        "Payer"
+                      )}
+                    </Button>
+
+                    <Button variant="outline" className="w-full" asChild>
+                      <Link to="/produits">
+                        <ArrowLeft className="h-4 w-4 mr-2" />
+                        Continuer mes achats
+                      </Link>
+                    </Button>
+                  </>
                 )}
-
-                <Button 
-                  className="w-full btn-cart" 
-                  size="lg"
-                  onClick={handleCheckout}
-                  disabled={isSubmitting}
-                >
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Redirection...
-                    </>
-                  ) : (
-                    "Payer"
-                  )}
-                </Button>
-
-                <Button variant="outline" className="w-full" asChild>
-                  <Link to="/produits">
-                    <ArrowLeft className="h-4 w-4 mr-2" />
-                    Continuer mes achats
-                  </Link>
-                </Button>
               </div>
             </div>
           </div>

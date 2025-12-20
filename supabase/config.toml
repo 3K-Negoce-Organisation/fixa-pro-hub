@@ -9,6 +9,9 @@ verify_jwt = true
 [functions.create-stripe-checkout]
 verify_jwt = true
 
+[functions.create-payment-intent]
+verify_jwt = true
+
 [functions.stripe-webhook]
 verify_jwt = false
 
