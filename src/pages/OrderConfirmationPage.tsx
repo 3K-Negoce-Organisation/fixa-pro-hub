@@ -6,20 +6,21 @@ import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { useCart } from "@/contexts/CartContext";
 
+const PAYMENT_CHANNEL = "payment-status";
+
 const OrderConfirmationPage = () => {
   const [searchParams] = useSearchParams();
   const sessionId = searchParams.get("session_id");
   const { clearCart } = useCart();
 
-  // Clear cart on successful payment and close window
+  // Clear cart on successful payment and notify original page
   useEffect(() => {
     if (sessionId) {
       clearCart();
-      // Close the tab after a short delay to let the user see the confirmation
-      const timer = setTimeout(() => {
-        window.close();
-      }, 3000);
-      return () => clearTimeout(timer);
+      // Notify the original page that payment was successful
+      const channel = new BroadcastChannel(PAYMENT_CHANNEL);
+      channel.postMessage({ status: "success", sessionId });
+      channel.close();
     }
   }, [sessionId, clearCart]);
 
@@ -55,6 +56,10 @@ const OrderConfirmationPage = () => {
               Livraison estimée : 24-48h. Vous recevrez un email avec le numéro de suivi dès l'expédition.
             </p>
           </div>
+
+          <p className="text-sm text-muted-foreground">
+            Vous pouvez fermer cet onglet et retourner à la boutique.
+          </p>
 
           <div className="flex flex-col sm:flex-row gap-3 justify-center pt-4">
             <Button asChild>
