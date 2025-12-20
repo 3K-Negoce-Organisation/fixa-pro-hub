@@ -101,7 +101,7 @@ export function Footer() {
           <p>© 2024 vis-a-bois - Tous droits réservés</p>
           <div className="flex gap-4">
             <Link to="/mentions-legales" className="hover:text-background">Mentions légales</Link>
-            <Link to="/confidentialite" className="hover:text-background">Politique de confidentialité</Link>
+            <Link to="/politique-confidentialite" className="hover:text-background">Politique de confidentialité</Link>
             <Link to="/cookies" className="hover:text-background">Cookies</Link>
           </div>
         </div>
