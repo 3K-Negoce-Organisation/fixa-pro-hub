@@ -6,33 +6,16 @@ import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { useCart } from "@/contexts/CartContext";
 
-const PAYMENT_CHANNEL = "payment-status";
-
 const OrderConfirmationPage = () => {
   const [searchParams] = useSearchParams();
   const sessionId = searchParams.get("session_id");
   const { clearCart } = useCart();
 
-  // Clear cart on successful payment and notify original page
+  // Clear cart on successful payment
   useEffect(() => {
-    if (!sessionId) return;
-
-    clearCart();
-
-    // Notify the original tab (cart page) that payment was successful
-    const channel = new BroadcastChannel(PAYMENT_CHANNEL);
-    channel.postMessage({ status: "success", sessionId });
-
-    // Give the browser a moment to deliver the message before closing.
-    const closeTimers = [
-      window.setTimeout(() => channel.close(), 250),
-      window.setTimeout(() => window.close(), 600),
-    ];
-
-    return () => {
-      closeTimers.forEach((t) => window.clearTimeout(t));
-      channel.close();
-    };
+    if (sessionId) {
+      clearCart();
+    }
   }, [sessionId, clearCart]);
 
   return (
