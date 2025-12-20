@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { CartProvider } from "@/contexts/CartContext";
 import AuthGuard from "@/components/auth/AuthGuard";
+import { CookieConsent } from "@/components/CookieConsent";
 import Index from "./pages/Index";
 import ProductsPage from "./pages/ProductsPage";
 import ProductDetailPage from "./pages/ProductDetailPage";
@@ -31,6 +32,7 @@ const App = () => (
         <BrowserRouter>
           <Toaster />
           <Sonner />
+          <CookieConsent />
           <Routes>
             <Route path="/auth" element={<AuthPage />} />
             <Route path="/suivi" element={<OrderTrackingPage />} />
