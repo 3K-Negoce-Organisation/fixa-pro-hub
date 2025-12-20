@@ -63,7 +63,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
     );
   };
 
-  const clearCart = () => setItems([]);
+  const clearCart = () => {
+    setItems([]);
+    localStorage.removeItem(CART_STORAGE_KEY);
+  };
 
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
   const totalHT = items.reduce((sum, item) => sum + item.priceHT * item.quantity, 0);
