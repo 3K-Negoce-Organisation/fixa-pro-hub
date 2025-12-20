@@ -307,6 +307,10 @@ serve(async (req) => {
         message: `Webhook n8n envoyé (status: ${responseStatus})`,
         n8n_status: responseStatus,
         order_number: order.order_number,
+        excel_file: {
+          filename: `commande_${order.order_number}.xlsx`,
+          content_base64: excelBase64,
+        },
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
