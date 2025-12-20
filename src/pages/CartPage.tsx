@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Trash2, Plus, Minus, ShoppingBag, ArrowLeft, Loader2, CheckCircle, XCircle } from "lucide-react";
+import { Trash2, Plus, Minus, ShoppingBag, ArrowLeft, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Header } from "@/components/layout/Header";
@@ -10,37 +10,13 @@ import { formatPriceHT, formatPrice, calculateTTC } from "@/lib/products";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
-const PAYMENT_CHANNEL = "payment-status";
-
-type PaymentStatus = "idle" | "pending" | "success" | "cancelled";
-
 const CartPage = () => {
   const { items, removeItem, updateQuantity, clearCart, totalHT } = useCart();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>("idle");
   const { toast } = useToast();
   const navigate = useNavigate();
 
   const totalTTC = calculateTTC(totalHT);
-
-  // Listen for payment status from the checkout tab - always active
-  useEffect(() => {
-    const channel = new BroadcastChannel(PAYMENT_CHANNEL);
-    
-    channel.onmessage = (event) => {
-      console.log("Received payment status:", event.data);
-      if (event.data.status === "success") {
-        setPaymentStatus("success");
-        clearCart();
-      } else if (event.data.status === "cancelled") {
-        setPaymentStatus("cancelled");
-      }
-    };
-
-    return () => {
-      channel.close();
-    };
-  }, [clearCart]);
 
   const handleCheckout = async () => {
     setIsSubmitting(true);
@@ -78,10 +54,9 @@ const CartPage = () => {
         return;
       }
 
-      // Set payment as pending and open Stripe checkout in new tab
-      setPaymentStatus("pending");
-      console.log('Opening checkout in new tab:', checkoutResult.url);
-      window.open(checkoutResult.url, '_blank');
+      // Redirect to Stripe checkout on the same page
+      console.log('Redirecting to checkout:', checkoutResult.url);
+      window.location.href = checkoutResult.url;
     } catch (error) {
       console.error("Checkout error:", error);
       toast({
@@ -93,102 +68,6 @@ const CartPage = () => {
       setIsSubmitting(false);
     }
   };
-
-  const handleRetryPayment = () => {
-    setPaymentStatus("idle");
-  };
-
-  // Payment pending state
-  if (paymentStatus === "pending") {
-    return (
-      <div className="min-h-screen flex flex-col bg-background">
-        <Header />
-        <main className="flex-1 container py-16 text-center">
-          <Loader2 className="h-16 w-16 text-primary mx-auto mb-4 animate-spin" />
-          <h1 className="text-2xl font-bold mb-2">Paiement en cours...</h1>
-          <p className="text-muted-foreground mb-6">
-            Veuillez compléter votre paiement dans l'onglet Stripe ouvert.
-          </p>
-          <p className="text-sm text-muted-foreground">
-            Cette page se mettra à jour automatiquement une fois le paiement effectué.
-          </p>
-        </main>
-        <Footer />
-      </div>
-    );
-  }
-
-  // Payment success state
-  if (paymentStatus === "success") {
-    return (
-      <div className="min-h-screen flex flex-col bg-background">
-        <Header />
-        <main className="flex-1 container py-16 text-center">
-          <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-4" />
-          <h1 className="text-2xl font-bold mb-2">Paiement réussi !</h1>
-          <p className="text-muted-foreground mb-6">
-            Votre commande a été confirmée. Vous recevrez un email de confirmation.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <Button asChild>
-              <Link to="/suivi">
-                Suivre ma commande
-              </Link>
-            </Button>
-            <Button variant="outline" asChild>
-              <Link to="/produits">
-                Continuer mes achats
-              </Link>
-            </Button>
-          </div>
-        </main>
-        <Footer />
-      </div>
-    );
-  }
-
-  // Payment cancelled state
-  if (paymentStatus === "cancelled") {
-    return (
-      <div className="min-h-screen flex flex-col bg-background">
-        <Header />
-        <main className="flex-1 container py-16 text-center">
-          <XCircle className="h-16 w-16 text-destructive mx-auto mb-4" />
-          <h1 className="text-2xl font-bold mb-2">Paiement annulé</h1>
-          <p className="text-muted-foreground mb-6">
-            Votre paiement a été annulé. Aucun montant n'a été débité.
-          </p>
-          <Button onClick={handleRetryPayment}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Retour au panier
-          </Button>
-        </main>
-        <Footer />
-      </div>
-    );
-  }
-
-  if (items.length === 0) {
-    return (
-      <div className="min-h-screen flex flex-col bg-background">
-        <Header />
-        <main className="flex-1 container py-16 text-center">
-          <ShoppingBag className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-          <h1 className="text-2xl font-bold mb-2">Votre panier est vide</h1>
-          <p className="text-muted-foreground mb-6">
-            Parcourez notre catalogue pour trouver les produits dont vous avez besoin.
-          </p>
-          <Button asChild>
-            <Link to="/produits">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Voir les produits
-            </Link>
-          </Button>
-        </main>
-        <Footer />
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
