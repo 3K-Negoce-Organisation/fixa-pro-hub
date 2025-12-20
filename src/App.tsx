@@ -17,6 +17,9 @@ import PaymentCancelPage from "./pages/PaymentCancelPage";
 import AdminOrdersPage from "./pages/AdminOrdersPage";
 import AdminProductsPage from "./pages/AdminProductsPage";
 import PromosPage from "./pages/PromosPage";
+import MentionsLegalesPage from "./pages/MentionsLegalesPage";
+import PolitiqueConfidentialitePage from "./pages/PolitiqueConfidentialitePage";
+import CookiesPage from "./pages/CookiesPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -41,6 +44,9 @@ const App = () => (
             <Route path="/compte" element={<AuthGuard><AccountPage /></AuthGuard>} />
             <Route path="/admin/commandes" element={<AuthGuard><AdminOrdersPage /></AuthGuard>} />
             <Route path="/admin/produits" element={<AuthGuard><AdminProductsPage /></AuthGuard>} />
+            <Route path="/mentions-legales" element={<MentionsLegalesPage />} />
+            <Route path="/politique-confidentialite" element={<PolitiqueConfidentialitePage />} />
+            <Route path="/cookies" element={<CookiesPage />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
