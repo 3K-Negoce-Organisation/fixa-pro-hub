@@ -3,10 +3,13 @@ import { loadStripe } from "@stripe/stripe-js";
 import {
   Elements,
   PaymentElement,
+  AddressElement,
   useStripe,
   useElements,
 } from "@stripe/react-stripe-js";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Loader2, CreditCard, Lock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -20,15 +23,17 @@ const stripePromise = loadStripe(STRIPE_PUBLISHABLE_KEY);
 
 interface CheckoutFormProps {
   totalTTC: number;
+  userEmail: string;
   onSuccess: () => void;
   onCancel: () => void;
 }
 
-const CheckoutForm = ({ totalTTC, onSuccess, onCancel }: CheckoutFormProps) => {
+const CheckoutForm = ({ totalTTC, userEmail, onSuccess, onCancel }: CheckoutFormProps) => {
   const stripe = useStripe();
   const elements = useElements();
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [phone, setPhone] = useState("");
   const { toast } = useToast();
   const navigate = useNavigate();
   const { clearCart } = useCart();
@@ -40,6 +45,11 @@ const CheckoutForm = ({ totalTTC, onSuccess, onCancel }: CheckoutFormProps) => {
       return;
     }
 
+    if (!phone.trim()) {
+      setErrorMessage("Veuillez saisir votre numéro de téléphone");
+      return;
+    }
+
     setIsProcessing(true);
     setErrorMessage(null);
 
@@ -47,6 +57,13 @@ const CheckoutForm = ({ totalTTC, onSuccess, onCancel }: CheckoutFormProps) => {
       elements,
       confirmParams: {
         return_url: `${window.location.origin}/confirmation`,
+        receipt_email: userEmail,
+        payment_method_data: {
+          billing_details: {
+            email: userEmail,
+            phone: phone,
+          },
+        },
       },
       redirect: "if_required",
     });
@@ -69,12 +86,62 @@ const CheckoutForm = ({ totalTTC, onSuccess, onCancel }: CheckoutFormProps) => {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="p-4 bg-muted/50 rounded-lg">
-        <PaymentElement 
-          options={{
-            layout: "tabs",
-          }}
+      {/* Email (read-only) */}
+      <div className="space-y-2">
+        <Label htmlFor="email">Email</Label>
+        <Input
+          id="email"
+          type="email"
+          value={userEmail}
+          disabled
+          className="bg-muted"
         />
+      </div>
+
+      {/* Phone */}
+      <div className="space-y-2">
+        <Label htmlFor="phone">Téléphone *</Label>
+        <Input
+          id="phone"
+          type="tel"
+          placeholder="06 12 34 56 78"
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+          required
+        />
+      </div>
+
+      {/* Shipping Address */}
+      <div className="space-y-2">
+        <Label>Adresse de livraison *</Label>
+        <div className="p-4 bg-muted/50 rounded-lg">
+          <AddressElement
+            options={{
+              mode: "shipping",
+              allowedCountries: ["FR"],
+              fields: {
+                phone: "never",
+              },
+              validation: {
+                phone: {
+                  required: "never",
+                },
+              },
+            }}
+          />
+        </div>
+      </div>
+
+      {/* Payment */}
+      <div className="space-y-2">
+        <Label>Paiement *</Label>
+        <div className="p-4 bg-muted/50 rounded-lg">
+          <PaymentElement
+            options={{
+              layout: "tabs",
+            }}
+          />
+        </div>
       </div>
 
       {errorMessage && (
@@ -129,6 +196,7 @@ interface StripePaymentFormProps {
 
 export const StripePaymentForm = ({ items, totalTTC, onSuccess, onCancel }: StripePaymentFormProps) => {
   const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [userEmail, setUserEmail] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
@@ -136,6 +204,12 @@ export const StripePaymentForm = ({ items, totalTTC, onSuccess, onCancel }: Stri
   useEffect(() => {
     const createPaymentIntent = async () => {
       try {
+        // Get user email
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user?.email) {
+          setUserEmail(user.email);
+        }
+
         const { data, error } = await supabase.functions.invoke("create-payment-intent", {
           body: { items },
         });
@@ -193,12 +267,29 @@ export const StripePaymentForm = ({ items, totalTTC, onSuccess, onCancel }: Stri
             colorBackground: "#ffffff",
             colorText: "#1f2937",
             borderRadius: "8px",
+            fontFamily: "system-ui, sans-serif",
+          },
+          rules: {
+            ".Label": {
+              marginBottom: "8px",
+              fontSize: "14px",
+              fontWeight: "500",
+            },
+            ".Input": {
+              padding: "12px",
+              fontSize: "14px",
+            },
           },
         },
         locale: "fr",
       }}
     >
-      <CheckoutForm totalTTC={totalTTC} onSuccess={onSuccess} onCancel={onCancel} />
+      <CheckoutForm 
+        totalTTC={totalTTC} 
+        userEmail={userEmail}
+        onSuccess={onSuccess} 
+        onCancel={onCancel} 
+      />
     </Elements>
   );
 };
