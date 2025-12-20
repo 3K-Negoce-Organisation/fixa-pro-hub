@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import * as XLSX from "https://esm.sh/xlsx@0.18.5";
+import * as XLSX from "https://esm.sh/xlsx-js-style@1.2.0";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -10,6 +10,43 @@ const corsHeaders = {
 const logStep = (step: string, details?: any) => {
   const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
   console.log(`[SIMULATE-WEBHOOK] ${step}${detailsStr}`);
+};
+
+// Style definitions matching the reference template
+const headerStyle = {
+  font: { bold: true, color: { rgb: "FFFFFF" } },
+  fill: { fgColor: { rgb: "4472C4" } },
+  alignment: { horizontal: "center", vertical: "center" },
+  border: {
+    top: { style: "thin", color: { rgb: "000000" } },
+    bottom: { style: "thin", color: { rgb: "000000" } },
+    left: { style: "thin", color: { rgb: "000000" } },
+    right: { style: "thin", color: { rgb: "000000" } },
+  }
+};
+
+const dataStyle = {
+  border: {
+    top: { style: "thin", color: { rgb: "D9D9D9" } },
+    bottom: { style: "thin", color: { rgb: "D9D9D9" } },
+    left: { style: "thin", color: { rgb: "D9D9D9" } },
+    right: { style: "thin", color: { rgb: "D9D9D9" } },
+  }
+};
+
+const totalStyle = {
+  font: { bold: true },
+  fill: { fgColor: { rgb: "E2EFDA" } },
+  border: {
+    top: { style: "thin", color: { rgb: "000000" } },
+    bottom: { style: "thin", color: { rgb: "000000" } },
+    left: { style: "thin", color: { rgb: "000000" } },
+    right: { style: "thin", color: { rgb: "000000" } },
+  }
+};
+
+const infoStyle = {
+  font: { bold: true, color: { rgb: "305496" } },
 };
 
 // Generate Excel order recap file matching the exact template format
@@ -25,35 +62,44 @@ function generateOrderExcel(
   const date = new Date();
   const dateStr = `${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}/${String(date.getFullYear()).slice(-2)}`;
   
-  // Build worksheet data - matching exact template format
   // Customer name in uppercase for column G
   const customerNameUpper = (customerName || customerEmail).toUpperCase();
+  
+  // Build worksheet data - matching exact template format
   const wsData: any[][] = [
-    [dateStr, '', '', '', '', '', `clt ${customerNameUpper}`],
-    ['commande', orderNumber, '', '', '', '', `N° clt ${customerNumber}`],
+    [{ v: dateStr, s: infoStyle }, '', '', '', '', '', { v: `clt ${customerNameUpper}`, s: infoStyle }],
+    [{ v: 'commande', s: infoStyle }, { v: orderNumber, s: infoStyle }, '', '', '', '', { v: `N° clt ${customerNumber}`, s: infoStyle }],
     ['', '', '', '', '', '', ''],
-    ['code', 'désignation', 'quantité', 'Prix au conditionnment', 'Prix total HT net', '', ''],
+    [
+      { v: 'code', s: headerStyle },
+      { v: 'désignation', s: headerStyle },
+      { v: 'quantité', s: headerStyle },
+      { v: 'Prix au conditionnment', s: headerStyle },
+      { v: 'Prix total HT net', s: headerStyle },
+      '',
+      ''
+    ],
   ];
 
-  // Add items with code_alsafix instead of product_id
+  // Add items with code_alsafix and styling
   items.forEach(item => {
     const totalItemHT = (item.unit_price_ht || 0) * item.quantity;
     wsData.push([
-      item.code_alsafix || item.product_id || '',
-      item.product_title || '',
-      item.quantity,
-      `${(item.unit_price_ht || 0).toFixed(2)} €`,
-      `${totalItemHT.toFixed(2)} €`,
+      { v: item.code_alsafix || item.product_id || '', s: dataStyle },
+      { v: item.product_title || '', s: dataStyle },
+      { v: item.quantity, s: dataStyle },
+      { v: `${(item.unit_price_ht || 0).toFixed(2)} €`, s: dataStyle },
+      { v: `${totalItemHT.toFixed(2)} €`, s: dataStyle },
       '',
       ''
     ]);
   });
 
-  // Add total row
-  wsData.push(['', '', '', '', `${totalHT.toFixed(2)} €`, '', '']);
+  // Add total row with styling
+  wsData.push(['', '', '', '', { v: `${totalHT.toFixed(2)} €`, s: totalStyle }, '', '']);
   
   // Add shipping address section
-  wsData.push(['Adresse de livraison', '', '', '', '', '', '']);
+  wsData.push([{ v: 'Adresse de livraison', s: { font: { bold: true } } }, '', '', '', '', '', '']);
   if (shippingAddress) {
     wsData.push(['', customerName || '', '', '', '', '', '']);
     if (shippingAddress.line1) wsData.push(['', shippingAddress.line1, '', '', '', '', '']);
@@ -64,21 +110,29 @@ function generateOrderExcel(
   }
   wsData.push(['', '', '', '', '', '', '']);
   wsData.push(['', '', '', '', '', '', '']);
-  wsData.push(['Livraison direct sans BL chiffré', '', '', '', '', '', '']);
+  wsData.push([{ v: 'Livraison direct sans BL chiffré', s: { font: { italic: true, color: { rgb: "808080" } } } }, '', '', '', '', '', '']);
 
   // Create workbook and worksheet
   const wb = XLSX.utils.book_new();
   const ws = XLSX.utils.aoa_to_sheet(wsData);
   
-  // Set column widths to match template
+  // Set column widths to match template exactly (in characters)
   ws['!cols'] = [
-    { wch: 15 },  // code
-    { wch: 35 },  // désignation
-    { wch: 10 },  // quantité
-    { wch: 22 },  // Prix au conditionnment
-    { wch: 18 },  // Prix total HT net
-    { wch: 3 },   // empty
-    { wch: 15 },  // clt info
+    { wch: 12 },   // A: code
+    { wch: 32 },   // B: désignation
+    { wch: 8 },    // C: quantité
+    { wch: 20 },   // D: Prix au conditionnment
+    { wch: 16 },   // E: Prix total HT net
+    { wch: 2 },    // F: empty spacer
+    { wch: 14 },   // G: clt info
+  ];
+
+  // Set row heights
+  ws['!rows'] = [
+    { hpt: 18 },  // Row 1
+    { hpt: 18 },  // Row 2
+    { hpt: 12 },  // Row 3 (spacer)
+    { hpt: 22 },  // Row 4 (header)
   ];
 
   XLSX.utils.book_append_sheet(wb, ws, 'Commande');
