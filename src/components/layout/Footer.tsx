@@ -1,110 +1,63 @@
 import { Link } from "react-router-dom";
-import { Package, Phone, Mail, MapPin, Truck, Shield, CreditCard } from "lucide-react";
+
 export function Footer() {
-  return <footer className="bg-foreground text-background mt-auto">
-      {/* Trust badges */}
-      <div className="border-b border-background/10">
-        <div className="container py-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="flex items-center gap-3">
-              <Truck className="h-8 w-8 text-accent" />
-              <div>
-                <p className="font-semibold">Livraison Express</p>
-                <p className="text-sm text-background/70">24/48h sur stock - Gratuite dès 150€</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <Shield className="h-8 w-8 text-accent" />
-              <div>
-                <p className="font-semibold">Qualité Garantie</p>
-                <p className="text-sm text-background/70">Normes CE - Certifications ETA</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <CreditCard className="h-8 w-8 text-accent" />
-              <div>
-                <p className="font-semibold">Paiement Sécurisé</p>
-                <p className="text-sm text-background/70">CB</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Main footer */}
-      <div className="container py-10">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-          {/* Brand */}
+  return (
+    <footer className="bg-foreground text-background mt-auto">
+      {/* Colonnes de liens */}
+      <div className="container py-8">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-6">
+          {/* Catégories */}
           <div>
-            <Link to="/" className="flex items-center gap-2 mb-4">
-              <Package className="h-6 w-6" />
-              <span className="font-bold text-lg">vis-a-bois</span>
-            </Link>
-            <p className="text-sm text-background/70 mb-4">Spécialiste de la vis à bois depuis 2006.</p>
-            <div className="flex flex-col gap-2 text-sm">
-              <a href="tel:04XXXXXXXX" className="flex items-center gap-2 hover:text-accent">
-                <Phone className="h-4 w-4" />
-                04 XX XX XX XX
-              </a>
-              <a href="mailto:contact@vis-a-bois.fr" className="flex items-center gap-2 hover:text-accent">
-                <Mail className="h-4 w-4" />
-                contact@vis-a-bois.fr
-              </a>
-              
-            </div>
+            <Link to="/produits?category=terrasse" className="font-medium hover:underline">Vis Terrasse</Link>
+            <p className="text-sm text-background/60 mt-1">Inox A2 & A4, têtes fraisées</p>
           </div>
-
-          {/* Categories */}
           <div>
-            <h4 className="font-semibold mb-4">Catégories</h4>
-            <ul className="space-y-2 text-sm text-background/70">
-              <li><Link to="/produits?category=terrasse" className="hover:text-background">Vis Terrasse</Link></li>
-              <li><Link to="/produits?category=charpente" className="hover:text-background">Vis Charpente</Link></li>
-              <li><Link to="/produits?category=menuiserie" className="hover:text-background">Vis Menuiserie</Link></li>
-              <li><Link to="/produits" className="hover:text-background">Tous les produits</Link></li>
-            </ul>
+            <Link to="/produits?category=charpente" className="font-medium hover:underline">Vis Charpente</Link>
+            <p className="text-sm text-background/60 mt-1">Gros diamètres, haute résistance</p>
           </div>
-
-          {/* Account */}
+          <div>
+            <Link to="/produits?category=menuiserie" className="font-medium hover:underline">Vis Menuiserie</Link>
+            <p className="text-sm text-background/60 mt-1">Précision et finition</p>
+          </div>
+          <div>
+            <Link to="/produits" className="font-medium hover:underline">Tous les produits</Link>
+            <p className="text-sm text-background/60 mt-1">Catalogue complet</p>
+          </div>
           
-
-          {/* Info */}
+          {/* Informations */}
           <div>
-            <h4 className="font-semibold mb-4">Informations</h4>
-            <ul className="space-y-2 text-sm text-background/70">
-              <li><Link to="/cgv" className="hover:text-background">CGV</Link></li>
-              <li><Link to="/livraison" className="hover:text-background">Livraison</Link></li>
-              <li><Link to="/retours" className="hover:text-background">Retours & SAV</Link></li>
-              <li><Link to="/contact" className="hover:text-background">Contact</Link></li>
-            </ul>
+            <Link to="/information-technique" className="font-medium hover:underline">Infos techniques</Link>
+            <p className="text-sm text-background/60 mt-1">Guides & documentation</p>
           </div>
-
-          {/* Ressources */}
           <div>
-            <h4 className="font-semibold mb-4">Ressources</h4>
-            <ul className="space-y-2 text-sm text-background/70">
-              <li><Link to="/faq" className="hover:text-background">FAQ</Link></li>
-              <li><Link to="/information-technique" className="hover:text-background">Information technique</Link></li>
-              <li><Link to="/guide-bonnes-pratiques" className="hover:text-background">Guide des bonnes pratiques</Link></li>
-              <li><Link to="/produits-associes" className="hover:text-background">Produits associés</Link></li>
-              <li><Link to="/chantier-reference" className="hover:text-background">Chantier référence</Link></li>
-              <li><Link to="/videos" className="hover:text-background">Vidéos</Link></li>
-              <li><Link to="/avis-client" className="hover:text-background">Avis client</Link></li>
-            </ul>
+            <Link to="/faq" className="font-medium hover:underline">FAQ</Link>
+            <p className="text-sm text-background/60 mt-1">Questions fréquentes</p>
+          </div>
+          <div>
+            <Link to="/contact" className="font-medium hover:underline">Contact</Link>
+            <p className="text-sm text-background/60 mt-1">Service client</p>
           </div>
         </div>
       </div>
 
-      {/* Copyright */}
+      {/* Liens légaux centrés */}
       <div className="border-t border-background/10">
-        <div className="container py-4 flex flex-col md:flex-row justify-between items-center gap-2 text-xs text-background/50">
-          <p>© 2024 vis-a-bois - Tous droits réservés</p>
-          <div className="flex gap-4">
-            <Link to="/mentions-legales" className="hover:text-background">Mentions légales</Link>
-            <Link to="/politique-confidentialite" className="hover:text-background">Politique de confidentialité</Link>
-            <Link to="/cookies" className="hover:text-background">Cookies</Link>
+        <div className="container py-4 flex flex-col items-center gap-2">
+          <div className="flex flex-wrap justify-center gap-4 text-sm text-background/70">
+            <Link to="/cgv" className="hover:text-background hover:underline">CGV</Link>
+            <Link to="/mentions-legales" className="hover:text-background hover:underline">Mentions légales</Link>
+            <Link to="/politique-confidentialite" className="hover:text-background hover:underline">Politique de confidentialité</Link>
+            <Link to="/cookies" className="hover:text-background hover:underline">Cookies</Link>
+            <Link to="/livraison" className="hover:text-background hover:underline">Livraison</Link>
+            <Link to="/retours" className="hover:text-background hover:underline">Retours & SAV</Link>
           </div>
+          
+          {/* Copyright */}
+          <p className="text-xs text-background/50">
+            © 2024 vis-a-bois - Tous droits réservés
+          </p>
         </div>
       </div>
-    </footer>;
+    </footer>
+  );
 }
