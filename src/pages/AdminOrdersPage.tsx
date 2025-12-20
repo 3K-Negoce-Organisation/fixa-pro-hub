@@ -53,7 +53,8 @@ import {
   AlertTriangle,
   Send,
   Trash2,
-  Archive
+  Archive,
+  ExternalLink
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -95,6 +96,22 @@ const statusConfig: Record<OrderStatus, { label: string; color: string; icon: Re
 };
 
 const statusOrder: OrderStatus[] = ['pending', 'paid', 'confirmed', 'processing', 'shipped', 'delivered'];
+
+// Fonction pour générer l'URL de suivi selon le transporteur
+const getTrackingUrl = (carrier: string, trackingNumber: string): string | null => {
+  const carrierLower = carrier.toLowerCase().trim();
+  const trackingUrls: Record<string, string> = {
+    'colissimo': `https://www.laposte.fr/outils/suivre-vos-envois?code=${trackingNumber}`,
+    'chronopost': `https://www.chronopost.fr/tracking-no-cms/suivi-page?liession=${trackingNumber}`,
+    'dpd': `https://trace.dpd.fr/parcelTrace?numero=${trackingNumber}`,
+    'gls': `https://gls-group.com/FR/fr/suivi-colis?match=${trackingNumber}`,
+    'ups': `https://www.ups.com/track?tracknum=${trackingNumber}`,
+    'fedex': `https://www.fedex.com/fedextrack/?trknbr=${trackingNumber}`,
+    'mondial relay': `https://www.mondialrelay.fr/suivi-de-colis/?NumeroExpedition=${trackingNumber}`,
+    'mondialrelay': `https://www.mondialrelay.fr/suivi-de-colis/?NumeroExpedition=${trackingNumber}`,
+  };
+  return trackingUrls[carrierLower] || null;
+};
 
 interface ConfirmationState {
   open: boolean;
@@ -654,10 +671,26 @@ const quickStatusUpdate = (order: Order, newStatus: OrderStatus) => {
                         </TableCell>
                         <TableCell>
                           {order.tracking_number ? (
-                            <span className="text-sm">
-                              {order.carrier && <span className="text-muted-foreground">{order.carrier}: </span>}
-                              <span className="font-mono">{order.tracking_number}</span>
-                            </span>
+                            (() => {
+                              const trackingUrl = order.carrier ? getTrackingUrl(order.carrier, order.tracking_number) : null;
+                              return trackingUrl ? (
+                                <a 
+                                  href={trackingUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+                                >
+                                  {order.carrier && <span className="text-muted-foreground">{order.carrier}:</span>}
+                                  <span className="font-mono">{order.tracking_number}</span>
+                                  <ExternalLink className="h-3 w-3" />
+                                </a>
+                              ) : (
+                                <span className="text-sm">
+                                  {order.carrier && <span className="text-muted-foreground">{order.carrier}: </span>}
+                                  <span className="font-mono">{order.tracking_number}</span>
+                                </span>
+                              );
+                            })()
                           ) : (
                             <span className="text-sm text-muted-foreground">-</span>
                           )}
