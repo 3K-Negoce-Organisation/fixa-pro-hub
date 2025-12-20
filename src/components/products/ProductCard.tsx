@@ -40,7 +40,7 @@ export function ProductCard({ product, onAddToCart }: ProductCardProps) {
       {/* Image */}
       <div className="relative block w-32 h-32 mx-auto bg-white p-2 rounded-lg">
         {product.isPromo && (
-          <Badge className="absolute -top-2 -right-2 z-10 bg-destructive text-destructive-foreground text-[10px]">
+          <Badge className="absolute top-1 right-1 z-10 bg-destructive text-destructive-foreground text-[10px]">
             PROMO
           </Badge>
         )}
