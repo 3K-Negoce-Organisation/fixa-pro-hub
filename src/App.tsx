@@ -13,6 +13,7 @@ import AuthPage from "./pages/AuthPage";
 import AccountPage from "./pages/AccountPage";
 import OrderTrackingPage from "./pages/OrderTrackingPage";
 import OrderConfirmationPage from "./pages/OrderConfirmationPage";
+import PaymentCancelPage from "./pages/PaymentCancelPage";
 import AdminOrdersPage from "./pages/AdminOrdersPage";
 import AdminProductsPage from "./pages/AdminProductsPage";
 import PromosPage from "./pages/PromosPage";
@@ -31,6 +32,7 @@ const App = () => (
             <Route path="/auth" element={<AuthPage />} />
             <Route path="/suivi" element={<OrderTrackingPage />} />
             <Route path="/confirmation" element={<OrderConfirmationPage />} />
+            <Route path="/paiement-annule" element={<PaymentCancelPage />} />
             <Route path="/" element={<AuthGuard><Index /></AuthGuard>} />
             <Route path="/produits" element={<AuthGuard><ProductsPage /></AuthGuard>} />
             <Route path="/promos" element={<AuthGuard><PromosPage /></AuthGuard>} />

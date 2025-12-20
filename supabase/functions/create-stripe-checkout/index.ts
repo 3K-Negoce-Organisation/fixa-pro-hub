@@ -109,7 +109,7 @@ serve(async (req) => {
       line_items: lineItems,
       mode: "payment",
       success_url: `${origin}/confirmation?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${origin}/panier`,
+      cancel_url: `${origin}/paiement-annule`,
       shipping_address_collection: {
         allowed_countries: ['FR'],
       },
