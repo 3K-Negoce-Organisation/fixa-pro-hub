@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Save, Building2, Mail, MapPin, Phone } from "lucide-react";
+import { Save, Building2, Mail, MapPin, Phone, Hash } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -22,6 +22,7 @@ interface SupplierSettings {
   postal_code: string | null;
   city: string | null;
   phone: string | null;
+  customer_number: string | null;
 }
 
 interface SupplierSettingsDialogProps {
@@ -72,6 +73,7 @@ export function SupplierSettingsDialog({ open, onOpenChange }: SupplierSettingsD
           postal_code: settings.postal_code,
           city: settings.city,
           phone: settings.phone,
+          customer_number: settings.customer_number,
         })
         .eq("id", settings.id);
 
@@ -125,6 +127,22 @@ export function SupplierSettingsDialog({ open, onOpenChange }: SupplierSettingsD
                     onChange={(e) => updateField("name", e.target.value)}
                     placeholder="Ex: Alsafix"
                   />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="customer_number">Numéro client fournisseur</Label>
+                  <div className="relative">
+                    <Hash className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="customer_number"
+                      value={settings.customer_number || ""}
+                      onChange={(e) => updateField("customer_number", e.target.value)}
+                      placeholder="Ex: 000001"
+                      className="pl-10"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Ce numéro apparaîtra sur les bons de commande envoyés au fournisseur
+                  </p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="phone">Téléphone</Label>

@@ -277,9 +277,6 @@ serve(async (req) => {
       .maybeSingle();
 
     const displayName = profile?.company_name || customerName || customerEmail;
-    
-    // Use "00000" as default customer number (matching template)
-    const customerNumber = '00000';
 
     // Get supplier settings
     const { data: supplierSettings } = await supabaseAdmin
@@ -288,6 +285,9 @@ serve(async (req) => {
       .maybeSingle();
 
     logStep("Supplier settings fetched", { hasSettings: !!supplierSettings });
+    
+    // Get customer number from supplier settings (default to "000001")
+    const customerNumber = supplierSettings?.customer_number || '000001';
 
     if (!n8nWebhookUrl) {
       return new Response(
