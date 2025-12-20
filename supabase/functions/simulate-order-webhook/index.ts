@@ -21,7 +21,7 @@ function generateOrderPDF(
   customerNumber: string,
   items: any[],
   totalHT: number,
-  shippingAddress: { line1?: string; line2?: string; city?: string; postal_code?: string } | null
+  shippingAddress: { name?: string; line1?: string; line2?: string; city?: string; postal_code?: string } | null
 ): string {
   const date = new Date();
   const dateStr = `${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}/${String(date.getFullYear()).slice(-2)}`;
@@ -136,8 +136,10 @@ function generateOrderPDF(
   let currentY = addressY + 6;
   
   if (shippingAddress) {
-    if (customerName) {
-      doc.text(customerName, margin + 10, currentY);
+    // Use shipping name if available, otherwise fall back to customerName
+    const displayShippingName = shippingAddress.name || customerName;
+    if (displayShippingName) {
+      doc.text(displayShippingName, margin + 10, currentY);
       currentY += 5;
     }
     if (shippingAddress.line1) {
@@ -305,6 +307,7 @@ serve(async (req) => {
       enrichedItems,
       order.total_ht,
       {
+        name: order.shipping_name || undefined,
         line1: order.shipping_address || undefined,
         city: order.shipping_city || undefined,
         postal_code: order.shipping_postal_code || undefined,

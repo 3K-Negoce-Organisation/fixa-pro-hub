@@ -69,6 +69,7 @@ const CheckoutForm = ({ totalTTC, userEmail, onSuccess, onCancel, items, totalHT
 
     // Get shipping address from AddressElement before confirming payment
     const addressElement = elements.getElement('address');
+    let shippingName = null;
     let shippingAddress = null;
     let shippingCity = null;
     let shippingPostalCode = null;
@@ -76,6 +77,7 @@ const CheckoutForm = ({ totalTTC, userEmail, onSuccess, onCancel, items, totalHT
     if (addressElement) {
       const { complete, value } = await addressElement.getValue();
       if (complete && value.address) {
+        shippingName = value.name || null;
         shippingAddress = value.address.line1 + (value.address.line2 ? `, ${value.address.line2}` : '');
         shippingCity = value.address.city;
         shippingPostalCode = value.address.postal_code;
@@ -118,6 +120,7 @@ const CheckoutForm = ({ totalTTC, userEmail, onSuccess, onCancel, items, totalHT
             status: 'paid',
             total_ht: totalHT,
             total_ttc: totalTTC,
+            shipping_name: shippingName,
             shipping_address: shippingAddress,
             shipping_city: shippingCity,
             shipping_postal_code: shippingPostalCode,
