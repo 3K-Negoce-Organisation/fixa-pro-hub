@@ -701,7 +701,15 @@ const AdminProductsPage = () => {
                           <TableCell className="font-medium max-w-[200px] truncate">
                             {product.title}
                           </TableCell>
-                          <TableCell>{product.category || "-"}</TableCell>
+                          <TableCell className="max-w-[120px]">
+                            {product.category ? (
+                              <Badge variant="secondary" className="truncate max-w-full text-xs font-normal">
+                                {product.category}
+                              </Badge>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </TableCell>
                           <TableCell>{formatPrice(product.price_ht)}</TableCell>
                           <TableCell>{formatPrice(product.price_ttc)}</TableCell>
                           <TableCell>{product.box_quantity || "-"}</TableCell>
