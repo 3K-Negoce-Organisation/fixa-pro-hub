@@ -66,6 +66,7 @@ export type Database = {
           carrier: string | null
           created_at: string
           id: string
+          is_archived: boolean
           notes: string | null
           order_number: string
           shipping_address: string | null
@@ -84,6 +85,7 @@ export type Database = {
           carrier?: string | null
           created_at?: string
           id?: string
+          is_archived?: boolean
           notes?: string | null
           order_number: string
           shipping_address?: string | null
@@ -102,6 +104,7 @@ export type Database = {
           carrier?: string | null
           created_at?: string
           id?: string
+          is_archived?: boolean
           notes?: string | null
           order_number?: string
           shipping_address?: string | null
