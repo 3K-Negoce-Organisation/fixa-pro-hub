@@ -15,13 +15,24 @@ const OrderConfirmationPage = () => {
 
   // Clear cart on successful payment and notify original page
   useEffect(() => {
-    if (sessionId) {
-      clearCart();
-      // Notify the original page that payment was successful
-      const channel = new BroadcastChannel(PAYMENT_CHANNEL);
-      channel.postMessage({ status: "success", sessionId });
+    if (!sessionId) return;
+
+    clearCart();
+
+    // Notify the original tab (cart page) that payment was successful
+    const channel = new BroadcastChannel(PAYMENT_CHANNEL);
+    channel.postMessage({ status: "success", sessionId });
+
+    // Give the browser a moment to deliver the message before closing.
+    const closeTimers = [
+      window.setTimeout(() => channel.close(), 250),
+      window.setTimeout(() => window.close(), 600),
+    ];
+
+    return () => {
+      closeTimers.forEach((t) => window.clearTimeout(t));
       channel.close();
-    }
+    };
   }, [sessionId, clearCart]);
 
   return (
