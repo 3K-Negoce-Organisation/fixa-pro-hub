@@ -12,11 +12,12 @@ const logStep = (step: string, details?: any) => {
   console.log(`[SIMULATE-WEBHOOK] ${step}${detailsStr}`);
 };
 
-// Generate Excel order recap file
+// Generate Excel order recap file matching the exact template format
 function generateOrderExcel(
   orderNumber: string,
   customerName: string,
   customerEmail: string,
+  customerNumber: string,
   items: any[],
   totalHT: number,
   shippingAddress: { line1?: string; line2?: string; city?: string; postal_code?: string } | null
@@ -24,19 +25,19 @@ function generateOrderExcel(
   const date = new Date();
   const dateStr = `${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}/${String(date.getFullYear()).slice(-2)}`;
   
-  // Build worksheet data
+  // Build worksheet data - matching exact template format
   const wsData: any[][] = [
     [dateStr, '', '', '', '', '', `clt ${customerName || customerEmail}`],
-    [`commande`, orderNumber, '', '', '', '', ''],
+    ['commande', orderNumber, '', '', '', '', `N° clt ${customerNumber}`],
     ['', '', '', '', '', '', ''],
-    ['code', 'désignation', 'quantité', 'Prix unitaire HT', 'Prix total HT net', '', ''],
+    ['code', 'désignation', 'quantité', 'Prix au conditionnment', 'Prix total HT net', '', ''],
   ];
 
-  // Add items
+  // Add items with code_alsafix instead of product_id
   items.forEach(item => {
     const totalItemHT = (item.unit_price_ht || 0) * item.quantity;
     wsData.push([
-      item.product_id || '',
+      item.code_alsafix || item.product_id || '',
       item.product_title || '',
       item.quantity,
       `${(item.unit_price_ht || 0).toFixed(2)} €`,
@@ -46,11 +47,10 @@ function generateOrderExcel(
     ]);
   });
 
-  // Add total
+  // Add total row
   wsData.push(['', '', '', '', `${totalHT.toFixed(2)} €`, '', '']);
-  wsData.push(['', '', '', '', '', '', '']);
   
-  // Add shipping address
+  // Add shipping address section
   wsData.push(['Adresse de livraison', '', '', '', '', '', '']);
   if (shippingAddress) {
     wsData.push(['', customerName || '', '', '', '', '', '']);
@@ -61,21 +61,22 @@ function generateOrderExcel(
     }
   }
   wsData.push(['', '', '', '', '', '', '']);
+  wsData.push(['', '', '', '', '', '', '']);
   wsData.push(['Livraison direct sans BL chiffré', '', '', '', '', '', '']);
 
   // Create workbook and worksheet
   const wb = XLSX.utils.book_new();
   const ws = XLSX.utils.aoa_to_sheet(wsData);
   
-  // Set column widths
+  // Set column widths to match template
   ws['!cols'] = [
-    { wch: 15 },
-    { wch: 35 },
-    { wch: 10 },
-    { wch: 20 },
-    { wch: 18 },
-    { wch: 5 },
-    { wch: 15 },
+    { wch: 15 },  // code
+    { wch: 35 },  // désignation
+    { wch: 10 },  // quantité
+    { wch: 22 },  // Prix au conditionnment
+    { wch: 18 },  // Prix total HT net
+    { wch: 3 },   // empty
+    { wch: 15 },  // clt info
   ];
 
   XLSX.utils.book_append_sheet(wb, ws, 'Commande');
@@ -164,6 +165,27 @@ serve(async (req) => {
       .select('*')
       .eq('order_id', order_id);
 
+    // Get product codes (code_alsafix) for each item
+    const productIds = (orderItems || []).map(item => item.product_id);
+    const { data: products } = await supabaseAdmin
+      .from('products')
+      .select('id, code_alsafix')
+      .in('id', productIds);
+
+    // Create a map of product_id to code_alsafix
+    const productCodeMap = new Map<string, string>();
+    (products || []).forEach(p => {
+      if (p.code_alsafix) {
+        productCodeMap.set(p.id, p.code_alsafix);
+      }
+    });
+
+    // Enrich order items with code_alsafix
+    const enrichedItems = (orderItems || []).map(item => ({
+      ...item,
+      code_alsafix: productCodeMap.get(item.product_id) || item.product_id,
+    }));
+
     // Get user info
     const { data: userData } = await supabaseAdmin.auth.admin.getUserById(order.user_id);
     const customerEmail = userData?.user?.email || '';
@@ -177,6 +199,10 @@ serve(async (req) => {
       .maybeSingle();
 
     const displayName = profile?.company_name || customerName || customerEmail;
+    
+    // Generate a customer number (could be based on user_id or a separate field)
+    // For now, use first 5 chars of user_id or "00000"
+    const customerNumber = order.user_id ? order.user_id.substring(0, 5).toUpperCase() : '00000';
 
     // Get supplier settings
     const { data: supplierSettings } = await supabaseAdmin
@@ -198,7 +224,8 @@ serve(async (req) => {
       order.order_number,
       displayName,
       customerEmail,
-      orderItems || [],
+      customerNumber,
+      enrichedItems,
       order.total_ht,
       {
         line1: order.shipping_address || undefined,
