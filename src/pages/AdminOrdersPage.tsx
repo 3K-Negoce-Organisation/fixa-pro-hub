@@ -52,8 +52,11 @@ import {
   Edit,
   AlertTriangle,
   RotateCcw,
-  Send
+  Send,
+  Trash2,
+  Archive
 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Tooltip,
   TooltipContent,
@@ -116,6 +119,11 @@ interface ValidateConfirmationState {
   order: Order | null;
 }
 
+interface BulkActionState {
+  step: 'first' | 'second' | null;
+  action: 'delete' | 'archive' | null;
+}
+
 const AdminOrdersPage = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -123,6 +131,11 @@ const AdminOrdersPage = () => {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editStatus, setEditStatus] = useState<OrderStatus>('pending');
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
+  const [selectedOrderIds, setSelectedOrderIds] = useState<Set<string>>(new Set());
+  const [bulkAction, setBulkAction] = useState<BulkActionState>({
+    step: null,
+    action: null,
+  });
   const [confirmation, setConfirmation] = useState<ConfirmationState>({
     open: false,
     order: null,
@@ -435,6 +448,108 @@ const quickStatusUpdate = (order: Order, newStatus: OrderStatus) => {
     }
   };
 
+  // Bulk selection handlers
+  const toggleOrderSelection = (orderId: string) => {
+    setSelectedOrderIds((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(orderId)) {
+        newSet.delete(orderId);
+      } else {
+        newSet.add(orderId);
+      }
+      return newSet;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (orders && selectedOrderIds.size === orders.length) {
+      setSelectedOrderIds(new Set());
+    } else if (orders) {
+      setSelectedOrderIds(new Set(orders.map((o) => o.id)));
+    }
+  };
+
+  // Bulk delete mutation
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (orderIds: string[]) => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('Non authentifié');
+
+      const { error } = await supabase
+        .from('orders')
+        .delete()
+        .in('id', orderIds);
+
+      if (error) throw error;
+      return orderIds.length;
+    },
+    onSuccess: (count) => {
+      toast({
+        title: "Commandes supprimées",
+        description: `${count} commande(s) supprimée(s) définitivement.`,
+      });
+      setSelectedOrderIds(new Set());
+      setBulkAction({ step: null, action: null });
+      queryClient.invalidateQueries({ queryKey: ['admin-orders'] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erreur",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Bulk archive mutation
+  const bulkArchiveMutation = useMutation({
+    mutationFn: async (orderIds: string[]) => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('Non authentifié');
+
+      const { error } = await supabase
+        .from('orders')
+        .update({ is_archived: true })
+        .in('id', orderIds);
+
+      if (error) throw error;
+      return orderIds.length;
+    },
+    onSuccess: (count) => {
+      toast({
+        title: "Commandes archivées",
+        description: `${count} commande(s) archivée(s).`,
+      });
+      setSelectedOrderIds(new Set());
+      setBulkAction({ step: null, action: null });
+      queryClient.invalidateQueries({ queryKey: ['admin-orders'] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erreur",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleBulkActionClick = (action: 'delete' | 'archive') => {
+    setBulkAction({ step: 'first', action });
+  };
+
+  const handleBulkFirstConfirm = () => {
+    setBulkAction((prev) => ({ ...prev, step: 'second' }));
+  };
+
+  const handleBulkSecondConfirm = () => {
+    const orderIds = Array.from(selectedOrderIds);
+    if (bulkAction.action === 'delete') {
+      bulkDeleteMutation.mutate(orderIds);
+    } else if (bulkAction.action === 'archive') {
+      bulkArchiveMutation.mutate(orderIds);
+    }
+  };
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('fr-FR', {
       day: '2-digit',
@@ -487,10 +602,37 @@ const quickStatusUpdate = (order: Order, newStatus: OrderStatus) => {
       <main className="flex-1 container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-bold">Administration des commandes</h1>
-          <Button variant="outline" onClick={() => refetch()}>
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Actualiser
-          </Button>
+          <div className="flex items-center gap-2">
+            {selectedOrderIds.size > 0 && (
+              <>
+                <span className="text-sm text-muted-foreground">
+                  {selectedOrderIds.size} sélectionnée(s)
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleBulkActionClick('archive')}
+                  disabled={bulkArchiveMutation.isPending || bulkDeleteMutation.isPending}
+                >
+                  <Archive className="h-4 w-4 mr-2" />
+                  Archiver
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => handleBulkActionClick('delete')}
+                  disabled={bulkArchiveMutation.isPending || bulkDeleteMutation.isPending}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Supprimer
+                </Button>
+              </>
+            )}
+            <Button variant="outline" onClick={() => refetch()}>
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Actualiser
+            </Button>
+          </div>
         </div>
 
         {isLoading ? (
@@ -506,6 +648,13 @@ const quickStatusUpdate = (order: Order, newStatus: OrderStatus) => {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-12">
+                      <Checkbox
+                        checked={orders && orders.length > 0 && selectedOrderIds.size === orders.length}
+                        onCheckedChange={toggleSelectAll}
+                        aria-label="Tout sélectionner"
+                      />
+                    </TableHead>
                     <TableHead>N° Commande</TableHead>
                     <TableHead>Client</TableHead>
                     <TableHead>Date</TableHead>
@@ -525,7 +674,14 @@ const quickStatusUpdate = (order: Order, newStatus: OrderStatus) => {
                       : null;
 
                     return (
-                      <TableRow key={order.id}>
+                      <TableRow key={order.id} className={selectedOrderIds.has(order.id) ? "bg-muted/50" : ""}>
+                        <TableCell>
+                          <Checkbox
+                            checked={selectedOrderIds.has(order.id)}
+                            onCheckedChange={() => toggleOrderSelection(order.id)}
+                            aria-label={`Sélectionner la commande ${order.order_number}`}
+                          />
+                        </TableCell>
                         <TableCell className="font-mono font-medium">
                           {order.order_number}
                         </TableCell>
@@ -953,6 +1109,96 @@ const quickStatusUpdate = (order: Order, newStatus: OrderStatus) => {
               disabled={updateOrderMutation.isPending}
             >
               {updateOrderMutation.isPending ? 'Validation...' : 'Confirmer la validation'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* First Bulk Action Confirmation Dialog */}
+      <AlertDialog 
+        open={bulkAction.step === 'first'} 
+        onOpenChange={(open) => !open && setBulkAction({ step: null, action: null })}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              {bulkAction.action === 'delete' ? (
+                <Trash2 className="h-5 w-5 text-destructive" />
+              ) : (
+                <Archive className="h-5 w-5 text-primary" />
+              )}
+              {bulkAction.action === 'delete' ? 'Supprimer les commandes' : 'Archiver les commandes'}
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <p>
+                  Vous avez sélectionné <span className="font-medium">{selectedOrderIds.size}</span> commande(s).
+                </p>
+                <p className="text-muted-foreground">
+                  {bulkAction.action === 'delete' 
+                    ? 'Cette action supprimera définitivement les commandes sélectionnées. Cette action est irréversible.'
+                    : 'Cette action archivera les commandes sélectionnées. Elles ne seront plus visibles dans la liste principale.'}
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={(e) => {
+                e.preventDefault();
+                handleBulkFirstConfirm();
+              }}
+              className={bulkAction.action === 'delete' ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : ""}
+            >
+              Continuer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Second Bulk Action Confirmation Dialog */}
+      <AlertDialog 
+        open={bulkAction.step === 'second'} 
+        onOpenChange={(open) => !open && setBulkAction({ step: null, action: null })}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-500" />
+              Confirmer l'action
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <p>
+                  Êtes-vous sûr de vouloir {bulkAction.action === 'delete' ? 'supprimer définitivement' : 'archiver'}{' '}
+                  <span className="font-medium">{selectedOrderIds.size}</span> commande(s) ?
+                </p>
+                {bulkAction.action === 'delete' && (
+                  <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-md">
+                    <p className="text-destructive font-medium text-sm">
+                      ⚠️ Cette action est IRRÉVERSIBLE. Les commandes seront supprimées de la base de données.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkDeleteMutation.isPending || bulkArchiveMutation.isPending}>
+              Annuler
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                handleBulkSecondConfirm();
+              }}
+              disabled={bulkDeleteMutation.isPending || bulkArchiveMutation.isPending}
+              className={bulkAction.action === 'delete' ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : ""}
+            >
+              {bulkDeleteMutation.isPending || bulkArchiveMutation.isPending 
+                ? 'En cours...' 
+                : bulkAction.action === 'delete' ? 'Supprimer définitivement' : 'Archiver'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
