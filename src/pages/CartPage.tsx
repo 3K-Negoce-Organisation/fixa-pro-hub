@@ -19,15 +19,22 @@ const CartPage = () => {
   const totalTTC = calculateTTC(totalHT);
 
   const handleCheckout = async () => {
-    // Important: open a blank tab synchronously to avoid popup blockers.
-    // In the Lovable preview (iframe), navigating the top frame is blocked by the browser.
-    const checkoutTab = window.open("about:blank", "_blank");
+    // Open a popup window synchronously (to avoid popup blockers)
+    const width = 500;
+    const height = 700;
+    const left = window.screenX + (window.innerWidth - width) / 2;
+    const top = window.screenY + (window.innerHeight - height) / 2;
+    const popup = window.open(
+      "about:blank",
+      "StripeCheckout",
+      `width=${width},height=${height},left=${left},top=${top},scrollbars=yes,resizable=yes`
+    );
 
     setIsSubmitting(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        checkoutTab?.close();
+        popup?.close();
         toast({
           title: "Erreur",
           description: "Vous devez être connecté pour passer commande.",
@@ -47,7 +54,7 @@ const CartPage = () => {
       console.log("Checkout error:", checkoutError);
 
       if (checkoutError || !checkoutResult?.url) {
-        checkoutTab?.close();
+        popup?.close();
         console.error("Checkout error:", checkoutError || checkoutResult?.error);
         toast({
           title: "Erreur",
@@ -57,17 +64,21 @@ const CartPage = () => {
         return;
       }
 
-      console.log("Redirecting to checkout:", checkoutResult.url);
+      console.log("Redirecting popup to checkout:", checkoutResult.url);
 
-      // If the popup was blocked, fallback to same-tab navigation (works in real site, may be blocked in preview iframe).
-      if (!checkoutTab) {
-        window.location.href = checkoutResult.url;
+      if (!popup || popup.closed) {
+        // Popup was blocked, fallback
+        toast({
+          title: "Popup bloquée",
+          description: "Veuillez autoriser les popups pour ce site et réessayer.",
+          variant: "destructive",
+        });
         return;
       }
 
-      checkoutTab.location.href = checkoutResult.url;
+      popup.location.href = checkoutResult.url;
     } catch (error) {
-      checkoutTab?.close();
+      popup?.close();
       console.error("Checkout error:", error);
       toast({
         title: "Erreur",
