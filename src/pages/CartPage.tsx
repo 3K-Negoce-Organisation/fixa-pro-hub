@@ -19,10 +19,15 @@ const CartPage = () => {
   const totalTTC = calculateTTC(totalHT);
 
   const handleCheckout = async () => {
+    // Important: open a blank tab synchronously to avoid popup blockers.
+    // In the Lovable preview (iframe), navigating the top frame is blocked by the browser.
+    const checkoutTab = window.open("about:blank", "_blank");
+
     setIsSubmitting(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
+        checkoutTab?.close();
         toast({
           title: "Erreur",
           description: "Vous devez être connecté pour passer commande.",
@@ -32,20 +37,18 @@ const CartPage = () => {
         return;
       }
 
-      // Create Stripe checkout session
-      console.log('Creating Stripe checkout session...');
+      console.log("Creating Stripe checkout session...");
       const { data: checkoutResult, error: checkoutError } = await supabase.functions.invoke(
-        'create-stripe-checkout',
-        {
-          body: { items },
-        }
+        "create-stripe-checkout",
+        { body: { items } }
       );
 
-      console.log('Checkout result:', checkoutResult);
-      console.log('Checkout error:', checkoutError);
+      console.log("Checkout result:", checkoutResult);
+      console.log("Checkout error:", checkoutError);
 
       if (checkoutError || !checkoutResult?.url) {
-        console.error('Checkout error:', checkoutError || checkoutResult?.error);
+        checkoutTab?.close();
+        console.error("Checkout error:", checkoutError || checkoutResult?.error);
         toast({
           title: "Erreur",
           description: checkoutResult?.error || "Impossible de créer le checkout. Veuillez réessayer.",
@@ -54,14 +57,17 @@ const CartPage = () => {
         return;
       }
 
-      // Redirect to Stripe checkout - use top frame to escape preview iframe
-      console.log('Redirecting to checkout:', checkoutResult.url);
-      if (window.top) {
-        window.top.location.href = checkoutResult.url;
-      } else {
+      console.log("Redirecting to checkout:", checkoutResult.url);
+
+      // If the popup was blocked, fallback to same-tab navigation (works in real site, may be blocked in preview iframe).
+      if (!checkoutTab) {
         window.location.href = checkoutResult.url;
+        return;
       }
+
+      checkoutTab.location.href = checkoutResult.url;
     } catch (error) {
+      checkoutTab?.close();
       console.error("Checkout error:", error);
       toast({
         title: "Erreur",
