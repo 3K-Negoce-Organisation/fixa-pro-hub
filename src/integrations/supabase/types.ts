@@ -71,6 +71,7 @@ export type Database = {
           order_number: string
           shipping_address: string | null
           shipping_city: string | null
+          shipping_name: string | null
           shipping_postal_code: string | null
           shopify_order_id: string | null
           status: Database["public"]["Enums"]["order_status"]
@@ -90,6 +91,7 @@ export type Database = {
           order_number: string
           shipping_address?: string | null
           shipping_city?: string | null
+          shipping_name?: string | null
           shipping_postal_code?: string | null
           shopify_order_id?: string | null
           status?: Database["public"]["Enums"]["order_status"]
@@ -109,6 +111,7 @@ export type Database = {
           order_number?: string
           shipping_address?: string | null
           shipping_city?: string | null
+          shipping_name?: string | null
           shipping_postal_code?: string | null
           shopify_order_id?: string | null
           status?: Database["public"]["Enums"]["order_status"]
