@@ -364,22 +364,22 @@ const quickStatusUpdate = (order: Order, newStatus: OrderStatus) => {
       return response.data;
     },
     onSuccess: (data) => {
-      // Download the Excel file if provided
-      if (data.excel_file?.content_base64) {
-        const byteCharacters = atob(data.excel_file.content_base64);
+      // Download the PDF file if provided
+      if (data.pdf_file?.content_base64) {
+        const byteCharacters = atob(data.pdf_file.content_base64);
         const byteNumbers = new Array(byteCharacters.length);
         for (let i = 0; i < byteCharacters.length; i++) {
           byteNumbers[i] = byteCharacters.charCodeAt(i);
         }
         const byteArray = new Uint8Array(byteNumbers);
         const blob = new Blob([byteArray], { 
-          type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+          type: 'application/pdf' 
         });
         
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = data.excel_file.filename || `commande_${data.order_number}.xlsx`;
+        link.download = data.pdf_file.filename || `commande_${data.order_number}.pdf`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);

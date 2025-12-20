@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import * as XLSX from "https://esm.sh/xlsx@0.18.5";
+import { jsPDF } from "https://esm.sh/jspdf@2.5.1";
+import autoTable from "https://esm.sh/jspdf-autotable@3.8.2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -12,8 +13,8 @@ const logStep = (step: string, details?: any) => {
   console.log(`[SIMULATE-WEBHOOK] ${step}${detailsStr}`);
 };
 
-// Generate Excel order recap file matching the template format
-function generateOrderExcel(
+// Generate PDF order recap file matching the template format with full styling
+function generateOrderPDF(
   orderNumber: string,
   customerName: string,
   customerEmail: string,
@@ -25,68 +26,142 @@ function generateOrderExcel(
   const date = new Date();
   const dateStr = `${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}/${String(date.getFullYear()).slice(-2)}`;
   
-  // Customer name in uppercase for column G
+  // Customer name in uppercase
   const customerNameUpper = (customerName || customerEmail).toUpperCase();
   
-  // Build worksheet data - matching template format
-  const wsData: any[][] = [
-    [dateStr, '', '', '', '', '', `clt ${customerNameUpper}`],
-    ['commande', orderNumber, '', '', '', '', `N° clt ${customerNumber}`],
-    ['', '', '', '', '', '', ''],
-    ['code', 'désignation', 'quantité', 'Prix au conditionnment', 'Prix total HT net', '', ''],
-  ];
-
-  // Add items with code_alsafix
-  items.forEach(item => {
-    const totalItemHT = (item.unit_price_ht || 0) * item.quantity;
-    wsData.push([
-      item.code_alsafix || item.product_id || '',
-      item.product_title || '',
-      item.quantity,
-      `${(item.unit_price_ht || 0).toFixed(2)} €`,
-      `${totalItemHT.toFixed(2)} €`,
-      '',
-      ''
-    ]);
+  // Create PDF document (A4 landscape for better table fit)
+  const doc = new jsPDF({
+    orientation: 'landscape',
+    unit: 'mm',
+    format: 'a4'
   });
 
-  // Add total row
-  wsData.push(['', '', '', '', `${totalHT.toFixed(2)} €`, '', '']);
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const margin = 15;
+
+  // Colors (typed as tuples)
+  const headerBlue: [number, number, number] = [30, 58, 95]; // #1E3A5F
+  const totalGreen: [number, number, number] = [212, 237, 218]; // #D4EDDA
+  const infoDarkBlue = [25, 50, 85];
+
+  // Header section - Date and Customer info
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'normal');
+  doc.text(dateStr, margin, 15);
   
-  // Add shipping address section
-  wsData.push(['Adresse de livraison', '', '', '', '', '', '']);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(infoDarkBlue[0], infoDarkBlue[1], infoDarkBlue[2]);
+  doc.text(`clt ${customerNameUpper}`, pageWidth - margin, 15, { align: 'right' });
+  
+  doc.setTextColor(0, 0, 0);
+  doc.setFont('helvetica', 'normal');
+  doc.text('commande', margin, 22);
+  doc.setFont('helvetica', 'bold');
+  doc.text(orderNumber, margin + 25, 22);
+  
+  doc.setTextColor(infoDarkBlue[0], infoDarkBlue[1], infoDarkBlue[2]);
+  doc.text(`N° clt ${customerNumber}`, pageWidth - margin, 22, { align: 'right' });
+  doc.setTextColor(0, 0, 0);
+
+  // Prepare table data
+  const tableHeaders = [['Code', 'Désignation', 'Qté', 'Prix au conditionnement', 'Prix total HT net']];
+  
+  const tableData = items.map(item => {
+    const totalItemHT = (item.unit_price_ht || 0) * item.quantity;
+    return [
+      item.code_alsafix || item.product_id || '',
+      item.product_title || '',
+      String(item.quantity),
+      `${(item.unit_price_ht || 0).toFixed(2)} €`,
+      `${totalItemHT.toFixed(2)} €`
+    ];
+  });
+
+  // Add table with styling
+  autoTable(doc, {
+    startY: 30,
+    head: tableHeaders,
+    body: tableData,
+    theme: 'grid',
+    styles: {
+      fontSize: 10,
+      cellPadding: 3,
+      lineColor: [0, 0, 0],
+      lineWidth: 0.3,
+    },
+    headStyles: {
+      fillColor: headerBlue,
+      textColor: [255, 255, 255],
+      fontStyle: 'bold',
+      halign: 'center',
+    },
+    columnStyles: {
+      0: { cellWidth: 30 },  // Code
+      1: { cellWidth: 80 },  // Désignation
+      2: { cellWidth: 20, halign: 'center' },  // Qté
+      3: { cellWidth: 45, halign: 'right' },   // Prix unitaire
+      4: { cellWidth: 45, halign: 'right' },   // Prix total
+    },
+    didParseCell: function(data) {
+      // Style for body rows
+      if (data.section === 'body') {
+        data.cell.styles.fillColor = [255, 255, 255];
+      }
+    },
+  });
+
+  // Get Y position after table
+  const finalY = (doc as any).lastAutoTable.finalY || 100;
+
+  // Total row with green background
+  const totalRowY = finalY + 2;
+  doc.setFillColor(totalGreen[0], totalGreen[1], totalGreen[2]);
+  doc.rect(margin, totalRowY, pageWidth - 2 * margin, 10, 'F');
+  doc.setDrawColor(0, 0, 0);
+  doc.setLineWidth(0.3);
+  doc.rect(margin, totalRowY, pageWidth - 2 * margin, 10, 'S');
+  
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'bold');
+  doc.text('TOTAL HT', margin + 130, totalRowY + 7);
+  doc.text(`${totalHT.toFixed(2)} €`, pageWidth - margin - 10, totalRowY + 7, { align: 'right' });
+
+  // Shipping address section
+  const addressY = totalRowY + 20;
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.text('Adresse de livraison', margin, addressY);
+  
+  doc.setFont('helvetica', 'normal');
+  let currentY = addressY + 6;
+  
   if (shippingAddress) {
-    wsData.push(['', customerName || '', '', '', '', '', '']);
-    if (shippingAddress.line1) wsData.push(['', shippingAddress.line1, '', '', '', '', '']);
-    if (shippingAddress.line2) wsData.push(['', shippingAddress.line2, '', '', '', '', '']);
+    if (customerName) {
+      doc.text(customerName, margin + 10, currentY);
+      currentY += 5;
+    }
+    if (shippingAddress.line1) {
+      doc.text(shippingAddress.line1, margin + 10, currentY);
+      currentY += 5;
+    }
+    if (shippingAddress.line2) {
+      doc.text(shippingAddress.line2, margin + 10, currentY);
+      currentY += 5;
+    }
     if (shippingAddress.postal_code || shippingAddress.city) {
-      wsData.push(['', `${shippingAddress.postal_code || ''} ${shippingAddress.city || ''}`.trim(), '', '', '', '', '']);
+      doc.text(`${shippingAddress.postal_code || ''} ${shippingAddress.city || ''}`.trim(), margin + 10, currentY);
+      currentY += 5;
     }
   }
-  wsData.push(['', '', '', '', '', '', '']);
-  wsData.push(['', '', '', '', '', '', '']);
-  wsData.push(['Livraison direct sans BL chiffré', '', '', '', '', '', '']);
 
-  // Create workbook and worksheet
-  const wb = XLSX.utils.book_new();
-  const ws = XLSX.utils.aoa_to_sheet(wsData);
-  
-  // Set column widths to match template exactly (in characters)
-  ws['!cols'] = [
-    { wch: 12 },   // A: code
-    { wch: 32 },   // B: désignation
-    { wch: 8 },    // C: quantité
-    { wch: 20 },   // D: Prix au conditionnment
-    { wch: 16 },   // E: Prix total HT net
-    { wch: 2 },    // F: empty spacer
-    { wch: 14 },   // G: clt info
-  ];
+  // Footer note
+  currentY += 10;
+  doc.setFont('helvetica', 'bold');
+  doc.text('Livraison direct sans BL chiffré', margin, currentY);
 
-  XLSX.utils.book_append_sheet(wb, ws, 'Commande');
-  
   // Generate base64
-  const xlsxBuffer = XLSX.write(wb, { type: 'base64', bookType: 'xlsx' });
-  return xlsxBuffer;
+  const pdfBase64 = doc.output('datauristring').split(',')[1];
+  return pdfBase64;
 }
 
 serve(async (req) => {
@@ -169,7 +244,6 @@ serve(async (req) => {
       .eq('order_id', order_id);
 
     // Get product codes (code_alsafix) for each item by matching on product_title
-    // Since order_items.product_id may contain Shopify IDs, we match by title instead
     const productTitles = (orderItems || []).map(item => item.product_title);
     const { data: products } = await supabaseAdmin
       .from('products')
@@ -222,8 +296,8 @@ serve(async (req) => {
       );
     }
 
-    // Generate Excel file
-    const excelBase64 = generateOrderExcel(
+    // Generate PDF file
+    const pdfBase64 = generateOrderPDF(
       order.order_number,
       displayName,
       customerEmail,
@@ -237,7 +311,7 @@ serve(async (req) => {
       }
     );
 
-    logStep("Excel file generated", { size: excelBase64.length });
+    logStep("PDF file generated", { size: pdfBase64.length });
 
     // Build n8n payload
     const n8nPayload = {
@@ -278,10 +352,10 @@ serve(async (req) => {
         ttc: order.total_ttc,
         currency: "EUR",
       },
-      excel_file: {
-        filename: `commande_${order.order_number}.xlsx`,
-        content_base64: excelBase64,
-        content_type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      pdf_file: {
+        filename: `commande_${order.order_number}.pdf`,
+        content_base64: pdfBase64,
+        content_type: "application/pdf",
       },
       created_at: new Date().toISOString(),
     };
@@ -310,9 +384,9 @@ serve(async (req) => {
         message: `Webhook n8n envoyé (status: ${responseStatus})`,
         n8n_status: responseStatus,
         order_number: order.order_number,
-        excel_file: {
-          filename: `commande_${order.order_number}.xlsx`,
-          content_base64: excelBase64,
+        pdf_file: {
+          filename: `commande_${order.order_number}.pdf`,
+          content_base64: pdfBase64,
         },
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
