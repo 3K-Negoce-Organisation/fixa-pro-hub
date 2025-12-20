@@ -104,15 +104,13 @@ serve(async (req) => {
         user_email: userEmail || "",
         total_ht: totalHT.toFixed(2),
         total_ttc: totalTTC.toFixed(2),
-        items_json: JSON.stringify(items.map(i => ({
-          id: i.id,
-          variantId: i.variantId,
-          title: i.title,
-          variantTitle: i.variantTitle,
-          priceHT: i.priceHT,
-          quantity: i.quantity,
-          image: i.image,
+        // Store only essential item data (id, quantity, price) to stay under 500 char limit
+        items_compact: JSON.stringify(items.map(i => ({
+          i: i.id,
+          q: i.quantity,
+          p: i.priceHT,
         }))),
+        items_count: items.length.toString(),
       },
     });
 
