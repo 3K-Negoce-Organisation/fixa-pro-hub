@@ -24,7 +24,7 @@ export function Footer() {
               <CreditCard className="h-8 w-8 text-accent" />
               <div>
                 <p className="font-semibold">Paiement Sécurisé</p>
-                <p className="text-sm text-background/70">CB, Virement, PayPal</p>
+                <p className="text-sm text-background/70">CB</p>
               </div>
             </div>
           </div>
@@ -60,7 +60,8 @@ export function Footer() {
             <ul className="space-y-2 text-sm text-background/70">
               <li><Link to="/produits?cat=terrasse" className="hover:text-background">Vis Terrasse</Link></li>
               <li><Link to="/produits?cat=charpente" className="hover:text-background">Vis Charpente</Link></li>
-              <li>Vis menuiserie<Link to="/produits?cat=agglo" className="hover:text-background">Vis Aggloméré</Link></li>
+              <li>Vis menuiserie
+Vis Aggloméré<Link to="/produits?cat=agglo" className="hover:text-background">Vis Aggloméré</Link></li>
               
               <li><Link to="/produits" className="hover:text-background">Tous les produits</Link></li>
             </ul>
