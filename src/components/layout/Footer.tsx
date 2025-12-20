@@ -58,11 +58,9 @@ export function Footer() {
           <div>
             <h4 className="font-semibold mb-4">Catégories</h4>
             <ul className="space-y-2 text-sm text-background/70">
-              <li><Link to="/produits?cat=terrasse" className="hover:text-background">Vis Terrasse</Link></li>
-              <li><Link to="/produits?cat=charpente" className="hover:text-background">Vis Charpente</Link></li>
-              <li>Vis menuiserie
-Vis Aggloméré<Link to="/produits?cat=agglo" className="hover:text-background">Vis Aggloméré</Link></li>
-              
+              <li><Link to="/produits?category=terrasse" className="hover:text-background">Vis Terrasse</Link></li>
+              <li><Link to="/produits?category=charpente" className="hover:text-background">Vis Charpente</Link></li>
+              <li><Link to="/produits?category=menuiserie" className="hover:text-background">Vis Menuiserie</Link></li>
               <li><Link to="/produits" className="hover:text-background">Tous les produits</Link></li>
             </ul>
           </div>
