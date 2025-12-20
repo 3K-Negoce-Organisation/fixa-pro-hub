@@ -28,7 +28,12 @@ interface CheckoutFormProps {
   onCancel: () => void;
 }
 
-const CheckoutForm = ({ totalTTC, userEmail, onSuccess, onCancel }: CheckoutFormProps) => {
+interface CheckoutFormInnerProps extends CheckoutFormProps {
+  items: CartItem[];
+  totalHT: number;
+}
+
+const CheckoutForm = ({ totalTTC, userEmail, onSuccess, onCancel, items, totalHT }: CheckoutFormInnerProps) => {
   const stripe = useStripe();
   const elements = useElements();
   const [isProcessing, setIsProcessing] = useState(false);
@@ -37,6 +42,15 @@ const CheckoutForm = ({ totalTTC, userEmail, onSuccess, onCancel }: CheckoutForm
   const { toast } = useToast();
   const navigate = useNavigate();
   const { clearCart } = useCart();
+
+  // Generate order number
+  const generateOrderNumber = () => {
+    const date = new Date();
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const random = Math.random().toString(36).substring(2, 8).toUpperCase();
+    return `VIS-${year}${month}-${random}`;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,6 +66,21 @@ const CheckoutForm = ({ totalTTC, userEmail, onSuccess, onCancel }: CheckoutForm
 
     setIsProcessing(true);
     setErrorMessage(null);
+
+    // Get shipping address from AddressElement before confirming payment
+    const addressElement = elements.getElement('address');
+    let shippingAddress = null;
+    let shippingCity = null;
+    let shippingPostalCode = null;
+    
+    if (addressElement) {
+      const { complete, value } = await addressElement.getValue();
+      if (complete && value.address) {
+        shippingAddress = value.address.line1 + (value.address.line2 ? `, ${value.address.line2}` : '');
+        shippingCity = value.address.city;
+        shippingPostalCode = value.address.postal_code;
+      }
+    }
 
     const { error, paymentIntent } = await stripe.confirmPayment({
       elements,
@@ -72,13 +101,66 @@ const CheckoutForm = ({ totalTTC, userEmail, onSuccess, onCancel }: CheckoutForm
       setErrorMessage(error.message || "Une erreur est survenue");
       setIsProcessing(false);
     } else if (paymentIntent && paymentIntent.status === "succeeded") {
-      toast({
-        title: "Paiement réussi !",
-        description: "Votre commande a été confirmée.",
-      });
-      clearCart();
-      onSuccess();
-      navigate(`/confirmation?payment_intent=${paymentIntent.id}`);
+      // Create order in database with shipping address
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error("Utilisateur non connecté");
+
+        const orderNumber = generateOrderNumber();
+        
+        // Create order
+        const { data: order, error: orderError } = await supabase
+          .from('orders')
+          .insert({
+            user_id: user.id,
+            user_email: userEmail,
+            order_number: orderNumber,
+            status: 'paid',
+            total_ht: totalHT,
+            total_ttc: totalTTC,
+            shipping_address: shippingAddress,
+            shipping_city: shippingCity,
+            shipping_postal_code: shippingPostalCode,
+            notes: `Payment Intent: ${paymentIntent.id}`,
+          })
+          .select()
+          .single();
+
+        if (orderError) throw orderError;
+
+        // Create order items
+        const orderItems = items.map(item => ({
+          order_id: order.id,
+          product_id: item.id,
+          product_title: item.title,
+          product_image: item.image,
+          variant_title: item.variantTitle,
+          quantity: item.quantity,
+          unit_price_ht: item.priceHT,
+          unit_price_ttc: item.priceHT * 1.20,
+        }));
+
+        const { error: itemsError } = await supabase
+          .from('order_items')
+          .insert(orderItems);
+
+        if (itemsError) throw itemsError;
+
+        toast({
+          title: "Paiement réussi !",
+          description: `Commande ${orderNumber} confirmée.`,
+        });
+        clearCart();
+        onSuccess();
+        navigate(`/confirmation?order_number=${orderNumber}`);
+      } catch (err) {
+        console.error("Error creating order:", err);
+        toast({
+          title: "Attention",
+          description: "Paiement réussi mais erreur lors de l'enregistrement. Contactez le support.",
+          variant: "destructive",
+        });
+      }
     } else {
       setIsProcessing(false);
     }
@@ -185,11 +267,14 @@ const CheckoutForm = ({ totalTTC, userEmail, onSuccess, onCancel }: CheckoutForm
 interface StripePaymentFormProps {
   items: CartItem[];
   totalTTC: number;
+  totalHT?: number;
   onSuccess: () => void;
   onCancel: () => void;
 }
 
 export const StripePaymentForm = ({ items, totalTTC, onSuccess, onCancel }: StripePaymentFormProps) => {
+  // Calculate totalHT from items
+  const totalHT = items.reduce((sum, item) => sum + (item.priceHT * item.quantity), 0);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
@@ -280,7 +365,9 @@ export const StripePaymentForm = ({ items, totalTTC, onSuccess, onCancel }: Stri
       }}
     >
       <CheckoutForm 
-        totalTTC={totalTTC} 
+        totalTTC={totalTTC}
+        totalHT={totalHT}
+        items={items}
         userEmail={userEmail}
         onSuccess={onSuccess} 
         onCancel={onCancel} 
