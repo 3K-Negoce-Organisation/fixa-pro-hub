@@ -122,11 +122,6 @@ const CheckoutForm = ({ totalTTC, userEmail, onSuccess, onCancel }: CheckoutForm
               fields: {
                 phone: "never",
               },
-              validation: {
-                phone: {
-                  required: "never",
-                },
-              },
             }}
           />
         </div>
