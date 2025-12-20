@@ -51,7 +51,6 @@ import {
   RefreshCw,
   Edit,
   AlertTriangle,
-  RotateCcw,
   Send,
   Trash2,
   Archive
@@ -83,7 +82,6 @@ interface Order {
   updated_at: string;
   user_id: string;
   user_email: string | null;
-  shopify_order_id: string | null;
 }
 
 const statusConfig: Record<OrderStatus, { label: string; color: string; icon: React.ElementType }> = {
@@ -102,11 +100,6 @@ interface ConfirmationState {
   open: boolean;
   order: Order | null;
   newStatus: OrderStatus | null;
-}
-
-interface ResendConfirmationState {
-  step: 'first' | 'second' | null;
-  order: Order | null;
 }
 
 interface CancelConfirmationState {
@@ -140,10 +133,6 @@ const AdminOrdersPage = () => {
     open: false,
     order: null,
     newStatus: null,
-  });
-  const [resendConfirmation, setResendConfirmation] = useState<ResendConfirmationState>({
-    step: null,
-    order: null,
   });
   const [cancelConfirmation, setCancelConfirmation] = useState<CancelConfirmationState>({
     step: null,
@@ -226,14 +215,10 @@ const AdminOrdersPage = () => {
 
       return response.data;
     },
-    onSuccess: (data) => {
-      const shopifyWarning = data?.shopify_warning;
+    onSuccess: () => {
       toast({
         title: "Commande mise à jour",
-        description: shopifyWarning 
-          ? `Modifications enregistrées. Attention: ${shopifyWarning}`
-          : "Les modifications ont été enregistrées.",
-        variant: shopifyWarning ? "destructive" : "default",
+        description: "Les modifications ont été enregistrées.",
       });
       setEditDialogOpen(false);
       setConfirmation({ open: false, order: null, newStatus: null });
@@ -362,47 +347,6 @@ const quickStatusUpdate = (order: Order, newStatus: OrderStatus) => {
     }
   };
 
-  // Resend to Shopify mutation
-  const resendToShopifyMutation = useMutation({
-    mutationFn: async (order: Order) => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error('Non authentifié');
-
-      const response = await supabase.functions.invoke('admin-update-order', {
-        body: { 
-          order_id: order.id, 
-          resend_to_shopify: true,
-        },
-      });
-
-      if (response.error) {
-        throw new Error(response.error.message || 'Erreur lors du renvoi');
-      }
-
-      return response.data;
-    },
-    onSuccess: (data) => {
-      const shopifyWarning = data?.shopify_warning;
-      toast({
-        title: shopifyWarning ? "Renvoi partiel" : "Commande renvoyée",
-        description: shopifyWarning 
-          ? `Attention: ${shopifyWarning}`
-          : "La commande a été renvoyée à Shopify avec succès.",
-        variant: shopifyWarning ? "destructive" : "default",
-      });
-      setResendConfirmation({ step: null, order: null });
-      queryClient.invalidateQueries({ queryKey: ['admin-orders'] });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Erreur",
-        description: error.message,
-        variant: "destructive",
-      });
-      setResendConfirmation({ step: null, order: null });
-    },
-  });
-
   // Simulate webhook mutation
   const simulateWebhookMutation = useMutation({
     mutationFn: async (order: Order) => {
@@ -443,8 +387,8 @@ const quickStatusUpdate = (order: Order, newStatus: OrderStatus) => {
       }
 
       toast({
-        title: "Webhook simulé",
-        description: `Webhook n8n envoyé pour la commande ${data.order_number} (status: ${data.n8n_status})`,
+        title: "Commande envoyée",
+        description: `Commande ${data.order_number} envoyée au fournisseur`,
       });
     },
     onError: (error: Error) => {
@@ -455,20 +399,6 @@ const quickStatusUpdate = (order: Order, newStatus: OrderStatus) => {
       });
     },
   });
-
-  const handleResendClick = (order: Order) => {
-    setResendConfirmation({ step: 'first', order });
-  };
-
-  const handleResendFirstConfirm = () => {
-    setResendConfirmation((prev) => ({ ...prev, step: 'second' }));
-  };
-
-  const handleResendSecondConfirm = () => {
-    if (resendConfirmation.order) {
-      resendToShopifyMutation.mutate(resendConfirmation.order);
-    }
-  };
 
   // Bulk selection handlers
   const toggleOrderSelection = (orderId: string) => {
@@ -881,12 +811,7 @@ const quickStatusUpdate = (order: Order, newStatus: OrderStatus) => {
                 </div>
                 {isCancellation && (
                   <p className="text-destructive font-medium">
-                    Cette action annulera également la commande sur Shopify. Cette action est irréversible.
-                  </p>
-                )}
-                {confirmation.newStatus === 'shipped' && (
-                  <p className="text-muted-foreground">
-                    Un fulfillment sera créé sur Shopify avec les informations de suivi.
+                    Cette action est irréversible.
                   </p>
                 )}
               </div>
@@ -907,81 +832,6 @@ const quickStatusUpdate = (order: Order, newStatus: OrderStatus) => {
         </AlertDialogContent>
 </AlertDialog>
 
-      {/* First Resend Confirmation Dialog */}
-      <AlertDialog 
-        open={resendConfirmation.step === 'first'} 
-        onOpenChange={(open) => !open && setResendConfirmation({ step: null, order: null })}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
-              <RotateCcw className="h-5 w-5 text-primary" />
-              Renvoyer à Shopify
-            </AlertDialogTitle>
-            <AlertDialogDescription asChild>
-              <div className="space-y-3">
-                <p>
-                  Commande <span className="font-mono font-medium">{resendConfirmation.order?.order_number}</span>
-                </p>
-                <p className="text-muted-foreground">
-                  Cette action renverra la commande à Shopify. Utilisez cette option uniquement en cas de problème technique 
-                  (commande non reçue par Shopify, erreur de synchronisation, etc.).
-                </p>
-              </div>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Annuler</AlertDialogCancel>
-            <AlertDialogAction onClick={(e) => {
-              e.preventDefault();
-              handleResendFirstConfirm();
-            }}>
-              Continuer
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Second Resend Confirmation Dialog */}
-      <AlertDialog 
-        open={resendConfirmation.step === 'second'} 
-        onOpenChange={(open) => !open && setResendConfirmation({ step: null, order: null })}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-amber-500" />
-              Confirmer le renvoi
-            </AlertDialogTitle>
-            <AlertDialogDescription asChild>
-              <div className="space-y-3">
-                <p>
-                  Êtes-vous sûr de vouloir renvoyer la commande <span className="font-mono font-medium">{resendConfirmation.order?.order_number}</span> à Shopify ?
-                </p>
-                <p className="text-amber-600 font-medium">
-                  Attention : Cela pourrait créer un doublon si la commande existe déjà sur Shopify.
-                </p>
-              </div>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={resendToShopifyMutation.isPending}>
-              Annuler
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={(e) => {
-                e.preventDefault();
-                handleResendSecondConfirm();
-              }}
-              disabled={resendToShopifyMutation.isPending}
-              className="bg-amber-500 text-white hover:bg-amber-600"
-            >
-              {resendToShopifyMutation.isPending ? 'Envoi en cours...' : 'Confirmer le renvoi'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
       {/* First Cancel Confirmation Dialog */}
       <AlertDialog 
         open={cancelConfirmation.step === 'first'} 
@@ -999,7 +849,7 @@ const quickStatusUpdate = (order: Order, newStatus: OrderStatus) => {
                   Commande <span className="font-mono font-medium">{cancelConfirmation.order?.order_number}</span>
                 </p>
                 <p className="text-muted-foreground">
-                  Vous êtes sur le point d'annuler cette commande. Cette action est irréversible et annulera également la commande sur Shopify.
+                  Vous êtes sur le point d'annuler cette commande. Cette action est irréversible.
                 </p>
               </div>
             </AlertDialogDescription>

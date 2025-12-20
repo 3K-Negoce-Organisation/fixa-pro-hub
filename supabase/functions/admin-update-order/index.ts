@@ -6,132 +6,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Helper to ensure domain is properly formatted
-function formatShopifyDomain(domain: string): string {
-  // If it already includes myshopify.com, return as-is
-  if (domain.includes('.myshopify.com')) {
-    return domain.replace(/^https?:\/\//, ''); // Remove protocol if present
-  }
-  // Otherwise, append .myshopify.com
-  return `${domain.replace(/^https?:\/\//, '')}.myshopify.com`;
-}
-
-// Shopify status sync functions
-async function createShopifyFulfillment(
-  shopifyDomain: string,
-  shopifyToken: string,
-  shopifyOrderId: string,
-  trackingNumber: string | null,
-  carrier: string | null
-): Promise<{ success: boolean; error?: string }> {
-  try {
-    // First, get the fulfillment order ID
-    const fulfillmentOrdersRes = await fetch(
-      `https://${shopifyDomain}/admin/api/2024-01/orders/${shopifyOrderId}/fulfillment_orders.json`,
-      {
-        headers: {
-          'X-Shopify-Access-Token': shopifyToken,
-          'Content-Type': 'application/json',
-        },
-      }
-    );
-
-    if (!fulfillmentOrdersRes.ok) {
-      const errorText = await fulfillmentOrdersRes.text();
-      console.error('Failed to get fulfillment orders:', errorText);
-      return { success: false, error: 'Impossible de récupérer les informations de fulfillment Shopify' };
-    }
-
-    const fulfillmentOrdersData = await fulfillmentOrdersRes.json();
-    const fulfillmentOrders = fulfillmentOrdersData.fulfillment_orders || [];
-    
-    if (fulfillmentOrders.length === 0) {
-      return { success: false, error: 'Aucun fulfillment order trouvé pour cette commande' };
-    }
-
-    // Create fulfillment for each fulfillment order
-    for (const fo of fulfillmentOrders) {
-      if (fo.status === 'closed') continue;
-
-      const fulfillmentPayload: Record<string, unknown> = {
-        fulfillment: {
-          line_items_by_fulfillment_order: [{
-            fulfillment_order_id: fo.id,
-          }],
-          notify_customer: true,
-        }
-      };
-
-      if (trackingNumber) {
-        fulfillmentPayload.fulfillment = {
-          ...fulfillmentPayload.fulfillment as object,
-          tracking_info: {
-            number: trackingNumber,
-            company: carrier || undefined,
-          }
-        };
-      }
-
-      const fulfillRes = await fetch(
-        `https://${shopifyDomain}/admin/api/2024-01/fulfillments.json`,
-        {
-          method: 'POST',
-          headers: {
-            'X-Shopify-Access-Token': shopifyToken,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(fulfillmentPayload),
-        }
-      );
-
-      if (!fulfillRes.ok) {
-        const errorText = await fulfillRes.text();
-        console.error('Failed to create fulfillment:', errorText);
-        return { success: false, error: 'Erreur lors de la création du fulfillment Shopify' };
-      }
-    }
-
-    return { success: true };
-  } catch (error) {
-    console.error('Shopify fulfillment error:', error);
-    return { success: false, error: 'Erreur de connexion à Shopify' };
-  }
-}
-
-async function cancelShopifyOrder(
-  shopifyDomain: string,
-  shopifyToken: string,
-  shopifyOrderId: string
-): Promise<{ success: boolean; error?: string }> {
-  try {
-    const res = await fetch(
-      `https://${shopifyDomain}/admin/api/2024-01/orders/${shopifyOrderId}/cancel.json`,
-      {
-        method: 'POST',
-        headers: {
-          'X-Shopify-Access-Token': shopifyToken,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          reason: 'customer',
-          email: true,
-        }),
-      }
-    );
-
-    if (!res.ok) {
-      const errorText = await res.text();
-      console.error('Failed to cancel Shopify order:', errorText);
-      return { success: false, error: 'Erreur lors de l\'annulation de la commande Shopify' };
-    }
-
-    return { success: true };
-  } catch (error) {
-    console.error('Shopify cancel error:', error);
-    return { success: false, error: 'Erreur de connexion à Shopify' };
-  }
-}
-
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -141,8 +15,6 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const shopifyDomain = Deno.env.get('SHOPIFY_DOMAIN');
-    const shopifyToken = Deno.env.get('SHOPIFY_ADMIN_TOKEN');
     
     // Get the authorization header
     const authHeader = req.headers.get('Authorization');
@@ -192,8 +64,8 @@ serve(async (req) => {
 
     console.log('Admin verified:', user.email);
 
-// Parse request body
-    const { order_id, status, tracking_number, carrier, resend_to_shopify } = await req.json();
+    // Parse request body
+    const { order_id, status, tracking_number, carrier } = await req.json();
 
     if (!order_id) {
       return new Response(
@@ -202,228 +74,7 @@ serve(async (req) => {
       );
     }
 
-    // Handle resend to Shopify
-    if (resend_to_shopify) {
-      console.log('Resending order to Shopify:', order_id);
-      
-      // Get order with items
-      const { data: order, error: orderError } = await supabaseAdmin
-        .from('orders')
-        .select('*')
-        .eq('id', order_id)
-        .single();
-
-      if (orderError || !order) {
-        return new Response(
-          JSON.stringify({ error: 'Commande non trouvée' }),
-          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      const { data: orderItems, error: itemsError } = await supabaseAdmin
-        .from('order_items')
-        .select('*')
-        .eq('order_id', order_id);
-
-      if (itemsError) {
-        console.error('Error fetching order items:', itemsError);
-        return new Response(
-          JSON.stringify({ error: 'Erreur lors de la récupération des articles' }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      // Get user email
-      const { data: userData } = await supabaseAdmin.auth.admin.getUserById(order.user_id);
-      const customerEmail = userData?.user?.email;
-      const customerPhone = userData?.user?.phone;
-
-      // Get user profile for complete customer info
-      const { data: profile } = await supabaseAdmin
-        .from('profiles')
-        .select('company_name, phone, billing_address, billing_city, billing_postal_code, shipping_address, shipping_city, shipping_postal_code')
-        .eq('user_id', order.user_id)
-        .maybeSingle();
-
-      console.log('Customer profile:', profile);
-
-      if (!shopifyDomain || !shopifyToken) {
-        return new Response(
-          JSON.stringify({ error: 'Configuration Shopify manquante' }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      // Format the domain correctly
-      const formattedDomain = formatShopifyDomain(shopifyDomain);
-
-      // Create draft order on Shopify
-      const lineItems = orderItems?.map((item: any) => ({
-        title: item.product_title,
-        variant_title: item.variant_title || undefined,
-        quantity: item.quantity,
-        price: item.unit_price_ttc.toString(),
-      })) || [];
-
-      // Build shipping address from profile or order
-      const shippingAddress = {
-        address1: profile?.shipping_address || order.shipping_address,
-        city: profile?.shipping_city || order.shipping_city,
-        zip: profile?.shipping_postal_code || order.shipping_postal_code,
-        country: 'France',
-        country_code: 'FR',
-        phone: profile?.phone || customerPhone,
-        company: profile?.company_name,
-        first_name: profile?.company_name || 'Client',
-      };
-
-      // Build billing address from profile
-      const billingAddress = profile?.billing_address ? {
-        address1: profile.billing_address,
-        city: profile.billing_city,
-        zip: profile.billing_postal_code,
-        country: 'France',
-        country_code: 'FR',
-        phone: profile?.phone || customerPhone,
-        company: profile?.company_name,
-        first_name: profile?.company_name || 'Client',
-      } : shippingAddress;
-
-      const draftOrderPayload = {
-        draft_order: {
-          line_items: lineItems,
-          // Email and phone at draft order level for "Contact information" section
-          email: customerEmail,
-          phone: profile?.phone || customerPhone,
-          // Customer object for linking to existing customer
-          customer: customerEmail ? { 
-            email: customerEmail,
-            phone: profile?.phone || customerPhone,
-          } : undefined,
-          shipping_address: shippingAddress.address1 ? shippingAddress : undefined,
-          billing_address: billingAddress.address1 ? billingAddress : undefined,
-          note: `Renvoi - Commande originale: ${order.order_number}`,
-          use_customer_default_address: false,
-        }
-      };
-
-      try {
-        console.log('Creating draft order on Shopify domain:', formattedDomain);
-        const draftRes = await fetch(
-          `https://${formattedDomain}/admin/api/2024-01/draft_orders.json`,
-          {
-            method: 'POST',
-            headers: {
-              'X-Shopify-Access-Token': shopifyToken,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(draftOrderPayload),
-          }
-        );
-
-        if (!draftRes.ok) {
-          const errorText = await draftRes.text();
-          console.error('Failed to create draft order:', errorText);
-          return new Response(
-            JSON.stringify({ 
-              success: false, 
-              shopify_warning: 'Erreur lors de la création du brouillon Shopify' 
-            }),
-            { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
-
-        const draftData = await draftRes.json();
-        const draftOrderId = draftData.draft_order?.id;
-        console.log('Draft order created:', draftOrderId);
-
-        // Wait for Shopify to finish calculating before completing
-        const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-        
-        // Retry completing the draft order with delays
-        let completeRes: Response | null = null;
-        let lastError = '';
-        const maxRetries = 3;
-        
-        for (let attempt = 1; attempt <= maxRetries; attempt++) {
-          // Wait before attempting (longer each retry)
-          await delay(attempt * 1000);
-          console.log(`Attempting to complete draft order (attempt ${attempt}/${maxRetries})`);
-          
-          completeRes = await fetch(
-            `https://${formattedDomain}/admin/api/2024-01/draft_orders/${draftOrderId}/complete.json`,
-            {
-              method: 'PUT',
-              headers: {
-                'X-Shopify-Access-Token': shopifyToken,
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({ payment_pending: false }),
-            }
-          );
-
-          if (completeRes.ok) {
-            console.log('Draft order completed successfully on attempt', attempt);
-            break;
-          }
-          
-          lastError = await completeRes.text();
-          console.log(`Attempt ${attempt} failed:`, lastError);
-          
-          // If it's not a "still calculating" error, don't retry
-          if (!lastError.includes('not finished calculating')) {
-            break;
-          }
-        }
-
-        if (!completeRes || !completeRes.ok) {
-          console.error('Failed to complete draft order after retries:', lastError);
-          return new Response(
-            JSON.stringify({ 
-              success: true, 
-              shopify_warning: 'Brouillon créé mais non finalisé sur Shopify' 
-            }),
-            { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
-
-        const completeData = await completeRes.json();
-        const newShopifyOrderId = completeData.draft_order?.order_id;
-        console.log('Draft order completed, new order ID:', newShopifyOrderId);
-
-        // Update local order with new Shopify order ID
-        if (newShopifyOrderId) {
-          await supabaseAdmin
-            .from('orders')
-            .update({ 
-              shopify_order_id: newShopifyOrderId.toString(),
-              updated_at: new Date().toISOString(),
-            })
-            .eq('id', order_id);
-        }
-
-        return new Response(
-          JSON.stringify({ 
-            success: true, 
-            message: 'Commande renvoyée à Shopify avec succès',
-            shopify_order_id: newShopifyOrderId,
-          }),
-          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-
-      } catch (error) {
-        console.error('Shopify resend error:', error);
-        return new Response(
-          JSON.stringify({ 
-            success: false, 
-            shopify_warning: 'Erreur de connexion à Shopify' 
-          }),
-          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-    }
-
-    // Get current order to check shopify_order_id
+    // Get current order
     const { data: currentOrder, error: orderError } = await supabaseAdmin
       .from('orders')
       .select('*')
@@ -465,55 +116,18 @@ serve(async (req) => {
 
     console.log('Order updated successfully:', updatedOrder.order_number);
 
-    // Sync with Shopify if applicable
-    let shopifyWarning: string | null = null;
-    const shopifyOrderId = currentOrder.shopify_order_id;
-
-    if (shopifyOrderId && shopifyDomain && shopifyToken && status) {
-      const formattedDomain = formatShopifyDomain(shopifyDomain);
-      console.log('Syncing status to Shopify:', status, 'for order:', shopifyOrderId, 'domain:', formattedDomain);
-
-      if (status === 'shipped') {
-        const result = await createShopifyFulfillment(
-          formattedDomain,
-          shopifyToken,
-          shopifyOrderId,
-          tracking_number || currentOrder.tracking_number,
-          carrier || currentOrder.carrier
-        );
-        if (!result.success) {
-          shopifyWarning = result.error || 'Erreur de synchronisation Shopify';
-          console.error('Shopify sync failed:', result.error);
-        } else {
-          console.log('Shopify fulfillment created successfully');
-        }
-      } else if (status === 'cancelled') {
-        const result = await cancelShopifyOrder(formattedDomain, shopifyToken, shopifyOrderId);
-        if (!result.success) {
-          shopifyWarning = result.error || 'Erreur de synchronisation Shopify';
-          console.error('Shopify cancel failed:', result.error);
-        } else {
-          console.log('Shopify order cancelled successfully');
-        }
-      }
-    } else if (status && (status === 'shipped' || status === 'cancelled') && !shopifyOrderId) {
-      console.log('No shopify_order_id, skipping Shopify sync');
-    }
-
     return new Response(
       JSON.stringify({ 
         success: true, 
         order: updatedOrder,
-        shopify_warning: shopifyWarning,
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
     console.error('Unexpected error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
     return new Response(
-      JSON.stringify({ error: 'Erreur serveur', details: errorMessage }),
+      JSON.stringify({ error: 'Erreur inattendue' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
