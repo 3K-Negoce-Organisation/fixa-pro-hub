@@ -26,8 +26,10 @@ function generateOrderExcel(
   const dateStr = `${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}/${String(date.getFullYear()).slice(-2)}`;
   
   // Build worksheet data - matching exact template format
+  // Customer name in uppercase for column G
+  const customerNameUpper = (customerName || customerEmail).toUpperCase();
   const wsData: any[][] = [
-    [dateStr, '', '', '', '', '', `clt ${customerName || customerEmail}`],
+    [dateStr, '', '', '', '', '', `clt ${customerNameUpper}`],
     ['commande', orderNumber, '', '', '', '', `N° clt ${customerNumber}`],
     ['', '', '', '', '', '', ''],
     ['code', 'désignation', 'quantité', 'Prix au conditionnment', 'Prix total HT net', '', ''],
@@ -200,9 +202,8 @@ serve(async (req) => {
 
     const displayName = profile?.company_name || customerName || customerEmail;
     
-    // Generate a customer number (could be based on user_id or a separate field)
-    // For now, use first 5 chars of user_id or "00000"
-    const customerNumber = order.user_id ? order.user_id.substring(0, 5).toUpperCase() : '00000';
+    // Use "00000" as default customer number (matching template)
+    const customerNumber = '00000';
 
     // Get supplier settings
     const { data: supplierSettings } = await supabaseAdmin
