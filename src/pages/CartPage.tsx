@@ -23,13 +23,12 @@ const CartPage = () => {
 
   const totalTTC = calculateTTC(totalHT);
 
-  // Listen for payment status from the checkout tab
+  // Listen for payment status from the checkout tab - always active
   useEffect(() => {
-    if (paymentStatus !== "pending") return;
-
     const channel = new BroadcastChannel(PAYMENT_CHANNEL);
     
     channel.onmessage = (event) => {
+      console.log("Received payment status:", event.data);
       if (event.data.status === "success") {
         setPaymentStatus("success");
         clearCart();
@@ -41,7 +40,7 @@ const CartPage = () => {
     return () => {
       channel.close();
     };
-  }, [paymentStatus, clearCart]);
+  }, [clearCart]);
 
   const handleCheckout = async () => {
     setIsSubmitting(true);
