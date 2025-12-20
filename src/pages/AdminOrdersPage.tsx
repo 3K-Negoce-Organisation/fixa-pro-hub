@@ -420,6 +420,28 @@ const quickStatusUpdate = (order: Order, newStatus: OrderStatus) => {
       return response.data;
     },
     onSuccess: (data) => {
+      // Download the Excel file if provided
+      if (data.excel_file?.content_base64) {
+        const byteCharacters = atob(data.excel_file.content_base64);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { 
+          type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+        });
+        
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = data.excel_file.filename || `commande_${data.order_number}.xlsx`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      }
+
       toast({
         title: "Webhook simulé",
         description: `Webhook n8n envoyé pour la commande ${data.order_number} (status: ${data.n8n_status})`,
