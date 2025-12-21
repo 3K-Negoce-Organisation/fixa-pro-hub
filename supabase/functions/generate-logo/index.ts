@@ -17,7 +17,7 @@ serve(async (req) => {
       throw new Error('LOVABLE_API_KEY is not configured');
     }
 
-    const prompt = `Abstract artisan stamp logo design. Circular badge style with rustic hand-crafted aesthetic. Vintage rubber stamp or wax seal appearance. Natural brown, sepia and cream tones. Distressed texture with worn edges. Simple geometric patterns suggesting craftsmanship and woodworking tools. Minimalist and elegant. No text. Transparent or cream background. Square format, suitable for favicon and website logo. Ultra high resolution.`;
+    const prompt = `Simple circular artisan badge logo with a stylized wood screw in the center. Minimalist design. Clean lines. Vintage stamp aesthetic. Single color: warm brown or sepia tone on cream/beige background. The screw is simplified and iconic, not realistic. No text, no complex details. Flat design with subtle distressed texture. Square format, suitable for favicon. Ultra high resolution.`;
 
     console.log('Generating logo with prompt:', prompt);
 
