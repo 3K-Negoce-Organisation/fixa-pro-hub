@@ -17,7 +17,7 @@ import { ProductFilters } from "@/components/products/ProductFilters";
 import { ProductGrid } from "@/components/products/ProductGrid";
 import { fetchProducts, getProductImage, parseVariants, type Product } from "@/lib/products";
 
-type ItemsPerPage = "25" | "50" | "all";
+type ItemsPerPage = "12" | "25" | "50" | "all";
 
 const ProductsPage = () => {
   const [searchParams] = useSearchParams();
@@ -272,6 +272,7 @@ const ProductsPage = () => {
                   <SelectValue placeholder="Par page" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="12">12</SelectItem>
                   <SelectItem value="25">25</SelectItem>
                   <SelectItem value="50">50</SelectItem>
                   <SelectItem value="all">Tous</SelectItem>
