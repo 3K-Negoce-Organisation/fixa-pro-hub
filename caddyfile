@@ -1,0 +1,15 @@
+{
+  auto_https off
+}
+
+:8080 {
+  @notWWW {
+    not host www.vis-a-bois.com
+  }
+
+  redir @notWWW https://www.vis-a-bois.com{uri} permanent
+
+  root * /app/dist
+  try_files {path} /index.html
+  file_server
+}
