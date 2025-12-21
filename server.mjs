@@ -15,6 +15,13 @@ const server = createServer((req, res) => {
     res.end();
     return;
   }
+  
+res.setHeader(
+  "Strict-Transport-Security",
+  "max-age=63072000; includeSubDomains; preload"
+);
+res.setHeader("X-Content-Type-Options", "nosniff");
+res.setHeader("X-Frame-Options", "DENY");
 
   return handler(req, res, {
     public: "dist",
