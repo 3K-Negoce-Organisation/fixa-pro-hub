@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Search, ShoppingCart, User, Menu, Package, LogOut, Settings, ChevronDown, Truck } from "lucide-react";
-import ScrewIcon from "@/components/icons/ScrewIcon";
+import logo from "@/assets/logo.png";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/contexts/CartContext";
@@ -72,7 +72,7 @@ export function Header() {
         <div className="flex items-center justify-between gap-6 w-full">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2 shrink-0">
-            <ScrewIcon size={32} className="text-primary-foreground" />
+            <img src={logo} alt="vis-a-bois logo" className="h-10 w-10 object-contain" />
             <span className="font-bold text-lg leading-none">vis-a-bois</span>
           </Link>
 
