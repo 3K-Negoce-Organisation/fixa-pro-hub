@@ -16,12 +16,21 @@ const server = createServer((req, res) => {
     return;
   }
   
-res.setHeader(
-  "Strict-Transport-Security",
-  "max-age=63072000; includeSubDomains; preload"
-);
-res.setHeader("X-Content-Type-Options", "nosniff");
-res.setHeader("X-Frame-Options", "DENY");
+  // Headers de sécurité (optionnel mais recommandé)
+  res.setHeader(
+    "Strict-Transport-Security",
+    "max-age=63072000; includeSubDomains; preload"
+  );
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+
+  // Cache long pour les assets Vite
+  if (req.url.startsWith("/assets/")) {
+    res.setHeader(
+      "Cache-Control",
+      "public, max-age=31536000, immutable"
+    );
+  }
 
   return handler(req, res, {
     public: "dist",
