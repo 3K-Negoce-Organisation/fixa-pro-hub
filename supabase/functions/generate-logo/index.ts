@@ -17,7 +17,7 @@ serve(async (req) => {
       throw new Error('LOVABLE_API_KEY is not configured');
     }
 
-    const prompt = `Simple circular artisan badge logo with a stylized wood screw in the center. Minimalist design. Clean lines. Vintage stamp aesthetic. Single color: warm brown or sepia tone on cream/beige background. The screw is simplified and iconic, not realistic. No text, no complex details. Flat design with subtle distressed texture. Square format, suitable for favicon. Ultra high resolution.`;
+    const prompt = `Circular artisan badge logo featuring a realistic wood screw in the center. The screw is clearly recognizable with visible threads and head. Hand-drawn illustration style. Warm brown and sepia tones on cream background. Vintage craftsman aesthetic. Simple circular border. No text. Clean design suitable for favicon. Square format. Ultra high resolution.`;
 
     console.log('Generating logo with prompt:', prompt);
 
