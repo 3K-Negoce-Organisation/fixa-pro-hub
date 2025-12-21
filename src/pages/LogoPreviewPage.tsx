@@ -132,9 +132,9 @@ const LogoPreviewPage = () => {
 
             {/* Info */}
             <div className="text-center text-xs text-muted-foreground space-y-1 pt-4 border-t">
-              <p>Style : Badge artisan, illustration</p>
-              <p>Couleurs : Marron/sépia sur fond crème</p>
-              <p>Élément central : Vis à bois réaliste</p>
+              <p>Style : Armurerie moderne, emblème</p>
+              <p>Couleurs : Noir, gris métal, bronze</p>
+              <p>Élément central : Vis à bois détaillée</p>
             </div>
           </CardContent>
         </Card>
