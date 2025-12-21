@@ -132,9 +132,9 @@ const LogoPreviewPage = () => {
 
             {/* Info */}
             <div className="text-center text-xs text-muted-foreground space-y-1 pt-4 border-t">
-              <p>Style : Gravure sur bois vintage, dessiné à la main</p>
-              <p>Couleurs : Marron/bois naturel, tons sépia</p>
-              <p>Élément central : Vis à bois</p>
+              <p>Style : Tampon/badge artisan abstrait</p>
+              <p>Couleurs : Marron, sépia, crème</p>
+              <p>Aspect : Cachet vintage usé</p>
             </div>
           </CardContent>
         </Card>

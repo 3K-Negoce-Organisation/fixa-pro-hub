@@ -17,7 +17,7 @@ serve(async (req) => {
       throw new Error('LOVABLE_API_KEY is not configured');
     }
 
-    const prompt = `A vintage woodcut-style logo featuring a wood screw. Hand-drawn artisanal aesthetic with natural brown and sepia wood tones. The screw should be the central element, rendered in a traditional engraving style with cross-hatching and fine lines. Rustic, craftsman quality. Simple cream or beige background. Square format, suitable for use as a favicon and website logo. No text. Ultra high resolution.`;
+    const prompt = `Abstract artisan stamp logo design. Circular badge style with rustic hand-crafted aesthetic. Vintage rubber stamp or wax seal appearance. Natural brown, sepia and cream tones. Distressed texture with worn edges. Simple geometric patterns suggesting craftsmanship and woodworking tools. Minimalist and elegant. No text. Transparent or cream background. Square format, suitable for favicon and website logo. Ultra high resolution.`;
 
     console.log('Generating logo with prompt:', prompt);
 
