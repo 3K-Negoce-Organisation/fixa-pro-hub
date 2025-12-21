@@ -8,7 +8,6 @@ import { useCart } from "@/contexts/CartContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { SupplierSettingsDialog } from "@/components/admin/SupplierSettingsDialog";
-
 export function Header() {
   const [searchQuery, setSearchQuery] = useState("");
   const [userEmail, setUserEmail] = useState<string | null>(null);
@@ -19,22 +18,17 @@ export function Header() {
   const {
     totalItems
   } = useCart();
-
   useEffect(() => {
     const checkAdmin = async (userId: string | undefined) => {
       if (!userId) {
         setIsAdmin(false);
         return;
       }
-      const { data } = await supabase
-        .from('user_roles' as any)
-        .select('role')
-        .eq('user_id', userId)
-        .eq('role', 'admin')
-        .single();
+      const {
+        data
+      } = await supabase.from('user_roles' as any).select('role').eq('user_id', userId).eq('role', 'admin').single();
       setIsAdmin(!!data);
     };
-
     const {
       data: {
         subscription
@@ -43,7 +37,6 @@ export function Header() {
       setUserEmail(session?.user?.email ?? null);
       checkAdmin(session?.user?.id);
     });
-
     supabase.auth.getSession().then(({
       data: {
         session
@@ -52,7 +45,6 @@ export function Header() {
       setUserEmail(session?.user?.email ?? null);
       checkAdmin(session?.user?.id);
     });
-
     return () => subscription.unsubscribe();
   }, []);
   const handleLogout = async () => {
@@ -72,8 +64,8 @@ export function Header() {
         <div className="flex items-center justify-between gap-6 w-full">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2 shrink-0">
-            <img src={logo} alt="vis-a-bois logo" className="h-10 w-10 object-contain" />
-            <span className="font-bold text-lg leading-none">vis-a-bois</span>
+            <img alt="vis-a-bois logo" src="/lovable-uploads/dbb2e63a-ffa9-4642-8118-2b119e24ecf3.png" className="h-10 w-10 object-contain border-primary opacity-80" />
+            <span className="font-bold text-lg leading-none">Vis à Bois</span>
           </Link>
 
           {/* Search bar */}
@@ -93,54 +85,32 @@ export function Header() {
               <span className="hidden md:inline">{userEmail || "Compte"}</span>
             </Link>
 
-            {isAdmin && (
-              <div 
-                className="relative"
-                onMouseEnter={() => setAdminMenuOpen(true)}
-                onMouseLeave={() => setAdminMenuOpen(false)}
-              >
+            {isAdmin && <div className="relative" onMouseEnter={() => setAdminMenuOpen(true)} onMouseLeave={() => setAdminMenuOpen(false)}>
                 <button className="flex items-center gap-1.5 px-2 py-1 pb-3 text-sm text-accent hover:underline">
                   <Settings className="h-4 w-4" />
                   <span className="hidden md:inline">Admin</span>
                   <ChevronDown className="h-3 w-3" />
                 </button>
-                {adminMenuOpen && (
-                  <div className="absolute top-full right-0 bg-background border rounded-md shadow-lg py-1 min-w-[160px] z-50">
-                    <Link 
-                      to="/admin/commandes" 
-                      className="flex items-center gap-2 px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors"
-                      onClick={() => setAdminMenuOpen(false)}
-                    >
+                {adminMenuOpen && <div className="absolute top-full right-0 bg-background border rounded-md shadow-lg py-1 min-w-[160px] z-50">
+                    <Link to="/admin/commandes" className="flex items-center gap-2 px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors" onClick={() => setAdminMenuOpen(false)}>
                       <Settings className="h-4 w-4" />
                       Commandes
                     </Link>
-                    <Link 
-                      to="/admin/produits" 
-                      className="flex items-center gap-2 px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors"
-                      onClick={() => setAdminMenuOpen(false)}
-                    >
+                    <Link to="/admin/produits" className="flex items-center gap-2 px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors" onClick={() => setAdminMenuOpen(false)}>
                       <Package className="h-4 w-4" />
                       Produits
                     </Link>
-                    <button 
-                      className="flex items-center gap-2 px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors w-full text-left"
-                      onClick={() => {
-                        setAdminMenuOpen(false);
-                        setSupplierDialogOpen(true);
-                      }}
-                    >
+                    <button className="flex items-center gap-2 px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors w-full text-left" onClick={() => {
+                setAdminMenuOpen(false);
+                setSupplierDialogOpen(true);
+              }}>
                       <Truck className="h-4 w-4" />
                       Fournisseur
                     </button>
-                  </div>
-                )}
-              </div>
-            )}
+                  </div>}
+              </div>}
 
-            <SupplierSettingsDialog 
-              open={supplierDialogOpen} 
-              onOpenChange={setSupplierDialogOpen} 
-            />
+            <SupplierSettingsDialog open={supplierDialogOpen} onOpenChange={setSupplierDialogOpen} />
 
             {userEmail && <button onClick={handleLogout} className="flex items-center gap-1.5 px-2 py-1 text-sm text-primary-foreground hover:underline">
                 <LogOut className="h-4 w-4" />
