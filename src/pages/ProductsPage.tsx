@@ -1,7 +1,7 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { SlidersHorizontal } from "lucide-react";
+import { SlidersHorizontal, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -17,6 +17,8 @@ import { ProductFilters } from "@/components/products/ProductFilters";
 import { ProductGrid } from "@/components/products/ProductGrid";
 import { fetchProducts, getProductImage, parseVariants, type Product } from "@/lib/products";
 
+type ItemsPerPage = "25" | "50" | "all";
+
 const ProductsPage = () => {
   const [searchParams] = useSearchParams();
   const categoryParam = searchParams.get("category");
@@ -29,6 +31,8 @@ const ProductsPage = () => {
   });
   const [sortBy, setSortBy] = useState("relevance");
   const [showFilters, setShowFilters] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState<ItemsPerPage>("25");
 
   // Fetch products from Supabase
   const { data: products = [], isLoading } = useQuery({
@@ -148,6 +152,24 @@ const ProductsPage = () => {
     return result;
   }, [displayProducts, categoryParam, filters, sortBy]);
 
+  // Reset page when filters or category changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filters, categoryParam, query]);
+
+  // Calculate pagination
+  const totalProducts = filteredProducts.length;
+  const perPage = itemsPerPage === "all" ? totalProducts : parseInt(itemsPerPage);
+  const totalPages = Math.ceil(totalProducts / perPage) || 1;
+
+  // Paginated products
+  const paginatedProducts = useMemo(() => {
+    if (itemsPerPage === "all") return filteredProducts;
+    const start = (currentPage - 1) * perPage;
+    const end = start + perPage;
+    return filteredProducts.slice(start, end);
+  }, [filteredProducts, currentPage, itemsPerPage, perPage]);
+
   const handleFilterChange = (key: string, values: string[]) => {
     setFilters((prev) => ({ ...prev, [key]: values }));
   };
@@ -158,6 +180,16 @@ const ProductsPage = () => {
       length: [],
       material: [],
     });
+  };
+
+  const handleItemsPerPageChange = (value: ItemsPerPage) => {
+    setItemsPerPage(value);
+    setCurrentPage(1);
+  };
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const activeFilterCount = Object.values(filters).flat().length;
@@ -177,6 +209,26 @@ const ProductsPage = () => {
         return "Tous les produits";
     }
   };
+
+  // Generate page numbers to display
+  const getPageNumbers = () => {
+    const pages: (number | "ellipsis")[] = [];
+    if (totalPages <= 7) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+      pages.push(1);
+      if (currentPage > 3) pages.push("ellipsis");
+      for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) {
+        pages.push(i);
+      }
+      if (currentPage < totalPages - 2) pages.push("ellipsis");
+      pages.push(totalPages);
+    }
+    return pages;
+  };
+
+  const startIndex = itemsPerPage === "all" ? 1 : (currentPage - 1) * perPage + 1;
+  const endIndex = itemsPerPage === "all" ? totalProducts : Math.min(currentPage * perPage, totalProducts);
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -213,6 +265,18 @@ const ProductsPage = () => {
                   </Badge>
                 )}
               </Button>
+
+              {/* Items per page select */}
+              <Select value={itemsPerPage} onValueChange={handleItemsPerPageChange}>
+                <SelectTrigger className="w-28">
+                  <SelectValue placeholder="Par page" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="25">25</SelectItem>
+                  <SelectItem value="50">50</SelectItem>
+                  <SelectItem value="all">Tous</SelectItem>
+                </SelectContent>
+              </Select>
 
               {/* Sort select */}
               <Select value={sortBy} onValueChange={setSortBy}>
@@ -285,7 +349,58 @@ const ProductsPage = () => {
 
             {/* Products grid */}
             <div className="flex-1">
-              <ProductGrid products={filteredProducts} isLoading={isLoading} />
+              <ProductGrid products={paginatedProducts} isLoading={isLoading} />
+
+              {/* Pagination */}
+              {itemsPerPage !== "all" && totalPages > 1 && (
+                <div className="mt-8 flex flex-col items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handlePageChange(currentPage - 1)}
+                      disabled={currentPage === 1}
+                    >
+                      <ChevronLeft className="h-4 w-4 mr-1" />
+                      Précédent
+                    </Button>
+
+                    <div className="flex items-center gap-1">
+                      {getPageNumbers().map((page, index) =>
+                        page === "ellipsis" ? (
+                          <span key={`ellipsis-${index}`} className="px-2 text-muted-foreground">
+                            ...
+                          </span>
+                        ) : (
+                          <Button
+                            key={page}
+                            variant={currentPage === page ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => handlePageChange(page)}
+                            className="w-9"
+                          >
+                            {page}
+                          </Button>
+                        )
+                      )}
+                    </div>
+
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handlePageChange(currentPage + 1)}
+                      disabled={currentPage === totalPages}
+                    >
+                      Suivant
+                      <ChevronRight className="h-4 w-4 ml-1" />
+                    </Button>
+                  </div>
+
+                  <p className="text-sm text-muted-foreground">
+                    Affichage {startIndex}-{endIndex} sur {totalProducts} produits
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </div>
