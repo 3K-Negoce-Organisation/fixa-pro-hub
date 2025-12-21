@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { CartProvider } from "@/contexts/CartContext";
 import AuthGuard from "@/components/auth/AuthGuard";
+import AdminGuard from "@/components/auth/AdminGuard";
 import { CookieConsent } from "@/components/CookieConsent";
 import Index from "./pages/Index";
 import ProductsPage from "./pages/ProductsPage";
@@ -44,8 +45,8 @@ const App = () => (
             <Route path="/produit/:handle" element={<AuthGuard><ProductDetailPage /></AuthGuard>} />
             <Route path="/panier" element={<AuthGuard><CartPage /></AuthGuard>} />
             <Route path="/compte" element={<AuthGuard><AccountPage /></AuthGuard>} />
-            <Route path="/admin/commandes" element={<AuthGuard><AdminOrdersPage /></AuthGuard>} />
-            <Route path="/admin/produits" element={<AuthGuard><AdminProductsPage /></AuthGuard>} />
+            <Route path="/admin/commandes" element={<AdminGuard><AdminOrdersPage /></AdminGuard>} />
+            <Route path="/admin/produits" element={<AdminGuard><AdminProductsPage /></AdminGuard>} />
             <Route path="/mentions-legales" element={<MentionsLegalesPage />} />
             <Route path="/politique-confidentialite" element={<PolitiqueConfidentialitePage />} />
             <Route path="/cookies" element={<CookiesPage />} />
