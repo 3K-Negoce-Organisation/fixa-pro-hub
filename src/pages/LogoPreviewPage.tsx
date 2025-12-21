@@ -132,9 +132,9 @@ const LogoPreviewPage = () => {
 
             {/* Info */}
             <div className="text-center text-xs text-muted-foreground space-y-1 pt-4 border-t">
-              <p>Style : Tampon/badge artisan abstrait</p>
-              <p>Couleurs : Marron, sépia, crème</p>
-              <p>Aspect : Cachet vintage usé</p>
+              <p>Style : Badge artisan minimaliste</p>
+              <p>Couleurs : Marron/sépia sur fond crème</p>
+              <p>Élément central : Vis stylisée simplifiée</p>
             </div>
           </CardContent>
         </Card>
