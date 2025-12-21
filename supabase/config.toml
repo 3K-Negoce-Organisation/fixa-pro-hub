@@ -17,6 +17,3 @@ verify_jwt = false
 
 [functions.simulate-order-webhook]
 verify_jwt = true
-
-[functions.generate-logo]
-verify_jwt = false
