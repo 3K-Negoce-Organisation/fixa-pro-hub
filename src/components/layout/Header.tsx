@@ -153,7 +153,7 @@ export function Header() {
               <Link to="/panier" className="flex items-center gap-1.5 px-3 py-1.5 text-sm hover:bg-primary-foreground/10 rounded transition-colors whitespace-nowrap relative">
                 <div className="relative">
                   <ShoppingCart className="h-5 w-5" />
-                  {totalItems > 0 && <span className="absolute -top-2 -right-2 h-4 w-4 flex items-center justify-center text-accent-foreground text-xs font-bold rounded-full bg-[#d49454]">
+                  {totalItems > 0 && <span className="absolute -top-2 -right-2 h-4 w-4 flex items-center justify-center text-white text-xs font-bold rounded-full bg-success">
                       {totalItems > 99 ? "99+" : totalItems}
                     </span>}
                 </div>
