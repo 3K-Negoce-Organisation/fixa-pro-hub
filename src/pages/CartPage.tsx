@@ -1,42 +1,22 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { Trash2, Plus, Minus, ShoppingBag, ArrowLeft, Loader2 } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Trash2, Plus, Minus, ShoppingBag, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { useCart } from "@/contexts/CartContext";
 import { formatPriceHT, formatPrice, calculateTTC } from "@/lib/products";
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
 import { StripePaymentForm } from "@/components/checkout/StripePaymentForm";
 
 const CartPage = () => {
   const { items, removeItem, updateQuantity, clearCart, totalHT } = useCart();
   const [showPaymentForm, setShowPaymentForm] = useState(false);
-  const [isCheckingAuth, setIsCheckingAuth] = useState(false);
-  const { toast } = useToast();
-  const navigate = useNavigate();
 
   const totalTTC = calculateTTC(totalHT);
 
-  const handleCheckout = async () => {
-    setIsCheckingAuth(true);
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        toast({
-          title: "Connexion requise",
-          description: "Vous devez être connecté pour passer commande.",
-          variant: "destructive",
-        });
-        navigate("/auth");
-        return;
-      }
-      setShowPaymentForm(true);
-    } finally {
-      setIsCheckingAuth(false);
-    }
+  const handleCheckout = () => {
+    setShowPaymentForm(true);
   };
 
   const handlePaymentSuccess = () => {
@@ -241,16 +221,8 @@ const CartPage = () => {
                       className="w-full btn-cart" 
                       size="lg"
                       onClick={handleCheckout}
-                      disabled={isCheckingAuth}
                     >
-                      {isCheckingAuth ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Vérification...
-                        </>
-                      ) : (
-                        "Payer"
-                      )}
+                      Payer
                     </Button>
 
                     <Button variant="outline" className="w-full" asChild>

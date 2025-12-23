@@ -24,6 +24,7 @@ const stripePromise = loadStripe(STRIPE_PUBLISHABLE_KEY);
 interface CheckoutFormProps {
   totalTTC: number;
   userEmail: string;
+  isGuest: boolean;
   onSuccess: () => void;
   onCancel: () => void;
 }
@@ -31,14 +32,16 @@ interface CheckoutFormProps {
 interface CheckoutFormInnerProps extends CheckoutFormProps {
   items: CartItem[];
   totalHT: number;
+  setUserEmail: (email: string) => void;
 }
 
-const CheckoutForm = ({ totalTTC, userEmail, onSuccess, onCancel, items, totalHT }: CheckoutFormInnerProps) => {
+const CheckoutForm = ({ totalTTC, userEmail, isGuest, onSuccess, onCancel, items, totalHT, setUserEmail }: CheckoutFormInnerProps) => {
   const stripe = useStripe();
   const elements = useElements();
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState(userEmail);
   const { toast } = useToast();
   const navigate = useNavigate();
   const { clearCart } = useCart();
@@ -50,6 +53,11 @@ const CheckoutForm = ({ totalTTC, userEmail, onSuccess, onCancel, items, totalHT
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const random = Math.random().toString(36).substring(2, 8).toUpperCase();
     return `VIS-${year}${month}-${random}`;
+  };
+
+  // Generate guest user ID
+  const generateGuestId = () => {
+    return `guest_${crypto.randomUUID()}`;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -64,8 +72,24 @@ const CheckoutForm = ({ totalTTC, userEmail, onSuccess, onCancel, items, totalHT
       return;
     }
 
+    if (isGuest && !email.trim()) {
+      setErrorMessage("Veuillez saisir votre adresse email");
+      return;
+    }
+
+    // Basic email validation for guests
+    if (isGuest && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setErrorMessage("Veuillez saisir une adresse email valide");
+      return;
+    }
+
     setIsProcessing(true);
     setErrorMessage(null);
+
+    // Update parent email state for guest
+    if (isGuest) {
+      setUserEmail(email);
+    }
 
     // Get shipping address from AddressElement before confirming payment
     const addressElement = elements.getElement('address');
@@ -84,14 +108,16 @@ const CheckoutForm = ({ totalTTC, userEmail, onSuccess, onCancel, items, totalHT
       }
     }
 
+    const finalEmail = isGuest ? email : userEmail;
+
     const { error, paymentIntent } = await stripe.confirmPayment({
       elements,
       confirmParams: {
         return_url: `${window.location.origin}/confirmation`,
-        receipt_email: userEmail,
+        receipt_email: finalEmail,
         payment_method_data: {
           billing_details: {
-            email: userEmail,
+            email: finalEmail,
             phone: phone,
           },
         },
@@ -106,16 +132,17 @@ const CheckoutForm = ({ totalTTC, userEmail, onSuccess, onCancel, items, totalHT
       // Create order in database with shipping address
       try {
         const { data: { user } } = await supabase.auth.getUser();
-        if (!user) throw new Error("Utilisateur non connecté");
-
+        
+        // Use user ID if logged in, otherwise generate guest ID
+        const userId = user?.id || generateGuestId();
         const orderNumber = generateOrderNumber();
         
         // Create order
         const { data: order, error: orderError } = await supabase
           .from('orders')
           .insert({
-            user_id: user.id,
-            user_email: userEmail,
+            user_id: userId,
+            user_email: finalEmail,
             order_number: orderNumber,
             status: 'paid',
             total_ht: totalHT,
@@ -171,16 +198,27 @@ const CheckoutForm = ({ totalTTC, userEmail, onSuccess, onCancel, items, totalHT
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      {/* Email (read-only) */}
+      {/* Email - editable for guests, read-only for logged in users */}
       <div className="space-y-2">
-        <Label htmlFor="email">Email</Label>
-        <Input
-          id="email"
-          type="email"
-          value={userEmail}
-          disabled
-          className="bg-muted"
-        />
+        <Label htmlFor="email">Email *</Label>
+        {isGuest ? (
+          <Input
+            id="email"
+            type="email"
+            placeholder="votre@email.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
+        ) : (
+          <Input
+            id="email"
+            type="email"
+            value={userEmail}
+            disabled
+            className="bg-muted"
+          />
+        )}
       </div>
 
       {/* Phone */}
@@ -280,6 +318,7 @@ export const StripePaymentForm = ({ items, totalTTC, onSuccess, onCancel }: Stri
   const totalHT = items.reduce((sum, item) => sum + (item.priceHT * item.quantity), 0);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string>("");
+  const [isGuest, setIsGuest] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
@@ -287,14 +326,19 @@ export const StripePaymentForm = ({ items, totalTTC, onSuccess, onCancel }: Stri
   useEffect(() => {
     const createPaymentIntent = async () => {
       try {
-        // Get user email
+        // Check if user is logged in
         const { data: { user } } = await supabase.auth.getUser();
+        
         if (user?.email) {
           setUserEmail(user.email);
+          setIsGuest(false);
+        } else {
+          setIsGuest(true);
         }
 
+        // Create payment intent - works for both guests and logged in users
         const { data, error } = await supabase.functions.invoke("create-payment-intent", {
-          body: { items },
+          body: { items, guestEmail: user?.email || undefined },
         });
 
         if (error || data?.error) {
@@ -372,6 +416,8 @@ export const StripePaymentForm = ({ items, totalTTC, onSuccess, onCancel }: Stri
         totalHT={totalHT}
         items={items}
         userEmail={userEmail}
+        isGuest={isGuest}
+        setUserEmail={setUserEmail}
         onSuccess={onSuccess} 
         onCancel={onCancel} 
       />
