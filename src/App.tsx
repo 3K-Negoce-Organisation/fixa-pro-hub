@@ -39,11 +39,11 @@ const App = () => (
             <Route path="/suivi" element={<OrderTrackingPage />} />
             <Route path="/confirmation" element={<OrderConfirmationPage />} />
             <Route path="/paiement-annule" element={<PaymentCancelPage />} />
-            <Route path="/" element={<AuthGuard><Index /></AuthGuard>} />
-            <Route path="/produits" element={<AuthGuard><ProductsPage /></AuthGuard>} />
-            <Route path="/promos" element={<AuthGuard><PromosPage /></AuthGuard>} />
-            <Route path="/produit/:handle" element={<AuthGuard><ProductDetailPage /></AuthGuard>} />
-            <Route path="/panier" element={<AuthGuard><CartPage /></AuthGuard>} />
+            <Route path="/" element={<Index />} />
+            <Route path="/produits" element={<ProductsPage />} />
+            <Route path="/promos" element={<PromosPage />} />
+            <Route path="/produit/:handle" element={<ProductDetailPage />} />
+            <Route path="/panier" element={<CartPage />} />
             <Route path="/compte" element={<AuthGuard><AccountPage /></AuthGuard>} />
             <Route path="/admin/commandes" element={<AdminGuard><AdminOrdersPage /></AdminGuard>} />
             <Route path="/admin/produits" element={<AdminGuard><AdminProductsPage /></AdminGuard>} />

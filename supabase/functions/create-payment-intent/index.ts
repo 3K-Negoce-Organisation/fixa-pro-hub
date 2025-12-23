@@ -39,7 +39,7 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_ANON_KEY") ?? ""
     );
 
-    // Get user from auth header
+    // Get user from auth header (optional for guests)
     const authHeader = req.headers.get("Authorization");
     let userEmail: string | undefined;
     let userId: string | undefined;
@@ -52,13 +52,9 @@ serve(async (req) => {
       logStep("User authenticated", { userId, email: userEmail });
     }
 
-    if (!userId) {
-      throw new Error("User must be authenticated");
-    }
-
     // Parse request body
-    const { items } = await req.json() as { items: CartItem[] };
-    logStep("Received cart items", { itemCount: items.length });
+    const { items, guestEmail } = await req.json() as { items: CartItem[]; guestEmail?: string };
+    logStep("Received cart items", { itemCount: items.length, isGuest: !userId });
 
     if (!items || items.length === 0) {
       throw new Error("Cart is empty");
@@ -74,20 +70,22 @@ serve(async (req) => {
     // Initialize Stripe
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
 
-    // Check if customer exists or create one
+    // Check if customer exists or create one (only if we have an email)
     let customerId: string | undefined;
-    if (userEmail) {
-      const customers = await stripe.customers.list({ email: userEmail, limit: 1 });
+    const emailToUse = userEmail || guestEmail;
+    
+    if (emailToUse) {
+      const customers = await stripe.customers.list({ email: emailToUse, limit: 1 });
       if (customers.data.length > 0) {
         customerId = customers.data[0].id;
         logStep("Found existing Stripe customer", { customerId });
       } else {
         const customer = await stripe.customers.create({
-          email: userEmail,
-          metadata: { user_id: userId },
+          email: emailToUse,
+          metadata: userId ? { user_id: userId } : { guest: "true" },
         });
         customerId = customer.id;
-        logStep("Created new Stripe customer", { customerId });
+        logStep("Created new Stripe customer", { customerId, isGuest: !userId });
       }
     }
 
@@ -100,8 +98,9 @@ serve(async (req) => {
         enabled: true,
       },
       metadata: {
-        user_id: userId,
-        user_email: userEmail || "",
+        user_id: userId || "guest",
+        user_email: emailToUse || "",
+        is_guest: (!userId).toString(),
         total_ht: totalHT.toFixed(2),
         total_ttc: totalTTC.toFixed(2),
         // Store only essential item data (id, quantity, price) to stay under 500 char limit
@@ -116,7 +115,8 @@ serve(async (req) => {
 
     logStep("PaymentIntent created", { 
       paymentIntentId: paymentIntent.id, 
-      clientSecret: paymentIntent.client_secret?.substring(0, 20) + "..." 
+      clientSecret: paymentIntent.client_secret?.substring(0, 20) + "...",
+      isGuest: !userId,
     });
 
     return new Response(JSON.stringify({ 
