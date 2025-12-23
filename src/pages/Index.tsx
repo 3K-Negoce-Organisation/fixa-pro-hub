@@ -10,6 +10,9 @@ import { CategoryCard } from "@/components/home/CategoryCard";
 import { QuickOrderSection } from "@/components/home/QuickOrderSection";
 import { FeaturedProducts } from "@/components/home/FeaturedProducts";
 import { supabase } from "@/integrations/supabase/client";
+import heroScrewsBg from "@/assets/hero-screws-bg.jpg";
+import screwsDetailLeft from "@/assets/screws-detail-left.jpg";
+import screwsDetailRight from "@/assets/screws-detail-right.jpg";
 
 const categoryConfig = [
   { id: "terrasse", name: "Vis Terrasse", icon: "deck", dbCategory: "Vis terrasse" },
@@ -60,45 +63,78 @@ const Index = () => {
 
       <main className="flex-1">
         {/* Hero Search Section */}
-        <section className="bg-gradient-to-b from-secondary to-background py-8">
-          <div className="container">
-            {/* Main Search */}
-            <div className="max-w-2xl mx-auto mb-8">
-              <h1 className="text-2xl font-bold text-center mb-4">
-                Vis de qualité
-              </h1>
-              <form onSubmit={handleSearch} className="relative">
-                <Input
-                  type="search"
-                  placeholder="Rechercher par référence, dimensions, type... (ex: vis terrasse inox 5x50)"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-4 pr-24 py-3 text-base border-2 border-primary/20 focus:border-primary"
-                />
-                <Button
-                  type="submit"
-                  className="absolute right-1.5 top-1/2 -translate-y-1/2 bg-accent hover:bg-accent/90"
-                >
-                  <Search className="h-4 w-4 mr-2" />
-                  Rechercher
-                </Button>
-              </form>
-            </div>
-
-            {/* Quick stats */}
-            <div className="flex flex-wrap justify-center gap-6 text-sm text-muted-foreground mb-8">
-              <div className="flex items-center gap-2">
-                <Truck className="h-4 w-4 text-primary" />
-                <span>Livraison 24/48h</span>
+        <section className="relative overflow-hidden py-12 md:py-16">
+          {/* Background image with overlay */}
+          <div 
+            className="absolute inset-0 bg-cover bg-center"
+            style={{ backgroundImage: `url(${heroScrewsBg})` }}
+          >
+            <div className="absolute inset-0 bg-gradient-to-b from-background/95 via-background/85 to-background" />
+          </div>
+          
+          <div className="container relative z-10">
+            {/* Main content with decorative images */}
+            <div className="flex items-center justify-center gap-6 lg:gap-12">
+              {/* Left decorative image - hidden on mobile */}
+              <div className="hidden md:block flex-shrink-0">
+                <div className="w-32 lg:w-40 h-32 lg:h-40 rounded-2xl overflow-hidden shadow-xl ring-4 ring-primary/20 rotate-[-6deg] hover:rotate-0 transition-transform duration-300">
+                  <img 
+                    src={screwsDetailLeft} 
+                    alt="Vis dorées sur bois" 
+                    className="w-full h-full object-cover"
+                  />
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <Shield className="h-4 w-4 text-success" />
-                <span>Qualité certifiée</span>
+              
+              {/* Main Search */}
+              <div className="max-w-2xl flex-1">
+                <h1 className="text-3xl md:text-4xl font-bold text-center mb-6 text-foreground">
+                  Vis de qualité professionnelle
+                </h1>
+                <form onSubmit={handleSearch} className="relative">
+                  <Input
+                    type="search"
+                    placeholder="Rechercher par référence, dimensions, type... (ex: vis terrasse inox 5x50)"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-4 pr-28 py-4 text-base border-2 border-primary/30 focus:border-primary bg-background/90 backdrop-blur-sm shadow-lg"
+                  />
+                  <Button
+                    type="submit"
+                    className="absolute right-1.5 top-1/2 -translate-y-1/2 bg-accent hover:bg-accent/90"
+                  >
+                    <Search className="h-4 w-4 mr-2" />
+                    Rechercher
+                  </Button>
+                </form>
+                
+                {/* Quick stats */}
+                <div className="flex flex-wrap justify-center gap-6 text-sm text-muted-foreground mt-6">
+                  <div className="flex items-center gap-2 bg-background/80 backdrop-blur-sm px-4 py-2 rounded-full shadow-sm">
+                    <Truck className="h-4 w-4 text-primary" />
+                    <span>Livraison 24/48h</span>
+                  </div>
+                  <div className="flex items-center gap-2 bg-background/80 backdrop-blur-sm px-4 py-2 rounded-full shadow-sm">
+                    <Shield className="h-4 w-4 text-success" />
+                    <span>Qualité certifiée</span>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Right decorative image - hidden on mobile */}
+              <div className="hidden md:block flex-shrink-0">
+                <div className="w-32 lg:w-40 h-32 lg:h-40 rounded-2xl overflow-hidden shadow-xl ring-4 ring-primary/20 rotate-[6deg] hover:rotate-0 transition-transform duration-300">
+                  <img 
+                    src={screwsDetailRight} 
+                    alt="Vis inox sur bois" 
+                    className="w-full h-full object-cover"
+                  />
+                </div>
               </div>
             </div>
 
             {/* Categories Grid */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-3xl mx-auto">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-3xl mx-auto mt-10">
               {categories.map((category) => (
                 <CategoryCard
                   key={category.id}
