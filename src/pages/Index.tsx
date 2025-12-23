@@ -101,7 +101,7 @@ const Index = () => {
                   />
                   <Button
                     type="submit"
-                    className="absolute right-1.5 top-1/2 -translate-y-1/2 bg-accent hover:bg-accent/90"
+                    className="absolute right-0 top-1/2 -translate-y-1/2 rounded-l-none bg-accent hover:bg-accent/90"
                   >
                     <Search className="h-4 w-4 mr-2" />
                     Rechercher
