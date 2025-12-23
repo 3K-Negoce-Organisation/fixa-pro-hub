@@ -122,7 +122,7 @@ export function Header() {
 
       {/* Categories nav */}
       <nav className="bg-primary-foreground/5 border-t border-primary-foreground/10">
-        <div className="px-4">
+        <div className="px-4 bg-[#d5932a]">
           <div className="flex items-center justify-between py-0.5">
             <div className="flex items-center gap-1 overflow-x-auto">
               <Link to="/produits" className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium hover:bg-primary-foreground/10 rounded transition-colors whitespace-nowrap">
