@@ -36,22 +36,22 @@ const App = () => (
           <CookieConsent />
           <Routes>
             <Route path="/auth" element={<AuthPage />} />
-            <Route path="/suivi" element={<OrderTrackingPage />} />
-            <Route path="/confirmation" element={<OrderConfirmationPage />} />
-            <Route path="/paiement-annule" element={<PaymentCancelPage />} />
-            <Route path="/" element={<Index />} />
-            <Route path="/produits" element={<ProductsPage />} />
-            <Route path="/promos" element={<PromosPage />} />
-            <Route path="/produit/:handle" element={<ProductDetailPage />} />
-            <Route path="/panier" element={<CartPage />} />
+            <Route path="/suivi" element={<AuthGuard><OrderTrackingPage /></AuthGuard>} />
+            <Route path="/confirmation" element={<AuthGuard><OrderConfirmationPage /></AuthGuard>} />
+            <Route path="/paiement-annule" element={<AuthGuard><PaymentCancelPage /></AuthGuard>} />
+            <Route path="/" element={<AuthGuard><Index /></AuthGuard>} />
+            <Route path="/produits" element={<AuthGuard><ProductsPage /></AuthGuard>} />
+            <Route path="/promos" element={<AuthGuard><PromosPage /></AuthGuard>} />
+            <Route path="/produit/:handle" element={<AuthGuard><ProductDetailPage /></AuthGuard>} />
+            <Route path="/panier" element={<AuthGuard><CartPage /></AuthGuard>} />
             <Route path="/compte" element={<AuthGuard><AccountPage /></AuthGuard>} />
             <Route path="/admin/commandes" element={<AdminGuard><AdminOrdersPage /></AdminGuard>} />
             <Route path="/admin/produits" element={<AdminGuard><AdminProductsPage /></AdminGuard>} />
-            <Route path="/mentions-legales" element={<MentionsLegalesPage />} />
-            <Route path="/politique-confidentialite" element={<PolitiqueConfidentialitePage />} />
-            <Route path="/cookies" element={<CookiesPage />} />
+            <Route path="/mentions-legales" element={<AuthGuard><MentionsLegalesPage /></AuthGuard>} />
+            <Route path="/politique-confidentialite" element={<AuthGuard><PolitiqueConfidentialitePage /></AuthGuard>} />
+            <Route path="/cookies" element={<AuthGuard><CookiesPage /></AuthGuard>} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
+            <Route path="*" element={<AuthGuard><NotFound /></AuthGuard>} />
           </Routes>
         </BrowserRouter>
       </CartProvider>
