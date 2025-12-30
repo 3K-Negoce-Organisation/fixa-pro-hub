@@ -42,27 +42,77 @@ const ProductsPage = () => {
     queryFn: () => fetchProducts(query || undefined),
   });
 
-  // Generate filter options from actual product data
+  // Get products filtered by category (base for filter options)
+  const categoryFilteredProducts = useMemo(() => {
+    let result = products;
+    
+    const categoryMap: Record<string, string> = {
+      terrasse: "Vis terrasse",
+      charpente: "Vis de charpente",
+      menuiserie: "Vis menuiserie",
+      tirefond: "Tirefond",
+    };
+
+    if (categoryParam) {
+      const dbCategory = categoryMap[categoryParam];
+      if (dbCategory) {
+        result = result.filter((p: Product) => p.category?.trim() === dbCategory);
+      }
+    }
+    
+    return result;
+  }, [products, categoryParam]);
+
+  // Generate filter options from products that match OTHER active filters
+  // This ensures we only show filter values that would return results
   const filterOptions = useMemo(() => {
-    const diameters = new Set<string>();
-    const lengths = new Set<string>();
-    const materials = new Set<string>();
+    const getFilteredProducts = (excludeFilter: string) => {
+      let result = categoryFilteredProducts;
+      
+      Object.entries(filters).forEach(([key, values]) => {
+        if (key === excludeFilter || values.length === 0) return;
+        
+        result = result.filter((product: Product) => {
+          switch (key) {
+            case 'diameter':
+              return values.some(v => String(product.diameter_mm) === v);
+            case 'length':
+              return values.some(v => String(product.length_mm) === v);
+            case 'material':
+              return values.some(v => product.material?.toLowerCase().includes(v.toLowerCase()));
+            default:
+              return true;
+          }
+        });
+      });
+      
+      return result;
+    };
 
-    products.forEach((product: Product) => {
-      if (product.diameter_mm) diameters.add(String(product.diameter_mm));
-      if (product.length_mm) lengths.add(String(product.length_mm));
-      if (product.material) materials.add(product.material.trim());
-    });
+    const extractDiameters = (prods: Product[]) => {
+      const set = new Set<string>();
+      prods.forEach(p => { if (p.diameter_mm) set.add(String(p.diameter_mm)); });
+      return Array.from(set).sort((a, b) => parseFloat(a) - parseFloat(b));
+    };
 
-    // Sort numerically for diameter and length
-    const sortNumeric = (a: string, b: string) => parseFloat(a) - parseFloat(b);
+    const extractLengths = (prods: Product[]) => {
+      const set = new Set<string>();
+      prods.forEach(p => { if (p.length_mm) set.add(String(p.length_mm)); });
+      return Array.from(set).sort((a, b) => parseFloat(a) - parseFloat(b));
+    };
+
+    const extractMaterials = (prods: Product[]) => {
+      const set = new Set<string>();
+      prods.forEach(p => { if (p.material) set.add(p.material.trim()); });
+      return Array.from(set).sort();
+    };
 
     return {
-      diameter: Array.from(diameters).sort(sortNumeric),
-      length: Array.from(lengths).sort(sortNumeric),
-      material: Array.from(materials).sort(),
+      diameter: extractDiameters(getFilteredProducts('diameter')),
+      length: extractLengths(getFilteredProducts('length')),
+      material: extractMaterials(getFilteredProducts('material')),
     };
-  }, [products]);
+  }, [categoryFilteredProducts, filters]);
 
   // Transform Supabase products to display format
   const displayProducts = useMemo(() => {
