@@ -14,13 +14,15 @@ interface ProductFiltersProps {
   filterOptions: FilterOptions;
   onFilterChange: (key: string, values: string[]) => void;
   onClearFilters: () => void;
+  isCartOpen?: boolean;
 }
 
 export function ProductFilters({
   filters,
   filterOptions,
   onFilterChange,
-  onClearFilters
+  onClearFilters,
+  isCartOpen = false
 }: ProductFiltersProps) {
   const hasActiveFilters = Object.values(filters).some(v => v.length > 0);
   
@@ -66,7 +68,7 @@ export function ProductFilters({
   };
 
   return (
-    <aside className="w-64 shrink-0">
+    <aside className={`shrink-0 transition-all duration-300 ${isCartOpen ? 'w-48' : 'w-64'}`}>
       <div className="sticky top-24 bg-card border border-border rounded-lg p-4">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-semibold text-foreground">Filtres</h3>
