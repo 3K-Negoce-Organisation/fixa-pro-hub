@@ -191,7 +191,7 @@ const ProductDetailPage = () => {
                   {currentVariant.available ? (
                     <span className="stock-badge stock-available">
                       <span className="w-2.5 h-2.5 bg-green-500 rounded-full"></span>
-                      En stock ({currentVariant.quantity} disponibles)
+                      En stock
                     </span>
                   ) : (
                     <span className="stock-badge stock-out">

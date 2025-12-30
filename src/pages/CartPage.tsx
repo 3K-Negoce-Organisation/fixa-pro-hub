@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Trash2, Plus, Minus, ShoppingBag, ArrowLeft } from "lucide-react";
+import { Trash2, Plus, Minus, ShoppingBag, ArrowLeft, RotateCcw, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Header } from "@/components/layout/Header";
@@ -10,7 +10,7 @@ import { formatPriceHT, formatPrice, calculateTTC } from "@/lib/products";
 import { StripePaymentForm } from "@/components/checkout/StripePaymentForm";
 
 const CartPage = () => {
-  const { items, removeItem, updateQuantity, clearCart, totalHT } = useCart();
+  const { items, removedItems, removeItem, restoreItem, clearRemovedItems, updateQuantity, clearCart, totalHT } = useCart();
   const [showPaymentForm, setShowPaymentForm] = useState(false);
 
   const totalTTC = calculateTTC(totalHT);
@@ -27,7 +27,7 @@ const CartPage = () => {
     setShowPaymentForm(false);
   };
 
-  if (items.length === 0) {
+  if (items.length === 0 && removedItems.length === 0) {
     return (
       <div className="min-h-screen flex flex-col bg-background">
         <Header />
@@ -59,101 +59,164 @@ const CartPage = () => {
           <div className="grid lg:grid-cols-3 gap-8">
             {/* Cart items */}
             <div className="lg:col-span-2 space-y-4">
-              {items.map((item) => (
-                <div
-                  key={item.variantId}
-                  className="flex gap-4 p-4 bg-card border border-border rounded-lg"
-                >
-                  {/* Image */}
-                  <Link
-                    to={`/produit/${item.handle}`}
-                    className="shrink-0 w-24 h-24 bg-white rounded border border-border flex items-center justify-center"
-                  >
-                    <img
-                      src={item.image}
-                      alt={item.title}
-                      className="w-full h-full object-contain p-2"
-                    />
-                  </Link>
-
-                  {/* Details */}
-                  <div className="flex-1 min-w-0">
-                    <Link
-                      to={`/produit/${item.handle}`}
-                      className="font-medium hover:text-primary line-clamp-2"
+              {items.length === 0 ? (
+                <div className="p-6 bg-card border border-border rounded-lg text-center">
+                  <ShoppingBag className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
+                  <p className="text-muted-foreground">Votre panier est vide</p>
+                  <Button asChild className="mt-4">
+                    <Link to="/produits">Voir les produits</Link>
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  {items.map((item) => (
+                    <div
+                      key={item.variantId}
+                      className="flex gap-4 p-4 bg-card border border-border rounded-lg"
                     >
-                      {item.title}
-                    </Link>
-                    <p className="text-sm text-muted-foreground">
-                      {item.variantTitle}
-                    </p>
-                    <p className="text-sm font-semibold mt-1">
-                      {formatPrice(calculateTTC(item.priceHT))}
-                    </p>
-                  </div>
+                      {/* Image */}
+                      <Link
+                        to={`/produit/${item.handle}`}
+                        className="shrink-0 w-24 h-24 bg-white rounded border border-border flex items-center justify-center"
+                      >
+                        <img
+                          src={item.image}
+                          alt={item.title}
+                          className="w-full h-full object-contain p-2"
+                        />
+                      </Link>
 
-                  {/* Quantity & Actions */}
-                  <div className="flex flex-col items-end gap-2">
+                      {/* Details */}
+                      <div className="flex-1 min-w-0">
+                        <Link
+                          to={`/produit/${item.handle}`}
+                          className="font-medium hover:text-primary line-clamp-2"
+                        >
+                          {item.title}
+                        </Link>
+                        <p className="text-sm text-muted-foreground">
+                          {item.variantTitle}
+                        </p>
+                        <p className="text-sm font-semibold mt-1">
+                          {formatPrice(calculateTTC(item.priceHT))}
+                        </p>
+                      </div>
+
+                      {/* Quantity & Actions */}
+                      <div className="flex flex-col items-end gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeItem(item.variantId)}
+                          className="text-destructive hover:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() =>
+                              updateQuantity(item.variantId, item.quantity - 1)
+                            }
+                          >
+                            <Minus className="h-3 w-3" />
+                          </Button>
+                          <Input
+                            type="number"
+                            min={1}
+                            value={item.quantity}
+                            onChange={(e) =>
+                              updateQuantity(
+                                item.variantId,
+                                parseInt(e.target.value) || 1
+                              )
+                            }
+                            className="w-14 h-8 text-center"
+                          />
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() =>
+                              updateQuantity(item.variantId, item.quantity + 1)
+                            }
+                          >
+                            <Plus className="h-3 w-3" />
+                          </Button>
+                        </div>
+
+                        <p className="text-sm font-bold">
+                          {formatPrice(calculateTTC(item.priceHT * item.quantity))}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={clearCart}
+                    className="text-muted-foreground"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Vider le panier
+                  </Button>
+                </>
+              )}
+
+              {/* Removed items section */}
+              {removedItems.length > 0 && (
+                <div className="mt-8 pt-6 border-t border-border">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-sm font-medium text-muted-foreground">
+                      Éléments supprimés ({removedItems.length})
+                    </h3>
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => removeItem(item.variantId)}
-                      className="text-destructive hover:text-destructive"
+                      onClick={clearRemovedItems}
+                      className="text-xs text-muted-foreground hover:text-destructive"
                     >
-                      <Trash2 className="h-4 w-4" />
+                      <X className="h-3 w-3 mr-1" />
+                      Effacer tout
                     </Button>
-
-                    <div className="flex items-center gap-1">
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() =>
-                          updateQuantity(item.variantId, item.quantity - 1)
-                        }
+                  </div>
+                  <div className="space-y-2">
+                    {removedItems.map((item) => (
+                      <div
+                        key={item.variantId}
+                        className="flex items-center gap-3 p-3 bg-muted/50 border border-border/50 rounded-lg opacity-60"
                       >
-                        <Minus className="h-3 w-3" />
-                      </Button>
-                      <Input
-                        type="number"
-                        min={1}
-                        value={item.quantity}
-                        onChange={(e) =>
-                          updateQuantity(
-                            item.variantId,
-                            parseInt(e.target.value) || 1
-                          )
-                        }
-                        className="w-14 h-8 text-center"
-                      />
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() =>
-                          updateQuantity(item.variantId, item.quantity + 1)
-                        }
-                      >
-                        <Plus className="h-3 w-3" />
-                      </Button>
-                    </div>
-
-                    <p className="text-sm font-bold">
-                      {formatPrice(calculateTTC(item.priceHT * item.quantity))}
-                    </p>
+                        <img
+                          src={item.image}
+                          alt={item.title}
+                          className="w-12 h-12 object-contain bg-white rounded border"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-muted-foreground line-clamp-1">
+                            {item.title}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {item.variantTitle} × {item.quantity}
+                          </p>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => restoreItem(item.variantId)}
+                          className="shrink-0 text-xs"
+                        >
+                          <RotateCcw className="h-3 w-3 mr-1" />
+                          Restaurer
+                        </Button>
+                      </div>
+                    ))}
                   </div>
                 </div>
-              ))}
-
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={clearCart}
-                className="text-muted-foreground"
-              >
-                <Trash2 className="h-4 w-4 mr-2" />
-                Vider le panier
-              </Button>
+              )}
             </div>
 
             {/* Summary / Payment */}

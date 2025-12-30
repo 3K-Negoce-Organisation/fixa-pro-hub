@@ -13,8 +13,11 @@ export interface CartItem {
 
 interface CartContextType {
   items: CartItem[];
+  removedItems: CartItem[];
   addItem: (item: Omit<CartItem, "quantity">, quantity?: number) => void;
   removeItem: (variantId: string) => void;
+  restoreItem: (variantId: string) => void;
+  clearRemovedItems: () => void;
   updateQuantity: (variantId: string, quantity: number) => void;
   clearCart: () => void;
   totalItems: number;
@@ -28,10 +31,15 @@ interface CartContextType {
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
 const CART_STORAGE_KEY = "vis-a-bois-cart";
+const REMOVED_ITEMS_STORAGE_KEY = "vis-a-bois-removed-items";
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>(() => {
     const stored = localStorage.getItem(CART_STORAGE_KEY);
+    return stored ? JSON.parse(stored) : [];
+  });
+  const [removedItems, setRemovedItems] = useState<CartItem[]>(() => {
+    const stored = localStorage.getItem(REMOVED_ITEMS_STORAGE_KEY);
     return stored ? JSON.parse(stored) : [];
   });
   const [isOpen, setIsOpen] = useState(false);
@@ -40,7 +48,14 @@ export function CartProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
   }, [items]);
 
+  useEffect(() => {
+    localStorage.setItem(REMOVED_ITEMS_STORAGE_KEY, JSON.stringify(removedItems));
+  }, [removedItems]);
+
   const addItem = (item: Omit<CartItem, "quantity">, quantity = 1) => {
+    // Remove from removed items if it was there
+    setRemovedItems((prev) => prev.filter((i) => i.variantId !== item.variantId));
+    
     setItems((prev) => {
       const existing = prev.find((i) => i.variantId === item.variantId);
       if (existing) {
@@ -55,7 +70,30 @@ export function CartProvider({ children }: { children: ReactNode }) {
   };
 
   const removeItem = (variantId: string) => {
+    const itemToRemove = items.find((i) => i.variantId === variantId);
+    if (itemToRemove) {
+      setRemovedItems((prev) => {
+        // Don't add duplicates
+        if (prev.find((i) => i.variantId === variantId)) {
+          return prev;
+        }
+        return [...prev, itemToRemove];
+      });
+    }
     setItems((prev) => prev.filter((i) => i.variantId !== variantId));
+  };
+
+  const restoreItem = (variantId: string) => {
+    const itemToRestore = removedItems.find((i) => i.variantId === variantId);
+    if (itemToRestore) {
+      setItems((prev) => [...prev, itemToRestore]);
+      setRemovedItems((prev) => prev.filter((i) => i.variantId !== variantId));
+    }
+  };
+
+  const clearRemovedItems = () => {
+    setRemovedItems([]);
+    localStorage.removeItem(REMOVED_ITEMS_STORAGE_KEY);
   };
 
   const updateQuantity = (variantId: string, quantity: number) => {
@@ -69,6 +107,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
   };
 
   const clearCart = () => {
+    // Move all items to removed
+    setRemovedItems((prev) => [...prev, ...items]);
     setItems([]);
     localStorage.removeItem(CART_STORAGE_KEY);
   };
@@ -84,8 +124,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
     <CartContext.Provider
       value={{
         items,
+        removedItems,
         addItem,
         removeItem,
+        restoreItem,
+        clearRemovedItems,
         updateQuantity,
         clearCart,
         totalItems,
