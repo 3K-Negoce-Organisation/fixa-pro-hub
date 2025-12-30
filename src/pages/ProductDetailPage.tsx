@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { ShoppingCart, Heart, ChevronRight, Truck, Shield, RotateCcw, Loader2 } from "lucide-react";
+import { ShoppingCart, Heart, ChevronRight, Truck, Shield, RotateCcw, Loader2, Circle, Ruler, Wrench, Scale, Layers, Target, Settings2, Box } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -104,17 +104,16 @@ const ProductDetailPage = () => {
 
   const tags = product.tags || [];
 
-  // Build technical specifications
-  const technicalSpecs: { label: string; value: string }[] = [];
-  if (product.diameter_mm) technicalSpecs.push({ label: "Diamètre", value: `${product.diameter_mm} mm` });
-  if (product.length_mm) technicalSpecs.push({ label: "Longueur", value: `${product.length_mm} mm` });
-  if (product.material) technicalSpecs.push({ label: "Matériau", value: product.material });
-  if (product.drive_type) technicalSpecs.push({ label: "Empreinte", value: product.drive_type });
-  if (product.head_diameter_mm) technicalSpecs.push({ label: "Ø Tête", value: `${product.head_diameter_mm} mm` });
-  if (product.thread_length_mm) technicalSpecs.push({ label: "Filetage", value: `${product.thread_length_mm} mm` });
-  if (product.thickness_to_fix_mm) technicalSpecs.push({ label: "Épaisseur à fixer", value: `${product.thickness_to_fix_mm} mm` });
-  if (product.box_weight) technicalSpecs.push({ label: "Poids boîte", value: `${product.box_weight} kg` });
-  if (product.usage) technicalSpecs.push({ label: "Usage", value: product.usage });
+  // Build technical specifications with icons
+  const technicalSpecs: { icon: React.ReactNode; value: string; label: string }[] = [];
+  if (product.diameter_mm) technicalSpecs.push({ icon: <Circle className="h-4 w-4" />, value: `Ø${product.diameter_mm}`, label: "mm" });
+  if (product.length_mm) technicalSpecs.push({ icon: <Ruler className="h-4 w-4" />, value: `${product.length_mm}`, label: "mm" });
+  if (product.material) technicalSpecs.push({ icon: <Layers className="h-4 w-4" />, value: product.material, label: "" });
+  if (product.drive_type) technicalSpecs.push({ icon: <Settings2 className="h-4 w-4" />, value: product.drive_type, label: "" });
+  if (product.head_diameter_mm) technicalSpecs.push({ icon: <Target className="h-4 w-4" />, value: `Ø${product.head_diameter_mm}`, label: "tête" });
+  if (product.thread_length_mm) technicalSpecs.push({ icon: <Wrench className="h-4 w-4" />, value: `${product.thread_length_mm}`, label: "filet" });
+  if (product.box_weight) technicalSpecs.push({ icon: <Scale className="h-4 w-4" />, value: `${product.box_weight}`, label: "kg" });
+  if (product.usage) technicalSpecs.push({ icon: <Box className="h-4 w-4" />, value: product.usage, label: "" });
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -156,18 +155,19 @@ const ProductDetailPage = () => {
                   className="max-w-full max-h-full object-contain"
                 />
               </div>
-              {/* Technical specifications table */}
+              {/* Technical specifications as badges */}
               {technicalSpecs.length > 0 && (
-                <div className="mt-4 border border-border rounded-lg overflow-hidden">
-                  <h2 className="text-sm font-semibold bg-muted px-3 py-2">Caractéristiques techniques</h2>
-                  <div className="divide-y divide-border">
-                    {technicalSpecs.map((spec, index) => (
-                      <div key={index} className="flex px-3 py-2 text-sm">
-                        <span className="text-muted-foreground w-32 flex-shrink-0">{spec.label}</span>
-                        <span className="font-medium">{spec.value}</span>
-                      </div>
-                    ))}
-                  </div>
+                <div className="flex flex-wrap gap-2 mt-4">
+                  {technicalSpecs.map((spec, index) => (
+                    <div
+                      key={index}
+                      className="inline-flex items-center gap-1.5 bg-muted border border-border rounded-full px-3 py-1.5 text-sm"
+                    >
+                      <span className="text-primary">{spec.icon}</span>
+                      <span className="font-medium">{spec.value}</span>
+                      {spec.label && <span className="text-muted-foreground text-xs">{spec.label}</span>}
+                    </div>
+                  ))}
                 </div>
               )}
               
