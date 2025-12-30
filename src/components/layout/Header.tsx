@@ -15,9 +15,7 @@ export function Header() {
   const [adminMenuOpen, setAdminMenuOpen] = useState(false);
   const [supplierDialogOpen, setSupplierDialogOpen] = useState(false);
   const navigate = useNavigate();
-  const {
-    totalItems
-  } = useCart();
+  const { totalItems, toggleCart } = useCart();
   useEffect(() => {
     const checkAdmin = async (userId: string | undefined) => {
       if (!userId) {
@@ -150,7 +148,10 @@ export function Header() {
                 <Package className="h-4 w-4" />
                 <span className="hidden md:inline">Suivi de commandes</span>
               </Link>
-              <Link to="/panier" className="flex items-center gap-1.5 px-3 py-1.5 text-sm hover:bg-primary-foreground/10 rounded transition-colors whitespace-nowrap relative">
+              <button 
+                onClick={toggleCart}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm hover:bg-primary-foreground/10 rounded transition-colors whitespace-nowrap relative"
+              >
                 <div className="relative">
                   <ShoppingCart className="h-5 w-5" />
                   {totalItems > 0 && <span className="absolute -top-2 -right-2 h-4 w-4 flex items-center justify-center text-white text-xs font-bold rounded-full bg-success">
@@ -158,7 +159,7 @@ export function Header() {
                     </span>}
                 </div>
                 <span className="hidden md:inline">Panier</span>
-              </Link>
+              </button>
             </div>
           </div>
         </div>

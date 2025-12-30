@@ -19,6 +19,10 @@ interface CartContextType {
   clearCart: () => void;
   totalItems: number;
   totalHT: number;
+  isOpen: boolean;
+  toggleCart: () => void;
+  openCart: () => void;
+  closeCart: () => void;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -30,6 +34,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     const stored = localStorage.getItem(CART_STORAGE_KEY);
     return stored ? JSON.parse(stored) : [];
   });
+  const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
     localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
@@ -68,6 +73,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem(CART_STORAGE_KEY);
   };
 
+  const toggleCart = () => setIsOpen((prev) => !prev);
+  const openCart = () => setIsOpen(true);
+  const closeCart = () => setIsOpen(false);
+
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
   const totalHT = items.reduce((sum, item) => sum + item.priceHT * item.quantity, 0);
 
@@ -81,6 +90,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
         clearCart,
         totalItems,
         totalHT,
+        isOpen,
+        toggleCart,
+        openCart,
+        closeCart,
       }}
     >
       {children}
