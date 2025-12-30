@@ -16,11 +16,13 @@ import { Footer } from "@/components/layout/Footer";
 import { fetchProductByHandle, getProductImage, parseVariants, formatPriceHT, formatPrice, type ProductVariant } from "@/lib/products";
 import { toast } from "sonner";
 import { useCart } from "@/contexts/CartContext";
+import { useFavorites } from "@/contexts/FavoritesContext";
 import { useQuery } from "@tanstack/react-query";
 
 const ProductDetailPage = () => {
   const { handle } = useParams<{ handle: string }>();
   const { addItem } = useCart();
+  const { isFavorite, toggleFavorite } = useFavorites();
   const [quantity, setQuantity] = useState(1);
   const [selectedVariantId, setSelectedVariantId] = useState<string>("");
 
@@ -84,7 +86,35 @@ const ProductDetailPage = () => {
     });
   };
 
+  const handleToggleFavorite = () => {
+    if (!product || !currentVariant) return;
+    toggleFavorite({
+      id: product.id,
+      handle: product.handle,
+      title: product.title,
+      image: productImage,
+      priceHT: currentVariant.price_ht,
+      priceTTC: currentVariant.price_ttc,
+    });
+    toast.success(
+      isFavorite(product.id) ? "Retiré des favoris" : "Ajouté aux favoris",
+      { description: product.title }
+    );
+  };
+
   const tags = product.tags || [];
+
+  // Build technical specifications
+  const technicalSpecs: { label: string; value: string }[] = [];
+  if (product.diameter_mm) technicalSpecs.push({ label: "Diamètre", value: `${product.diameter_mm} mm` });
+  if (product.length_mm) technicalSpecs.push({ label: "Longueur", value: `${product.length_mm} mm` });
+  if (product.material) technicalSpecs.push({ label: "Matériau", value: product.material });
+  if (product.drive_type) technicalSpecs.push({ label: "Empreinte", value: product.drive_type });
+  if (product.head_diameter_mm) technicalSpecs.push({ label: "Ø Tête", value: `${product.head_diameter_mm} mm` });
+  if (product.thread_length_mm) technicalSpecs.push({ label: "Filetage", value: `${product.thread_length_mm} mm` });
+  if (product.thickness_to_fix_mm) technicalSpecs.push({ label: "Épaisseur à fixer", value: `${product.thickness_to_fix_mm} mm` });
+  if (product.box_weight) technicalSpecs.push({ label: "Poids boîte", value: `${product.box_weight} kg` });
+  if (product.usage) technicalSpecs.push({ label: "Usage", value: product.usage });
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -126,11 +156,25 @@ const ProductDetailPage = () => {
                   className="max-w-full max-h-full object-contain"
                 />
               </div>
+              {/* Technical specifications table */}
+              {technicalSpecs.length > 0 && (
+                <div className="mt-4 border border-border rounded-lg overflow-hidden">
+                  <h2 className="text-sm font-semibold bg-muted px-3 py-2">Caractéristiques techniques</h2>
+                  <div className="divide-y divide-border">
+                    {technicalSpecs.map((spec, index) => (
+                      <div key={index} className="flex px-3 py-2 text-sm">
+                        <span className="text-muted-foreground w-32 flex-shrink-0">{spec.label}</span>
+                        <span className="font-medium">{spec.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
               
               {/* Technical specifications from tags */}
               {tags.length > 0 && (
-                <div>
-                  <h2 className="text-sm font-semibold mb-2">Caractéristiques</h2>
+                <div className="mt-4">
+                  <h2 className="text-sm font-semibold mb-2">Tags</h2>
                   <div className="flex flex-wrap gap-1.5">
                     {tags.map((tag: string, index: number) => (
                       <Badge key={index} variant="outline" className="text-xs">
@@ -309,8 +353,13 @@ const ProductDetailPage = () => {
                   <ShoppingCart className="h-5 w-5 mr-2" />
                   Ajouter au panier
                 </Button>
-                <Button variant="outline" size="lg">
-                  <Heart className="h-5 w-5" />
+                <Button 
+                  variant="outline" 
+                  size="lg"
+                  onClick={handleToggleFavorite}
+                  className={isFavorite(product.id) ? "text-destructive border-destructive hover:bg-destructive/10" : ""}
+                >
+                  <Heart className={`h-5 w-5 ${isFavorite(product.id) ? "fill-current" : ""}`} />
                 </Button>
               </div>
 
