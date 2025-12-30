@@ -230,10 +230,22 @@ const ProductDetailPage = () => {
               {/* Price */}
               {currentVariant && (
                 <div className="bg-secondary p-3 rounded-lg">
+                  {product.is_promo && product.promo_price_ht && (
+                    <div className="mb-2">
+                      <Badge className="bg-destructive text-destructive-foreground">
+                        -{Math.round(((product.price_ht - product.promo_price_ht) / product.price_ht) * 100)}%
+                      </Badge>
+                    </div>
+                  )}
                   <div className="flex items-baseline gap-2 mb-0.5">
-                    <span className="text-2xl font-bold text-foreground">
+                    <span className={`text-2xl font-bold ${product.is_promo ? 'text-destructive' : 'text-foreground'}`}>
                       {formatPrice(currentVariant.price_ttc)}
                     </span>
+                    {product.is_promo && (
+                      <span className="text-lg text-muted-foreground line-through">
+                        {formatPrice(product.price_ttc)}
+                      </span>
+                    )}
                     {product.box_quantity && (
                       <span className="text-sm text-muted-foreground">
                         / boîte de {product.box_quantity} vis
@@ -242,6 +254,9 @@ const ProductDetailPage = () => {
                   </div>
                   <p className="text-sm text-muted-foreground">
                     {formatPriceHT(currentVariant.price_ht)} HT
+                    {product.is_promo && product.promo_price_ht && (
+                      <span className="ml-2 line-through">{formatPriceHT(product.price_ht)} HT</span>
+                    )}
                   </p>
                 </div>
               )}

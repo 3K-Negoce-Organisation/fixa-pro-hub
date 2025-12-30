@@ -74,6 +74,7 @@ interface ProductFormData {
   is_active: boolean;
   is_promo: boolean;
   promo_price_ht: number;
+  promo_end_date: string;
   tags: string;
   images: ProductImage[];
   // New fields from Excel
@@ -103,6 +104,7 @@ const emptyFormData: ProductFormData = {
   is_active: true,
   is_promo: false,
   promo_price_ht: 0,
+  promo_end_date: "",
   tags: "",
   images: [],
   code_alsafix: "",
@@ -198,6 +200,7 @@ const AdminProductsPage = () => {
           is_active: data.is_active,
           is_promo: data.is_promo,
           promo_price_ht: data.is_promo && data.promo_price_ht > 0 ? data.promo_price_ht : null,
+          promo_end_date: data.is_promo && data.promo_end_date ? new Date(data.promo_end_date).toISOString() : null,
           tags: data.tags ? data.tags.split(',').map(t => t.trim()) : [],
           images: JSON.parse(JSON.stringify(data.images)),
           code_alsafix: data.code_alsafix || null,
@@ -213,7 +216,7 @@ const AdminProductsPage = () => {
           thickness_to_fix_mm: data.thickness_to_fix_mm || null,
           thread_length_mm: data.thread_length_mm || null,
           head_diameter_mm: data.head_diameter_mm || null,
-        });
+        } as any);
       
       if (error) throw error;
     },
@@ -244,6 +247,7 @@ const AdminProductsPage = () => {
           is_active: data.is_active,
           is_promo: data.is_promo,
           promo_price_ht: data.is_promo && data.promo_price_ht > 0 ? data.promo_price_ht : null,
+          promo_end_date: data.is_promo && data.promo_end_date ? new Date(data.promo_end_date).toISOString() : null,
           tags: data.tags ? data.tags.split(',').map(t => t.trim()) : [],
           images: JSON.parse(JSON.stringify(data.images)),
           code_alsafix: data.code_alsafix || null,
@@ -259,7 +263,7 @@ const AdminProductsPage = () => {
           thickness_to_fix_mm: data.thickness_to_fix_mm || null,
           thread_length_mm: data.thread_length_mm || null,
           head_diameter_mm: data.head_diameter_mm || null,
-        })
+        } as any)
         .eq('id', id);
       
       if (error) throw error;
@@ -451,6 +455,7 @@ const AdminProductsPage = () => {
       is_active: product.is_active ?? true,
       is_promo: product.is_promo ?? false,
       promo_price_ht: product.promo_price_ht || 0,
+      promo_end_date: (product as any).promo_end_date ? new Date((product as any).promo_end_date).toISOString().slice(0, 16) : "",
       tags: product.tags?.join(', ') || "",
       images: productImages,
       code_alsafix: product.code_alsafix || "",
@@ -957,30 +962,51 @@ const AdminProductsPage = () => {
                 <Label htmlFor="is_promo">Produit en promotion</Label>
               </div>
               {formData.is_promo && (
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="promo_price_ht">Prix promo HT (€)</Label>
-                    <Input
-                      id="promo_price_ht"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={formData.promo_price_ht}
-                      onChange={(e) => setFormData({ ...formData, promo_price_ht: parseFloat(e.target.value) || 0 })}
-                      placeholder="Prix réduit HT"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Prix normal: {formatPrice(formData.price_ht)} HT
-                    </p>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="promo_price_ht">Prix promo HT (€)</Label>
+                      <Input
+                        id="promo_price_ht"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={formData.promo_price_ht}
+                        onChange={(e) => setFormData({ ...formData, promo_price_ht: parseFloat(e.target.value) || 0 })}
+                        placeholder="Prix réduit HT"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Prix normal: {formatPrice(formData.price_ht)} HT
+                        {formData.promo_price_ht > 0 && formData.price_ht > 0 && (
+                          <span className="ml-2 text-destructive font-medium">
+                            (-{Math.round(((formData.price_ht - formData.promo_price_ht) / formData.price_ht) * 100)}%)
+                          </span>
+                        )}
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Prix promo TTC (calculé)</Label>
+                      <Input
+                        type="text"
+                        value={formatPrice(Math.round(formData.promo_price_ht * 1.2 * 100) / 100)}
+                        disabled
+                        className="bg-muted"
+                      />
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label>Prix promo TTC (calculé)</Label>
-                    <Input
-                      type="text"
-                      value={formatPrice(Math.round(formData.promo_price_ht * 1.2 * 100) / 100)}
-                      disabled
-                      className="bg-muted"
-                    />
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="promo_end_date">Date de fin de promotion</Label>
+                      <Input
+                        id="promo_end_date"
+                        type="datetime-local"
+                        value={formData.promo_end_date}
+                        onChange={(e) => setFormData({ ...formData, promo_end_date: e.target.value })}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Laisser vide pour une promo sans limite de temps
+                      </p>
+                    </div>
                   </div>
                 </div>
               )}
