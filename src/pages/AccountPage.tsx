@@ -3,7 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { User, LogOut, MapPin, Phone, Package, ChevronRight, Eye } from "lucide-react";
+import { User, LogOut, MapPin, Phone, Package, ChevronRight, Eye, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -13,6 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
+import { GDPRSettings } from "@/components/account/GDPRSettings";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
@@ -209,6 +210,10 @@ const AccountPage = () => {
             <TabsTrigger value="orders">
               <Package className="h-4 w-4 mr-2" />
               Mes commandes
+            </TabsTrigger>
+            <TabsTrigger value="privacy">
+              <Shield className="h-4 w-4 mr-2" />
+              Vie privée & RGPD
             </TabsTrigger>
           </TabsList>
 
@@ -408,6 +413,21 @@ const AccountPage = () => {
                     </Table>
                   </div>
                 )}
+              </div>
+            </TabsContent>
+
+            <TabsContent value="privacy">
+              <div className="bg-card border border-border rounded-lg p-6">
+                <div className="mb-6">
+                  <h2 className="text-xl font-semibold flex items-center gap-2">
+                    <Shield className="h-5 w-5 text-primary" />
+                    Vie privée & RGPD
+                  </h2>
+                  <p className="text-muted-foreground mt-1">
+                    Gérez vos données personnelles conformément au Règlement Général sur la Protection des Données.
+                  </p>
+                </div>
+                {user && <GDPRSettings user={user} />}
               </div>
             </TabsContent>
           </Tabs>
