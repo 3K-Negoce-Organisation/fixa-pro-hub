@@ -234,6 +234,11 @@ const ProductDetailPage = () => {
                     <span className="text-2xl font-bold text-foreground">
                       {formatPrice(currentVariant.price_ttc)}
                     </span>
+                    {product.box_quantity && (
+                      <span className="text-sm text-muted-foreground">
+                        / boîte de {product.box_quantity} vis
+                      </span>
+                    )}
                   </div>
                   <p className="text-sm text-muted-foreground">
                     {formatPriceHT(currentVariant.price_ht)} HT
