@@ -231,6 +231,10 @@ export type Database = {
           company_name: string | null
           created_at: string
           id: string
+          marketing_consent: boolean | null
+          marketing_consent_date: string | null
+          newsletter_consent: boolean | null
+          newsletter_consent_date: string | null
           phone: string | null
           same_as_billing: boolean | null
           shipping_address: string | null
@@ -247,6 +251,10 @@ export type Database = {
           company_name?: string | null
           created_at?: string
           id?: string
+          marketing_consent?: boolean | null
+          marketing_consent_date?: string | null
+          newsletter_consent?: boolean | null
+          newsletter_consent_date?: string | null
           phone?: string | null
           same_as_billing?: boolean | null
           shipping_address?: string | null
@@ -263,6 +271,10 @@ export type Database = {
           company_name?: string | null
           created_at?: string
           id?: string
+          marketing_consent?: boolean | null
+          marketing_consent_date?: string | null
+          newsletter_consent?: boolean | null
+          newsletter_consent_date?: string | null
           phone?: string | null
           same_as_billing?: boolean | null
           shipping_address?: string | null
