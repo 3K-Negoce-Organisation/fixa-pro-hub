@@ -91,7 +91,8 @@ const AuthPage = () => {
 
   const ALLOWED_EMAILS = [
     "pierre.kabore@gmail.com",
-    "christophe.kabore@gmail.com"
+    "christophe.kabore@gmail.com",
+    "kaborematthieu@gmail.com"
   ];
 
   const handleSignup = async (values: SignupFormValues) => {
