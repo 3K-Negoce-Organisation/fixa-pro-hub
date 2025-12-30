@@ -145,6 +145,7 @@ export type Database = {
           material: string | null
           price_ht: number
           price_ttc: number
+          promo_end_date: string | null
           promo_price_ht: number | null
           purchase_price_ht: number | null
           specifications: Json | null
@@ -177,6 +178,7 @@ export type Database = {
           material?: string | null
           price_ht: number
           price_ttc: number
+          promo_end_date?: string | null
           promo_price_ht?: number | null
           purchase_price_ht?: number | null
           specifications?: Json | null
@@ -209,6 +211,7 @@ export type Database = {
           material?: string | null
           price_ht?: number
           price_ttc?: number
+          promo_end_date?: string | null
           promo_price_ht?: number | null
           purchase_price_ht?: number | null
           specifications?: Json | null

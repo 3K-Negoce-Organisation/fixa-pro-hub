@@ -24,39 +24,45 @@ const PromosPage = () => {
     },
   });
 
-  // Transform Supabase products to display format
+  // Transform Supabase products to display format (filter out expired promos)
   const displayProducts = useMemo(() => {
-    return products.map((product: Product) => {
-      const variants = parseVariants(product);
-      const firstVariant = variants[0];
-      const image = getProductImage(product);
+    const now = new Date();
+    return products
+      .filter((product: Product) => {
+        const promoEndDate = (product as any).promo_end_date ? new Date((product as any).promo_end_date) : null;
+        return !promoEndDate || promoEndDate >= now;
+      })
+      .map((product: Product) => {
+        const variants = parseVariants(product);
+        const firstVariant = variants[0];
+        const image = getProductImage(product);
 
-      // Use promo price if available
-      const displayPriceHT = product.promo_price_ht ?? product.price_ht;
-      const displayPriceTTC = product.promo_price_ht 
-        ? Math.round(product.promo_price_ht * 1.2 * 100) / 100 
-        : product.price_ttc;
+        // Use promo price if available
+        const displayPriceHT = product.promo_price_ht ?? product.price_ht;
+        const displayPriceTTC = product.promo_price_ht 
+          ? Math.round(product.promo_price_ht * 1.2 * 100) / 100 
+          : product.price_ttc;
 
-      return {
-        id: product.id,
-        variantId: firstVariant?.id || product.id,
-        handle: product.handle,
-        title: product.title,
-        priceHT: displayPriceHT,
-        priceTTC: displayPriceTTC,
-        originalPriceHT: product.promo_price_ht ? product.price_ht : undefined,
-        originalPriceTTC: product.promo_price_ht ? product.price_ttc : undefined,
-        image,
-        category: product.category || "general",
-        diameter_mm: product.diameter_mm,
-        length_mm: product.length_mm,
-        material: product.material,
-        drive_type: product.drive_type,
-        stock: product.stock ?? 0,
-        inStock: (product.stock ?? 0) > 0,
-        isPromo: true,
-      };
-    });
+        return {
+          id: product.id,
+          variantId: firstVariant?.id || product.id,
+          handle: product.handle,
+          title: product.title,
+          priceHT: displayPriceHT,
+          priceTTC: displayPriceTTC,
+          originalPriceHT: product.promo_price_ht ? product.price_ht : undefined,
+          originalPriceTTC: product.promo_price_ht ? product.price_ttc : undefined,
+          image,
+          category: product.category || "general",
+          diameter_mm: product.diameter_mm,
+          length_mm: product.length_mm,
+          material: product.material,
+          drive_type: product.drive_type,
+          stock: product.stock ?? 0,
+          inStock: (product.stock ?? 0) > 0,
+          isPromo: true,
+        };
+      });
   }, [products]);
 
   return (

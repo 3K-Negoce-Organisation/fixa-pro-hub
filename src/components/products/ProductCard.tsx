@@ -22,7 +22,14 @@ export interface DisplayProduct {
   stock: number;
   inStock: boolean;
   isPromo?: boolean;
+  promoEndDate?: string | null;
 }
+
+// Helper to calculate discount percentage
+const calculateDiscountPercent = (originalPrice: number, promoPrice: number): number => {
+  if (!originalPrice || originalPrice <= 0) return 0;
+  return Math.round(((originalPrice - promoPrice) / originalPrice) * 100);
+};
 
 interface ProductCardProps {
   product: DisplayProduct;
@@ -35,13 +42,17 @@ export function ProductCard({ product, onAddToCart }: ProductCardProps) {
     onAddToCart?.(product.id);
   };
 
+  const discountPercent = product.isPromo && product.originalPriceTTC 
+    ? calculateDiscountPercent(product.originalPriceTTC, product.priceTTC)
+    : 0;
+
   return (
     <div className="product-card group flex flex-col h-full">
       {/* Image */}
       <div className="relative block w-32 h-32 mx-auto bg-white p-2 rounded-lg">
-        {product.isPromo && (
+        {product.isPromo && discountPercent > 0 && (
           <Badge className="absolute top-1 right-1 z-10 bg-destructive text-destructive-foreground text-[10px]">
-            PROMO
+            -{discountPercent}%
           </Badge>
         )}
         <Link to={`/produit/${product.handle}`}>

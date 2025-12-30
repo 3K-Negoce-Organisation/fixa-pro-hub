@@ -66,13 +66,18 @@ const ProductsPage = () => {
 
   // Transform Supabase products to display format
   const displayProducts = useMemo(() => {
+    const now = new Date();
     return products.map((product: Product) => {
       const variants = parseVariants(product);
       const firstVariant = variants[0];
       const image = getProductImage(product);
       
-      // Use promo price if available
-      const isPromo = !!(product.is_promo && product.promo_price_ht);
+      // Check if promo is valid (not expired)
+      const promoEndDate = (product as any).promo_end_date ? new Date((product as any).promo_end_date) : null;
+      const isPromoExpired = promoEndDate ? promoEndDate < now : false;
+      
+      // Use promo price if available and not expired
+      const isPromo = !!(product.is_promo && product.promo_price_ht && !isPromoExpired);
       const displayPriceHT = isPromo ? product.promo_price_ht! : product.price_ht;
       const displayPriceTTC = isPromo 
         ? Math.round(product.promo_price_ht! * 1.2 * 100) / 100 
@@ -96,6 +101,7 @@ const ProductsPage = () => {
         stock: product.stock ?? 0,
         inStock: (product.stock ?? 0) > 0,
         isPromo: isPromo,
+        promoEndDate: isPromo && promoEndDate ? promoEndDate.toISOString() : null,
       };
     });
   }, [products]);
