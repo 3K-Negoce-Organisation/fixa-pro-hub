@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { ShoppingCart, Heart, ChevronRight, Truck, Shield, RotateCcw, Loader2, Circle, Ruler, Wrench, Scale, Layers, Target, Settings2, Box } from "lucide-react";
+import TorxIcon from "@/components/icons/TorxIcon";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -109,7 +110,14 @@ const ProductDetailPage = () => {
   if (product.diameter_mm) technicalSpecs.push({ icon: <Circle className="h-4 w-4" />, value: `Ø${product.diameter_mm}`, label: "mm" });
   if (product.length_mm) technicalSpecs.push({ icon: <Ruler className="h-4 w-4" />, value: `${product.length_mm}`, label: "mm" });
   if (product.material) technicalSpecs.push({ icon: <Layers className="h-4 w-4" />, value: product.material, label: "" });
-  if (product.drive_type) technicalSpecs.push({ icon: <Settings2 className="h-4 w-4" />, value: product.drive_type, label: "" });
+  if (product.drive_type) {
+    const isTorx = product.drive_type.toLowerCase().startsWith('tx') || product.drive_type.toLowerCase().includes('torx');
+    technicalSpecs.push({ 
+      icon: isTorx ? <TorxIcon className="h-4 w-4" /> : <Settings2 className="h-4 w-4" />, 
+      value: product.drive_type, 
+      label: "" 
+    });
+  }
   if (product.head_diameter_mm) technicalSpecs.push({ icon: <Target className="h-4 w-4" />, value: `Ø${product.head_diameter_mm}`, label: "tête" });
   if (product.thread_length_mm) technicalSpecs.push({ icon: <Wrench className="h-4 w-4" />, value: `${product.thread_length_mm}`, label: "filet" });
   if (product.box_weight) technicalSpecs.push({ icon: <Scale className="h-4 w-4" />, value: `${product.box_weight}`, label: "kg" });
