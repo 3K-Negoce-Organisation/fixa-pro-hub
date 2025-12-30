@@ -227,25 +227,44 @@ const ProductDetailPage = () => {
                 </div>
               )}
 
-              {/* Price */}
-              {currentVariant && (
-                <div className="bg-secondary p-3 rounded-lg">
-                  {product.is_promo && product.promo_price_ht && (
-                    <div className="mb-2">
-                      <Badge className="bg-destructive text-destructive-foreground">
-                        -{Math.round(((product.price_ht - product.promo_price_ht) / product.price_ht) * 100)}%
-                      </Badge>
-                    </div>
-                  )}
-                  <div className="flex items-baseline gap-2 mb-0.5">
-                    <span className={`text-2xl font-bold ${product.is_promo ? 'text-destructive' : 'text-foreground'}`}>
-                      {formatPrice(currentVariant.price_ttc)}
-                    </span>
-                    {product.is_promo && (
-                      <span className="text-lg text-muted-foreground line-through">
-                        {formatPrice(product.price_ttc)}
+              {/* Promo Banner */}
+              {product.is_promo && product.promo_price_ht && (
+                <div className="bg-gradient-to-r from-destructive/10 to-orange-500/10 border border-destructive/20 rounded-lg p-4">
+                  <div className="flex items-center gap-3 mb-2">
+                    <Badge className="bg-destructive text-destructive-foreground text-sm px-3 py-1">
+                      PROMO -{Math.round(((product.price_ht - product.promo_price_ht) / product.price_ht) * 100)}%
+                    </Badge>
+                    {(product as any).promo_end_date && (
+                      <span className="text-sm text-muted-foreground">
+                        Jusqu'au {new Date((product as any).promo_end_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
                       </span>
                     )}
+                  </div>
+                  <div className="flex items-baseline gap-3">
+                    <span className="text-sm text-muted-foreground">Prix normal :</span>
+                    <span className="text-lg line-through text-muted-foreground">{formatPrice(product.price_ttc)} TTC</span>
+                    <span className="text-xs text-muted-foreground">({formatPriceHT(product.price_ht)} HT)</span>
+                  </div>
+                  <div className="flex items-baseline gap-3 mt-1">
+                    <span className="text-sm font-medium text-destructive">Prix promo :</span>
+                    <span className="text-2xl font-bold text-destructive">
+                      {formatPrice(Math.round(product.promo_price_ht * 1.2 * 100) / 100)} TTC
+                    </span>
+                    <span className="text-sm text-destructive">({formatPriceHT(product.promo_price_ht)} HT)</span>
+                  </div>
+                  <p className="text-xs text-green-600 mt-2 font-medium">
+                    Économie : {formatPrice(product.price_ttc - Math.round(product.promo_price_ht * 1.2 * 100) / 100)} TTC
+                  </p>
+                </div>
+              )}
+
+              {/* Price (non-promo) */}
+              {currentVariant && !product.is_promo && (
+                <div className="bg-secondary p-3 rounded-lg">
+                  <div className="flex items-baseline gap-2 mb-0.5">
+                    <span className="text-2xl font-bold text-foreground">
+                      {formatPrice(currentVariant.price_ttc)}
+                    </span>
                     {product.box_quantity && (
                       <span className="text-sm text-muted-foreground">
                         / boîte de {product.box_quantity} vis
@@ -254,11 +273,15 @@ const ProductDetailPage = () => {
                   </div>
                   <p className="text-sm text-muted-foreground">
                     {formatPriceHT(currentVariant.price_ht)} HT
-                    {product.is_promo && product.promo_price_ht && (
-                      <span className="ml-2 line-through">{formatPriceHT(product.price_ht)} HT</span>
-                    )}
                   </p>
                 </div>
+              )}
+
+              {/* Box quantity for promo products */}
+              {product.is_promo && product.box_quantity && (
+                <p className="text-sm text-muted-foreground">
+                  Boîte de {product.box_quantity} vis
+                </p>
               )}
 
               {/* Add to Cart */}
