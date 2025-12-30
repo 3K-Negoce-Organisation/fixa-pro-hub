@@ -26,7 +26,6 @@ export function CategoryCard({
     >
       <Icon className="h-8 w-8 text-primary mb-2" />
       <span className="font-medium text-sm text-center">{name}</span>
-      <span className="text-xs text-muted-foreground">{count} produits</span>
     </Link>
   );
 }
