@@ -1,13 +1,14 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Search, ShoppingCart, User, Menu, Package, LogOut, Settings, ChevronDown, Truck } from "lucide-react";
+import { Search, User, Menu, Package, LogOut, Settings, ChevronDown, Truck } from "lucide-react";
 import ScrewIcon from "@/components/icons/ScrewIcon";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { useCart } from "@/contexts/CartContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { SupplierSettingsDialog } from "@/components/admin/SupplierSettingsDialog";
+import { CartDrawer } from "@/components/cart/CartDrawer";
+
 export function Header() {
   const [searchQuery, setSearchQuery] = useState("");
   const [userEmail, setUserEmail] = useState<string | null>(null);
@@ -15,7 +16,6 @@ export function Header() {
   const [adminMenuOpen, setAdminMenuOpen] = useState(false);
   const [supplierDialogOpen, setSupplierDialogOpen] = useState(false);
   const navigate = useNavigate();
-  const { totalItems } = useCart();
   useEffect(() => {
     const checkAdmin = async (userId: string | undefined) => {
       if (!userId) {
@@ -148,18 +148,7 @@ export function Header() {
                 <Package className="h-4 w-4" />
                 <span className="hidden md:inline">Suivi de commandes</span>
               </Link>
-              <Link 
-                to="/panier"
-                className="flex items-center gap-1.5 px-3 py-1.5 text-sm hover:bg-primary-foreground/10 rounded transition-colors whitespace-nowrap relative"
-              >
-                <div className="relative">
-                  <ShoppingCart className="h-5 w-5" />
-                  {totalItems > 0 && <span className="absolute -top-2 -right-2 h-4 w-4 flex items-center justify-center text-white text-xs font-bold rounded-full bg-success">
-                      {totalItems > 99 ? "99+" : totalItems}
-                    </span>}
-                </div>
-                <span className="hidden md:inline">Panier</span>
-              </Link>
+              <CartDrawer />
             </div>
           </div>
         </div>
