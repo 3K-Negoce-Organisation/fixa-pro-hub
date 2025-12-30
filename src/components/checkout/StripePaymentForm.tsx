@@ -10,7 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, CreditCard, Lock, RefreshCw, AlertTriangle } from "lucide-react";
+import { Loader2, CreditCard, Lock, RefreshCw, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
@@ -52,6 +52,8 @@ interface CheckoutFormInnerProps extends CheckoutFormProps {
   setUserEmail: (email: string) => void;
 }
 
+const ELEMENTS_READY_TIMEOUT_MS = 15000; // 15 seconds for elements to load
+
 const CheckoutForm = ({ totalTTC, userEmail, isGuest, onSuccess, onCancel, items, totalHT, setUserEmail }: CheckoutFormInnerProps) => {
   const stripe = useStripe();
   const elements = useElements();
@@ -59,14 +61,53 @@ const CheckoutForm = ({ totalTTC, userEmail, isGuest, onSuccess, onCancel, items
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState(userEmail);
+  const [paymentReady, setPaymentReady] = useState(false);
+  const [addressReady, setAddressReady] = useState(false);
+  const [elementsTimedOut, setElementsTimedOut] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
   const { clearCart } = useCart();
+  const elementsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Log Stripe Elements status
   useEffect(() => {
     console.log("[STRIPE] CheckoutForm mounted - stripe:", !!stripe, "elements:", !!elements);
   }, [stripe, elements]);
+
+  // Timeout for elements loading
+  useEffect(() => {
+    elementsTimeoutRef.current = setTimeout(() => {
+      if (!paymentReady || !addressReady) {
+        console.error("[STRIPE] Elements timed out - paymentReady:", paymentReady, "addressReady:", addressReady);
+        setElementsTimedOut(true);
+      }
+    }, ELEMENTS_READY_TIMEOUT_MS);
+
+    return () => {
+      if (elementsTimeoutRef.current) {
+        clearTimeout(elementsTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Clear timeout when both elements are ready
+  useEffect(() => {
+    if (paymentReady && addressReady && elementsTimeoutRef.current) {
+      console.log("[STRIPE] Both elements ready, clearing timeout");
+      clearTimeout(elementsTimeoutRef.current);
+      elementsTimeoutRef.current = null;
+    }
+  }, [paymentReady, addressReady]);
+
+  const handlePaymentReady = () => {
+    console.log("[STRIPE] PaymentElement ready");
+    setPaymentReady(true);
+  };
+
+  const handleAddressReady = () => {
+    console.log("[STRIPE] AddressElement ready");
+    setAddressReady(true);
+  };
 
   // Generate order number
   const generateOrderNumber = () => {
@@ -261,9 +302,32 @@ const CheckoutForm = ({ totalTTC, userEmail, isGuest, onSuccess, onCancel, items
         />
       </div>
 
+      {/* Elements loading warning */}
+      {elementsTimedOut && (
+        <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg text-amber-700 dark:text-amber-400 text-sm flex items-start gap-2">
+          <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+          <div>
+            <p className="font-medium">Le formulaire de paiement ne se charge pas correctement</p>
+            <p className="text-xs mt-1">Causes possibles : bloqueur de publicités, VPN, proxy d'entreprise, ou pare-feu bloquant Stripe.</p>
+            <p className="text-xs mt-1">Essayez de désactiver vos extensions ou utilisez un autre navigateur/réseau.</p>
+          </div>
+        </div>
+      )}
+
+      {/* Loading indicator for elements */}
+      {(!paymentReady || !addressReady) && !elementsTimedOut && (
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          <span>Chargement du formulaire sécurisé...</span>
+        </div>
+      )}
+
       {/* Shipping Address */}
       <div className="space-y-2">
-        <Label>Adresse de livraison *</Label>
+        <Label className="flex items-center gap-2">
+          Adresse de livraison *
+          {addressReady && <span className="text-xs text-green-600">✓</span>}
+        </Label>
         <div className="p-4 bg-muted/50 rounded-lg">
           <AddressElement
             options={{
@@ -273,18 +337,23 @@ const CheckoutForm = ({ totalTTC, userEmail, isGuest, onSuccess, onCancel, items
                 phone: "never",
               },
             }}
+            onReady={handleAddressReady}
           />
         </div>
       </div>
 
       {/* Payment */}
       <div className="space-y-2">
-        <Label>Paiement *</Label>
+        <Label className="flex items-center gap-2">
+          Paiement *
+          {paymentReady && <span className="text-xs text-green-600">✓</span>}
+        </Label>
         <div className="p-4 bg-muted/50 rounded-lg">
           <PaymentElement
             options={{
               layout: "tabs",
             }}
+            onReady={handlePaymentReady}
           />
         </div>
       </div>
