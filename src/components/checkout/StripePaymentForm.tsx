@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { loadStripe } from "@stripe/stripe-js";
+import { useState, useEffect, useRef } from "react";
+import { loadStripe, Stripe } from "@stripe/stripe-js";
 import {
   Elements,
   PaymentElement,
@@ -10,7 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, CreditCard, Lock } from "lucide-react";
+import { Loader2, CreditCard, Lock, RefreshCw, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
@@ -19,7 +19,24 @@ import { formatPrice } from "@/lib/products";
 
 const STRIPE_PUBLISHABLE_KEY = "pk_test_51Sd81FLdlL70a9Pj6JpRNhY6hna6DZZ8I4Id57wBuIppTvQh3GA4RQwpMAFR3h7dSMOstwk45IdQjqRlDYGACA4R00mUtZfUP7";
 
-const stripePromise = loadStripe(STRIPE_PUBLISHABLE_KEY);
+// Load Stripe with error handling
+const loadStripeWithRetry = async (): Promise<Stripe | null> => {
+  console.log("[STRIPE] Starting Stripe.js load...");
+  try {
+    const stripe = await loadStripe(STRIPE_PUBLISHABLE_KEY);
+    if (stripe) {
+      console.log("[STRIPE] Stripe.js loaded successfully");
+    } else {
+      console.error("[STRIPE] Stripe.js returned null - possible ad blocker or network issue");
+    }
+    return stripe;
+  } catch (error) {
+    console.error("[STRIPE] Failed to load Stripe.js:", error);
+    return null;
+  }
+};
+
+const stripePromise = loadStripeWithRetry();
 
 interface CheckoutFormProps {
   totalTTC: number;
@@ -46,6 +63,11 @@ const CheckoutForm = ({ totalTTC, userEmail, isGuest, onSuccess, onCancel, items
   const navigate = useNavigate();
   const { clearCart } = useCart();
 
+  // Log Stripe Elements status
+  useEffect(() => {
+    console.log("[STRIPE] CheckoutForm mounted - stripe:", !!stripe, "elements:", !!elements);
+  }, [stripe, elements]);
+
   // Generate order number
   const generateOrderNumber = () => {
     const date = new Date();
@@ -62,8 +84,11 @@ const CheckoutForm = ({ totalTTC, userEmail, isGuest, onSuccess, onCancel, items
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log("[STRIPE] Form submitted - stripe:", !!stripe, "elements:", !!elements);
 
     if (!stripe || !elements) {
+      console.error("[STRIPE] Stripe or Elements not available");
+      setErrorMessage("Le système de paiement n'est pas disponible. Veuillez rafraîchir la page.");
       return;
     }
 
@@ -126,9 +151,11 @@ const CheckoutForm = ({ totalTTC, userEmail, isGuest, onSuccess, onCancel, items
     });
 
     if (error) {
+      console.error("[STRIPE] Payment error:", error);
       setErrorMessage(error.message || "Une erreur est survenue");
       setIsProcessing(false);
     } else if (paymentIntent && paymentIntent.status === "succeeded") {
+      console.log("[STRIPE] Payment succeeded:", paymentIntent.id);
       // Create order in database with shipping address
       try {
         const { data: { user } } = await supabase.auth.getUser();
@@ -313,6 +340,8 @@ interface StripePaymentFormProps {
   onCancel: () => void;
 }
 
+const LOADING_TIMEOUT_MS = 20000; // 20 seconds timeout
+
 export const StripePaymentForm = ({ items, totalTTC, onSuccess, onCancel }: StripePaymentFormProps) => {
   // Calculate totalHT from items
   const totalHT = items.reduce((sum, item) => sum + (item.priceHT * item.quantity), 0);
@@ -321,63 +350,150 @@ export const StripePaymentForm = ({ items, totalTTC, onSuccess, onCancel }: Stri
   const [isGuest, setIsGuest] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [stripeLoaded, setStripeLoaded] = useState<boolean | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
   const { toast } = useToast();
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Check if Stripe loaded
   useEffect(() => {
-    const createPaymentIntent = async () => {
-      try {
-        // Check if user is logged in
-        const { data: { user } } = await supabase.auth.getUser();
-        
-        if (user?.email) {
-          setUserEmail(user.email);
-          setIsGuest(false);
-        } else {
-          setIsGuest(true);
-        }
-
-        // Create payment intent - works for both guests and logged in users
-        const { data, error } = await supabase.functions.invoke("create-payment-intent", {
-          body: { items, guestEmail: user?.email || undefined },
-        });
-
-        if (error || data?.error) {
-          throw new Error(data?.error || error?.message || "Erreur lors de la création du paiement");
-        }
-
-        setClientSecret(data.clientSecret);
-      } catch (err) {
-        const message = err instanceof Error ? err.message : "Erreur inconnue";
-        setError(message);
-        toast({
-          title: "Erreur",
-          description: message,
-          variant: "destructive",
-        });
-      } finally {
+    console.log("[STRIPE] Checking Stripe.js load status...");
+    stripePromise.then((stripe) => {
+      const loaded = stripe !== null;
+      console.log("[STRIPE] Stripe.js loaded:", loaded);
+      setStripeLoaded(loaded);
+      if (!loaded) {
+        setError("Stripe n'a pas pu être chargé. Vérifiez votre connexion internet ou désactivez votre bloqueur de publicités.");
         setIsLoading(false);
       }
+    });
+  }, []);
+
+  // Create payment intent
+  const createPaymentIntent = async () => {
+    console.log("[STRIPE] Creating payment intent... (attempt:", retryCount + 1, ")");
+    setIsLoading(true);
+    setError(null);
+
+    // Set timeout for loading
+    timeoutRef.current = setTimeout(() => {
+      console.error("[STRIPE] Payment intent creation timed out");
+      setError("Le chargement prend trop de temps. Vérifiez votre connexion internet.");
+      setIsLoading(false);
+    }, LOADING_TIMEOUT_MS);
+
+    try {
+      // Check if user is logged in
+      const { data: { user } } = await supabase.auth.getUser();
+      console.log("[STRIPE] User check complete - logged in:", !!user?.email);
+      
+      if (user?.email) {
+        setUserEmail(user.email);
+        setIsGuest(false);
+      } else {
+        setIsGuest(true);
+      }
+
+      // Create payment intent - works for both guests and logged in users
+      console.log("[STRIPE] Calling create-payment-intent edge function...");
+      const { data, error: invokeError } = await supabase.functions.invoke("create-payment-intent", {
+        body: { items, guestEmail: user?.email || undefined },
+      });
+
+      // Clear timeout on success
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+
+      console.log("[STRIPE] Edge function response:", { 
+        hasData: !!data, 
+        hasClientSecret: !!data?.clientSecret,
+        error: invokeError?.message || data?.error 
+      });
+
+      if (invokeError || data?.error) {
+        throw new Error(data?.error || invokeError?.message || "Erreur lors de la création du paiement");
+      }
+
+      setClientSecret(data.clientSecret);
+      console.log("[STRIPE] Payment intent created successfully");
+    } catch (err) {
+      // Clear timeout on error
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+
+      const message = err instanceof Error ? err.message : "Erreur inconnue";
+      console.error("[STRIPE] Error creating payment intent:", message);
+      setError(message);
+      toast({
+        title: "Erreur",
+        description: message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    // Only create payment intent if Stripe is loaded
+    if (stripeLoaded === true) {
+      createPaymentIntent();
+    }
+    
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
     };
+  }, [stripeLoaded, retryCount]);
 
-    createPaymentIntent();
-  }, [items, toast]);
+  const handleRetry = () => {
+    console.log("[STRIPE] User clicked retry button");
+    setRetryCount(prev => prev + 1);
+  };
 
+  // Loading state
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center py-12 space-y-4">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
         <p className="text-muted-foreground">Préparation du paiement...</p>
+        <p className="text-xs text-muted-foreground/70">Si le chargement prend trop de temps, vérifiez votre connexion</p>
       </div>
     );
   }
 
-  if (error || !clientSecret) {
+  // Error state with retry option
+  if (error || !clientSecret || stripeLoaded === false) {
     return (
       <div className="text-center py-8 space-y-4">
-        <p className="text-destructive">{error || "Impossible de charger le formulaire de paiement"}</p>
-        <Button variant="outline" onClick={onCancel}>
-          Retour au panier
-        </Button>
+        <div className="flex justify-center">
+          <AlertTriangle className="h-12 w-12 text-destructive/70" />
+        </div>
+        <div className="space-y-2">
+          <p className="text-destructive font-medium">Impossible de charger le formulaire de paiement</p>
+          <p className="text-sm text-muted-foreground max-w-md mx-auto">
+            {error || "Une erreur inattendue s'est produite"}
+          </p>
+          {stripeLoaded === false && (
+            <p className="text-xs text-muted-foreground">
+              Conseil: Désactivez votre bloqueur de publicités ou VPN si vous en utilisez un.
+            </p>
+          )}
+        </div>
+        <div className="flex gap-3 justify-center">
+          <Button variant="outline" onClick={onCancel}>
+            Retour au panier
+          </Button>
+          <Button onClick={handleRetry} className="gap-2">
+            <RefreshCw className="h-4 w-4" />
+            Réessayer
+          </Button>
+        </div>
       </div>
     );
   }
