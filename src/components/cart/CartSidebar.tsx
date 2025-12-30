@@ -12,15 +12,7 @@ export function CartSidebar() {
   if (!isOpen) return null;
 
   return (
-    <>
-      {/* Overlay */}
-      <div 
-        className="fixed inset-0 bg-black/40 z-40 animate-fade-in"
-        onClick={toggleCart}
-      />
-      
-      {/* Sidebar */}
-      <div className="fixed top-0 right-0 h-full w-full max-w-md bg-background border-l border-border shadow-xl z-50 flex flex-col animate-slide-in-right">
+    <div className="fixed top-0 right-0 h-full w-56 bg-background border-l border-border shadow-xl z-40 flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-border">
           <div className="flex items-center gap-2">
@@ -140,7 +132,6 @@ export function CartSidebar() {
             </div>
           </>
         )}
-      </div>
-    </>
+    </div>
   );
 }

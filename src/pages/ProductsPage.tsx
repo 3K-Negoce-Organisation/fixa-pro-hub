@@ -16,6 +16,7 @@ import { Footer } from "@/components/layout/Footer";
 import { ProductFilters } from "@/components/products/ProductFilters";
 import { ProductGrid } from "@/components/products/ProductGrid";
 import { fetchProducts, getProductImage, parseVariants, type Product } from "@/lib/products";
+import { useCart } from "@/contexts/CartContext";
 
 type ItemsPerPage = "12" | "25" | "50" | "all";
 
@@ -23,6 +24,7 @@ const ProductsPage = () => {
   const [searchParams] = useSearchParams();
   const categoryParam = searchParams.get("category");
   const query = searchParams.get("q");
+  const { isOpen: isCartOpen } = useCart();
 
   const [filters, setFilters] = useState<Record<string, string[]>>({
     diameter: [],
@@ -345,6 +347,7 @@ const ProductsPage = () => {
                 filterOptions={filterOptions}
                 onFilterChange={handleFilterChange}
                 onClearFilters={handleClearFilters}
+                isCartOpen={isCartOpen}
               />
             )}
 
