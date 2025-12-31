@@ -54,7 +54,12 @@ interface CheckoutFormInnerProps extends CheckoutFormProps {
 
 const ELEMENTS_READY_TIMEOUT_MS = 20000; // 20 seconds for elements to load
 
-const CheckoutForm = ({ totalTTC, userEmail, isGuest, onSuccess, onCancel, items, totalHT, setUserEmail }: CheckoutFormInnerProps) => {
+interface CheckoutFormInnerPropsWithFallback extends CheckoutFormInnerProps {
+  onFallbackToCheckout: () => void;
+  fallbackLoading: boolean;
+}
+
+const CheckoutForm = ({ totalTTC, userEmail, isGuest, onSuccess, onCancel, items, totalHT, setUserEmail, onFallbackToCheckout, fallbackLoading }: CheckoutFormInnerPropsWithFallback) => {
   const stripe = useStripe();
   const elements = useElements();
   const [isProcessing, setIsProcessing] = useState(false);
@@ -329,15 +334,52 @@ const CheckoutForm = ({ totalTTC, userEmail, isGuest, onSuccess, onCancel, items
         />
       </div>
 
-      {/* Elements loading warning */}
+      {/* Elements loading warning with retry and fallback options */}
       {elementsTimedOut && (
-        <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg text-amber-700 dark:text-amber-400 text-sm flex items-start gap-2">
-          <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" />
-          <div>
-            <p className="font-medium">Le formulaire de paiement ne se charge pas correctement</p>
-            <p className="text-xs mt-1">Causes possibles : bloqueur de publicités, VPN, proxy d'entreprise, ou pare-feu bloquant Stripe.</p>
-            <p className="text-xs mt-1">Essayez de désactiver vos extensions ou utilisez un autre navigateur/réseau.</p>
+        <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-lg text-amber-700 dark:text-amber-400 text-sm space-y-3">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="font-medium">Le formulaire de paiement ne se charge pas correctement</p>
+              <p className="text-xs mt-1">
+                Votre antivirus (Kaspersky, Norton...), VPN ou proxy bloque probablement les éléments de paiement Stripe.
+              </p>
+            </div>
           </div>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Button 
+              type="button" 
+              variant="outline" 
+              size="sm"
+              onClick={() => window.location.reload()}
+              className="gap-2"
+            >
+              <RefreshCw className="h-4 w-4" />
+              Réessayer
+            </Button>
+            <Button 
+              type="button" 
+              size="sm"
+              onClick={onFallbackToCheckout}
+              disabled={fallbackLoading}
+              className="gap-2 bg-amber-600 hover:bg-amber-700 text-white"
+            >
+              {fallbackLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Redirection...
+                </>
+              ) : (
+                <>
+                  <Lock className="h-4 w-4" />
+                  Payer sur page sécurisée Stripe
+                </>
+              )}
+            </Button>
+          </div>
+          <p className="text-xs text-amber-600/80">
+            La page sécurisée Stripe fonctionne même avec un antivirus actif.
+          </p>
         </div>
       )}
 
@@ -450,8 +492,41 @@ export const StripePaymentForm = ({ items, totalTTC, onSuccess, onCancel }: Stri
   const [error, setError] = useState<string | null>(null);
   const [stripeLoaded, setStripeLoaded] = useState<boolean | null>(null);
   const [retryCount, setRetryCount] = useState(0);
+  const [fallbackLoading, setFallbackLoading] = useState(false);
   const { toast } = useToast();
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Fallback to Stripe Checkout hosted page
+  const handleFallbackToCheckout = async () => {
+    console.log("[STRIPE] Fallback to Stripe Checkout...");
+    setFallbackLoading(true);
+    
+    try {
+      const { data, error: invokeError } = await supabase.functions.invoke("create-stripe-checkout", {
+        body: { items },
+      });
+
+      if (invokeError || data?.error) {
+        throw new Error(data?.error || invokeError?.message || "Erreur lors de la création du paiement");
+      }
+
+      if (data?.url) {
+        console.log("[STRIPE] Redirecting to Stripe Checkout:", data.url);
+        window.location.href = data.url;
+      } else {
+        throw new Error("URL de paiement non reçue");
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Erreur inconnue";
+      console.error("[STRIPE] Fallback error:", message);
+      toast({
+        title: "Erreur",
+        description: message,
+        variant: "destructive",
+      });
+      setFallbackLoading(false);
+    }
+  };
 
   // Check if Stripe loaded
   useEffect(() => {
@@ -565,7 +640,7 @@ export const StripePaymentForm = ({ items, totalTTC, onSuccess, onCancel }: Stri
     );
   }
 
-  // Error state with retry option
+  // Error state with retry and fallback options
   if (error || !clientSecret || stripeLoaded === false) {
     return (
       <div className="text-center py-8 space-y-4">
@@ -577,19 +652,30 @@ export const StripePaymentForm = ({ items, totalTTC, onSuccess, onCancel }: Stri
           <p className="text-sm text-muted-foreground max-w-md mx-auto">
             {error || "Une erreur inattendue s'est produite"}
           </p>
-          {stripeLoaded === false && (
-            <p className="text-xs text-muted-foreground">
-              Conseil: Désactivez votre bloqueur de publicités ou VPN si vous en utilisez un.
-            </p>
-          )}
+          <p className="text-xs text-muted-foreground">
+            Votre antivirus (Kaspersky, Norton...), VPN ou proxy peut bloquer le formulaire de paiement.
+          </p>
         </div>
-        <div className="flex gap-3 justify-center">
+        <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <Button variant="outline" onClick={onCancel}>
             Retour au panier
           </Button>
-          <Button onClick={handleRetry} className="gap-2">
+          <Button variant="outline" onClick={handleRetry} className="gap-2">
             <RefreshCw className="h-4 w-4" />
             Réessayer
+          </Button>
+          <Button onClick={handleFallbackToCheckout} disabled={fallbackLoading} className="gap-2">
+            {fallbackLoading ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Redirection...
+              </>
+            ) : (
+              <>
+                <Lock className="h-4 w-4" />
+                Payer sur page sécurisée
+              </>
+            )}
           </Button>
         </div>
       </div>
@@ -633,7 +719,9 @@ export const StripePaymentForm = ({ items, totalTTC, onSuccess, onCancel }: Stri
         isGuest={isGuest}
         setUserEmail={setUserEmail}
         onSuccess={onSuccess} 
-        onCancel={onCancel} 
+        onCancel={onCancel}
+        onFallbackToCheckout={handleFallbackToCheckout}
+        fallbackLoading={fallbackLoading}
       />
     </Elements>
   );
