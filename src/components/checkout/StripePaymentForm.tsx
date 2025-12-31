@@ -46,10 +46,19 @@ interface CheckoutFormProps {
   onCancel: () => void;
 }
 
+interface UserProfile {
+  phone: string | null;
+  shipping_name: string | null;
+  shipping_address: string | null;
+  shipping_city: string | null;
+  shipping_postal_code: string | null;
+}
+
 interface CheckoutFormInnerProps extends CheckoutFormProps {
   items: CartItem[];
   totalHT: number;
   setUserEmail: (email: string) => void;
+  userProfile: UserProfile | null;
 }
 
 const ELEMENTS_READY_TIMEOUT_MS = 20000; // 20 seconds for elements to load
@@ -59,12 +68,12 @@ interface CheckoutFormInnerPropsWithFallback extends CheckoutFormInnerProps {
   fallbackLoading: boolean;
 }
 
-const CheckoutForm = ({ totalTTC, userEmail, isGuest, onSuccess, onCancel, items, totalHT, setUserEmail, onFallbackToCheckout, fallbackLoading }: CheckoutFormInnerPropsWithFallback) => {
+const CheckoutForm = ({ totalTTC, userEmail, isGuest, onSuccess, onCancel, items, totalHT, setUserEmail, onFallbackToCheckout, fallbackLoading, userProfile }: CheckoutFormInnerPropsWithFallback) => {
   const stripe = useStripe();
   const elements = useElements();
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [phone, setPhone] = useState("");
+  const [phone, setPhone] = useState(userProfile?.phone || "");
   const [email, setEmail] = useState(userEmail);
   const [paymentReady, setPaymentReady] = useState(false);
   const [addressReady, setAddressReady] = useState(false);
@@ -75,6 +84,13 @@ const CheckoutForm = ({ totalTTC, userEmail, isGuest, onSuccess, onCancel, items
   const elementsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const paymentReadyRef = useRef(false);
   const addressReadyRef = useRef(false);
+
+  // Update phone when userProfile changes
+  useEffect(() => {
+    if (userProfile?.phone && !phone) {
+      setPhone(userProfile.phone);
+    }
+  }, [userProfile]);
 
   // Log Stripe Elements status
   useEffect(() => {
@@ -405,6 +421,16 @@ const CheckoutForm = ({ totalTTC, userEmail, isGuest, onSuccess, onCancel, items
               fields: {
                 phone: "never",
               },
+              defaultValues: userProfile?.shipping_address ? {
+                name: userProfile.shipping_name || "",
+                address: {
+                  line1: userProfile.shipping_address || "",
+                  line2: "",
+                  city: userProfile.shipping_city || "",
+                  postal_code: userProfile.shipping_postal_code || "",
+                  country: "FR",
+                },
+              } : undefined,
             }}
             onReady={handleAddressReady}
             onChange={handleAddressChange}
@@ -493,6 +519,7 @@ export const StripePaymentForm = ({ items, totalTTC, onSuccess, onCancel }: Stri
   const [stripeLoaded, setStripeLoaded] = useState<boolean | null>(null);
   const [retryCount, setRetryCount] = useState(0);
   const [fallbackLoading, setFallbackLoading] = useState(false);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const { toast } = useToast();
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -563,6 +590,24 @@ export const StripePaymentForm = ({ items, totalTTC, onSuccess, onCancel }: Stri
       if (user?.email) {
         setUserEmail(user.email);
         setIsGuest(false);
+        
+        // Fetch user profile for pre-filling
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('phone, shipping_address, shipping_city, shipping_postal_code')
+          .eq('user_id', user.id)
+          .maybeSingle();
+        
+        if (profile) {
+          console.log("[STRIPE] User profile loaded for pre-fill");
+          setUserProfile({
+            phone: profile.phone,
+            shipping_name: user.user_metadata?.full_name || null,
+            shipping_address: profile.shipping_address,
+            shipping_city: profile.shipping_city,
+            shipping_postal_code: profile.shipping_postal_code,
+          });
+        }
       } else {
         setIsGuest(true);
       }
@@ -722,6 +767,7 @@ export const StripePaymentForm = ({ items, totalTTC, onSuccess, onCancel }: Stri
         onCancel={onCancel}
         onFallbackToCheckout={handleFallbackToCheckout}
         fallbackLoading={fallbackLoading}
+        userProfile={userProfile}
       />
     </Elements>
   );
