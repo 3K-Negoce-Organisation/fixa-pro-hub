@@ -52,7 +52,7 @@ interface CheckoutFormInnerProps extends CheckoutFormProps {
   setUserEmail: (email: string) => void;
 }
 
-const ELEMENTS_READY_TIMEOUT_MS = 15000; // 15 seconds for elements to load
+const ELEMENTS_READY_TIMEOUT_MS = 20000; // 20 seconds for elements to load
 
 const CheckoutForm = ({ totalTTC, userEmail, isGuest, onSuccess, onCancel, items, totalHT, setUserEmail }: CheckoutFormInnerProps) => {
   const stripe = useStripe();
@@ -68,17 +68,22 @@ const CheckoutForm = ({ totalTTC, userEmail, isGuest, onSuccess, onCancel, items
   const navigate = useNavigate();
   const { clearCart } = useCart();
   const elementsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const paymentReadyRef = useRef(false);
+  const addressReadyRef = useRef(false);
 
   // Log Stripe Elements status
   useEffect(() => {
     console.log("[STRIPE] CheckoutForm mounted - stripe:", !!stripe, "elements:", !!elements);
   }, [stripe, elements]);
 
-  // Timeout for elements loading
+  // Timeout for elements loading - only start when stripe/elements are available
   useEffect(() => {
+    if (!stripe || !elements) return;
+    
+    console.log("[STRIPE] Starting elements ready timeout...");
     elementsTimeoutRef.current = setTimeout(() => {
-      if (!paymentReady || !addressReady) {
-        console.error("[STRIPE] Elements timed out - paymentReady:", paymentReady, "addressReady:", addressReady);
+      if (!paymentReadyRef.current || !addressReadyRef.current) {
+        console.error("[STRIPE] Elements timed out - paymentReady:", paymentReadyRef.current, "addressReady:", addressReadyRef.current);
         setElementsTimedOut(true);
       }
     }, ELEMENTS_READY_TIMEOUT_MS);
@@ -88,7 +93,7 @@ const CheckoutForm = ({ totalTTC, userEmail, isGuest, onSuccess, onCancel, items
         clearTimeout(elementsTimeoutRef.current);
       }
     };
-  }, []);
+  }, [stripe, elements]);
 
   // Clear timeout when both elements are ready
   useEffect(() => {
@@ -96,17 +101,39 @@ const CheckoutForm = ({ totalTTC, userEmail, isGuest, onSuccess, onCancel, items
       console.log("[STRIPE] Both elements ready, clearing timeout");
       clearTimeout(elementsTimeoutRef.current);
       elementsTimeoutRef.current = null;
+      setElementsTimedOut(false);
     }
   }, [paymentReady, addressReady]);
 
+  // Use both onReady and onChange to detect element readiness
   const handlePaymentReady = () => {
-    console.log("[STRIPE] PaymentElement ready");
+    console.log("[STRIPE] PaymentElement onReady fired");
+    paymentReadyRef.current = true;
     setPaymentReady(true);
   };
 
+  const handlePaymentChange = () => {
+    // onChange fires when element is interactive - use as backup for onReady
+    if (!paymentReadyRef.current) {
+      console.log("[STRIPE] PaymentElement ready via onChange");
+      paymentReadyRef.current = true;
+      setPaymentReady(true);
+    }
+  };
+
   const handleAddressReady = () => {
-    console.log("[STRIPE] AddressElement ready");
+    console.log("[STRIPE] AddressElement onReady fired");
+    addressReadyRef.current = true;
     setAddressReady(true);
+  };
+
+  const handleAddressChange = () => {
+    // onChange fires when element is interactive - use as backup for onReady
+    if (!addressReadyRef.current) {
+      console.log("[STRIPE] AddressElement ready via onChange");
+      addressReadyRef.current = true;
+      setAddressReady(true);
+    }
   };
 
   // Generate order number
@@ -338,6 +365,7 @@ const CheckoutForm = ({ totalTTC, userEmail, isGuest, onSuccess, onCancel, items
               },
             }}
             onReady={handleAddressReady}
+            onChange={handleAddressChange}
           />
         </div>
       </div>
@@ -354,6 +382,7 @@ const CheckoutForm = ({ totalTTC, userEmail, isGuest, onSuccess, onCancel, items
               layout: "tabs",
             }}
             onReady={handlePaymentReady}
+            onChange={handlePaymentChange}
           />
         </div>
       </div>
