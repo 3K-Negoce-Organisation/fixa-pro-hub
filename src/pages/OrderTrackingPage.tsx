@@ -95,21 +95,31 @@ const OrderTrackingPage = () => {
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
   // Fetch user's orders
-  const { data: userOrders, isLoading: loadingUserOrders } = useQuery({
+  const { data: userOrders, isLoading: loadingUserOrders, refetch: refetchOrders } = useQuery({
     queryKey: ["user-orders"],
     queryFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return [];
+      if (!user) {
+        console.log("[ORDERS] No user found, returning empty");
+        return [];
+      }
 
+      console.log("[ORDERS] Fetching orders for user:", user.id);
       const { data, error } = await supabase
         .from("orders")
         .select("*")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error("[ORDERS] Error fetching orders:", error);
+        throw error;
+      }
+      console.log("[ORDERS] Loaded", data?.length || 0, "orders");
       return data || [];
     },
+    staleTime: 0, // Always refetch on mount
+    refetchOnMount: true,
   });
 
   // Auto-search when order number is in URL or select most recent order
