@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { CheckCircle, Package, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -10,13 +10,15 @@ const OrderConfirmationPage = () => {
   const [searchParams] = useSearchParams();
   const sessionId = searchParams.get("session_id");
   const { clearCart } = useCart();
+  const clearedRef = useRef(false);
 
-  // Clear cart on successful payment
+  // Clear cart on successful payment - only once
   useEffect(() => {
-    if (sessionId) {
+    if (sessionId && !clearedRef.current) {
+      clearedRef.current = true;
       clearCart();
     }
-  }, [sessionId, clearCart]);
+  }, [sessionId]);
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
