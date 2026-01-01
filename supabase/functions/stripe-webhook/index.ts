@@ -44,12 +44,12 @@ function generateOrderExcel(
 
   // Add items
   items.forEach(item => {
-    const totalItemHT = (item.priceHT || item.unit_price_ht) * item.quantity;
+    const totalItemHT = (item.priceHT || item.unit_price_ht || item.p || 0) * (item.quantity || item.q || 1);
     wsData.push([
-      item.id || item.product_id || '',
+      item.id || item.product_id || item.i || '',
       item.title || item.product_title || '',
-      item.quantity,
-      `${(item.priceHT || item.unit_price_ht || 0).toFixed(2)} €`,
+      item.quantity || item.q || 1,
+      `${(item.priceHT || item.unit_price_ht || item.p || 0).toFixed(2)} €`,
       `${totalItemHT.toFixed(2)} €`,
       '',
       ''
@@ -95,6 +95,29 @@ function generateOrderExcel(
   return xlsxBuffer;
 }
 
+// Fetch full product details from Supabase
+async function fetchProductDetails(supabaseAdmin: any, productIds: string[]): Promise<Map<string, any>> {
+  const productMap = new Map();
+  
+  if (productIds.length === 0) return productMap;
+  
+  const { data: products, error } = await supabaseAdmin
+    .from('products')
+    .select('id, title, handle, images')
+    .in('id', productIds);
+  
+  if (error) {
+    logStep("Error fetching products", { error: error.message });
+    return productMap;
+  }
+  
+  for (const product of products || []) {
+    productMap.set(product.id, product);
+  }
+  
+  return productMap;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -131,7 +154,159 @@ serve(async (req) => {
       });
     }
 
-    // Handle checkout.session.completed
+    // Create Supabase client with service role
+    const supabaseAdmin = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+      { auth: { persistSession: false } }
+    );
+
+    // Handle payment_intent.succeeded (from Stripe Elements PaymentIntent flow)
+    if (event.type === "payment_intent.succeeded") {
+      const paymentIntent = event.data.object as Stripe.PaymentIntent;
+      logStep("Processing PaymentIntent succeeded", { paymentIntentId: paymentIntent.id });
+
+      const metadata = paymentIntent.metadata || {};
+      const userId = metadata.user_id !== "guest" ? metadata.user_id : null;
+      const userEmail = metadata.user_email || null;
+      const totalHT = parseFloat(metadata.total_ht || "0");
+      const totalTTC = parseFloat(metadata.total_ttc || "0");
+      const itemsCompact = metadata.items_compact;
+
+      logStep("PaymentIntent metadata", { userId, userEmail, totalHT, totalTTC });
+
+      // Parse compact items from metadata
+      let cartItems: any[] = [];
+      try {
+        const compactItems = JSON.parse(itemsCompact || "[]");
+        // Compact format: { i: id, q: quantity, p: priceHT }
+        cartItems = compactItems.map((item: any) => ({
+          id: item.i,
+          quantity: item.q,
+          priceHT: item.p,
+        }));
+        logStep("Parsed compact items", { count: cartItems.length });
+      } catch (e) {
+        logStep("Failed to parse items_compact", { error: String(e) });
+      }
+
+      // Fetch full product details from Supabase
+      const productIds = cartItems.map(item => item.id);
+      const productMap = await fetchProductDetails(supabaseAdmin, productIds);
+      
+      // Enrich cart items with product details
+      cartItems = cartItems.map(item => {
+        const product = productMap.get(item.id);
+        return {
+          ...item,
+          title: product?.title || `Product ${item.id}`,
+          handle: product?.handle || '',
+          image: product?.images?.[0]?.url || '',
+          variantTitle: 'Default',
+        };
+      });
+      logStep("Enriched cart items with product details");
+
+      // Get shipping details from PaymentIntent (if collected via Stripe Elements)
+      // Note: For PaymentIntent flow, shipping is typically collected separately
+      // We'll try to get it from the associated charges
+      let shippingAddress: any = null;
+      let customerName: string | null = null;
+
+      // Try to get shipping from the latest charge
+      if (paymentIntent.latest_charge) {
+        try {
+          const charge = await stripe.charges.retrieve(paymentIntent.latest_charge as string);
+          if (charge.shipping) {
+            shippingAddress = charge.shipping.address;
+            customerName = charge.shipping.name;
+            logStep("Got shipping from charge", { address: shippingAddress, name: customerName });
+          }
+        } catch (e) {
+          logStep("Could not retrieve charge shipping", { error: String(e) });
+        }
+      }
+
+      // Generate order number
+      const orderNumber = generateOrderNumber();
+      logStep("Generated order number", { orderNumber });
+
+      // Create order in Supabase
+      const { data: order, error: orderError } = await supabaseAdmin
+        .from("orders")
+        .insert({
+          order_number: orderNumber,
+          user_id: userId,
+          user_email: userEmail,
+          status: "paid",
+          total_ht: totalHT,
+          total_ttc: totalTTC,
+          shipping_address: shippingAddress 
+            ? `${shippingAddress.line1 || ''}${shippingAddress.line2 ? ', ' + shippingAddress.line2 : ''}`
+            : null,
+          shipping_city: shippingAddress?.city || null,
+          shipping_postal_code: shippingAddress?.postal_code || null,
+          shipping_name: customerName,
+          notes: `Stripe PaymentIntent: ${paymentIntent.id}`,
+        })
+        .select()
+        .single();
+
+      if (orderError) {
+        logStep("Error creating order", { error: orderError.message });
+        throw new Error(`Failed to create order: ${orderError.message}`);
+      }
+
+      logStep("Order created", { orderId: order.id, orderNumber });
+
+      // Create order items
+      if (cartItems.length > 0) {
+        const orderItems = cartItems.map(item => ({
+          order_id: order.id,
+          product_id: item.id,
+          product_title: item.title,
+          variant_title: item.variantTitle || 'Default',
+          product_image: item.image || null,
+          quantity: item.quantity,
+          unit_price_ht: item.priceHT,
+          unit_price_ttc: item.priceHT * 1.20,
+        }));
+
+        const { error: itemsError } = await supabaseAdmin
+          .from("order_items")
+          .insert(orderItems);
+
+        if (itemsError) {
+          logStep("Error creating order items", { error: itemsError.message });
+        } else {
+          logStep("Order items created", { count: orderItems.length });
+        }
+      }
+
+      // Send webhook to n8n for fulfillment
+      if (n8nWebhookUrl) {
+        await sendToN8n(
+          n8nWebhookUrl,
+          supabaseAdmin,
+          orderNumber,
+          order.id,
+          paymentIntent.id,
+          customerName,
+          userEmail,
+          null, // phone
+          shippingAddress,
+          cartItems,
+          totalHT,
+          totalTTC
+        );
+      } else {
+        logStep("N8N_WEBHOOK_URL not configured, skipping fulfillment notification");
+      }
+
+      logStep("PaymentIntent processing complete");
+    }
+
+    // Handle checkout.session.completed (kept for backwards compatibility)
     if (event.type === "checkout.session.completed") {
       const session = event.data.object as Stripe.Checkout.Session;
       logStep("Processing checkout session", { sessionId: session.id });
@@ -156,13 +331,6 @@ serve(async (req) => {
       } catch (e) {
         logStep("Failed to parse items_json", { error: String(e) });
       }
-
-      // Create Supabase client with service role
-      const supabaseAdmin = createClient(
-        Deno.env.get("SUPABASE_URL") ?? "",
-        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-        { auth: { persistSession: false } }
-      );
 
       // Generate order number
       const orderNumber = generateOrderNumber();
@@ -228,93 +396,26 @@ serve(async (req) => {
 
       // Send webhook to n8n for fulfillment
       if (n8nWebhookUrl) {
-        try {
-          // Get supplier settings
-          const { data: supplierSettings } = await supabaseAdmin
-            .from('supplier_settings')
-            .select('*')
-            .maybeSingle();
-
-          logStep("Supplier settings fetched", { hasSettings: !!supplierSettings });
-
-          // Generate Excel recap file
-          const excelBase64 = generateOrderExcel(
-            orderNumber,
-            shippingDetails?.name || fullSession.customer_details?.name || '',
-            fullSession.customer_details?.email || fullSession.customer_email || '',
-            cartItems,
-            totalHT,
-            shippingAddress ? {
-              line1: shippingAddress.line1 || undefined,
-              line2: shippingAddress.line2 || undefined,
-              city: shippingAddress.city || undefined,
-              postal_code: shippingAddress.postal_code || undefined,
-            } : null
-          );
-
-          logStep("Excel file generated", { size: excelBase64.length });
-
-          const n8nPayload = {
-            event: "order.paid",
-            order_number: orderNumber,
-            order_id: order.id,
-            stripe_session_id: session.id,
-            customer: {
-              email: fullSession.customer_details?.email || fullSession.customer_email,
-              phone: fullSession.customer_details?.phone || null,
-              name: fullSession.customer_details?.name || shippingDetails?.name || null,
-              shipping_address: shippingAddress ? {
-                line1: shippingAddress.line1,
-                line2: shippingAddress.line2,
-                city: shippingAddress.city,
-                postal_code: shippingAddress.postal_code,
-                country: shippingAddress.country,
-              } : null,
-            },
-            supplier: supplierSettings ? {
-              name: supplierSettings.name || null,
-              email: supplierSettings.email || null,
-              status_email: supplierSettings.status_email || null,
-              address: supplierSettings.address || null,
-              postal_code: supplierSettings.postal_code || null,
-              city: supplierSettings.city || null,
-              phone: supplierSettings.phone || null,
-            } : null,
-            items: cartItems.map(item => ({
-              product_id: item.id,
-              variant_id: item.variantId,
-              title: item.title,
-              variant_title: item.variantTitle,
-              quantity: item.quantity,
-              unit_price_ht: item.priceHT,
-              unit_price_ttc: item.priceHT * 1.20,
-            })),
-            totals: {
-              ht: totalHT,
-              ttc: totalTTC,
-              currency: "EUR",
-            },
-            // Excel file as base64
-            excel_file: {
-              filename: `commande_${orderNumber}.xlsx`,
-              content_base64: excelBase64,
-              content_type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            },
-            created_at: new Date().toISOString(),
-          };
-
-          logStep("Sending to n8n", { url: n8nWebhookUrl });
-
-          const n8nResponse = await fetch(n8nWebhookUrl, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(n8nPayload),
-          });
-
-          logStep("n8n response", { status: n8nResponse.status });
-        } catch (n8nError) {
-          logStep("n8n webhook failed (non-blocking)", { error: String(n8nError) });
-        }
+        await sendToN8n(
+          n8nWebhookUrl,
+          supabaseAdmin,
+          orderNumber,
+          order.id,
+          session.id,
+          shippingDetails?.name || fullSession.customer_details?.name || null,
+          customerEmail,
+          fullSession.customer_details?.phone || null,
+          shippingAddress ? {
+            line1: shippingAddress.line1 || undefined,
+            line2: shippingAddress.line2 || undefined,
+            city: shippingAddress.city || undefined,
+            postal_code: shippingAddress.postal_code || undefined,
+            country: shippingAddress.country || undefined,
+          } : null,
+          cartItems,
+          totalHT,
+          totalTTC
+        );
       } else {
         logStep("N8N_WEBHOOK_URL not configured, skipping fulfillment notification");
       }
@@ -335,3 +436,96 @@ serve(async (req) => {
     });
   }
 });
+
+// Helper function to send to n8n
+async function sendToN8n(
+  n8nWebhookUrl: string,
+  supabaseAdmin: any,
+  orderNumber: string,
+  orderId: string,
+  stripeId: string,
+  customerName: string | null,
+  customerEmail: string | null,
+  customerPhone: string | null,
+  shippingAddress: any,
+  cartItems: any[],
+  totalHT: number,
+  totalTTC: number
+) {
+  try {
+    // Get supplier settings
+    const { data: supplierSettings } = await supabaseAdmin
+      .from('supplier_settings')
+      .select('*')
+      .maybeSingle();
+
+    logStep("Supplier settings fetched", { hasSettings: !!supplierSettings });
+
+    // Generate Excel recap file
+    const excelBase64 = generateOrderExcel(
+      orderNumber,
+      customerName || '',
+      customerEmail || '',
+      cartItems,
+      totalHT,
+      shippingAddress
+    );
+
+    logStep("Excel file generated", { size: excelBase64.length });
+
+    const n8nPayload = {
+      event: "order.paid",
+      order_number: orderNumber,
+      order_id: orderId,
+      stripe_id: stripeId,
+      customer: {
+        email: customerEmail,
+        phone: customerPhone,
+        name: customerName,
+        shipping_address: shippingAddress,
+      },
+      supplier: supplierSettings ? {
+        name: supplierSettings.name || null,
+        email: supplierSettings.email || null,
+        status_email: supplierSettings.status_email || null,
+        address: supplierSettings.address || null,
+        postal_code: supplierSettings.postal_code || null,
+        city: supplierSettings.city || null,
+        phone: supplierSettings.phone || null,
+      } : null,
+      items: cartItems.map(item => ({
+        product_id: item.id,
+        variant_id: item.variantId || item.id,
+        title: item.title,
+        variant_title: item.variantTitle || 'Default',
+        quantity: item.quantity,
+        unit_price_ht: item.priceHT,
+        unit_price_ttc: item.priceHT * 1.20,
+      })),
+      totals: {
+        ht: totalHT,
+        ttc: totalTTC,
+        currency: "EUR",
+      },
+      // Excel file as base64
+      excel_file: {
+        filename: `commande_${orderNumber}.xlsx`,
+        content_base64: excelBase64,
+        content_type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      },
+      created_at: new Date().toISOString(),
+    };
+
+    logStep("Sending to n8n", { url: n8nWebhookUrl });
+
+    const n8nResponse = await fetch(n8nWebhookUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(n8nPayload),
+    });
+
+    logStep("n8n response", { status: n8nResponse.status });
+  } catch (n8nError) {
+    logStep("n8n webhook failed (non-blocking)", { error: String(n8nError) });
+  }
+}
