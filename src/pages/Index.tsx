@@ -10,7 +10,7 @@ import { CategoryCard } from "@/components/home/CategoryCard";
 import { QuickOrderSection } from "@/components/home/QuickOrderSection";
 import { FeaturedProducts } from "@/components/home/FeaturedProducts";
 import { supabase } from "@/integrations/supabase/client";
-import heroScrewsBg from "@/assets/hero-screws-bg.jpg";
+import heroScrewsBg from "@/assets/hero-screws-new.jpg";
 import screwsDetailLeft from "@/assets/screws-detail-left.jpg";
 import screwsDetailRight from "@/assets/screws-detail-right.jpg";
 
@@ -64,13 +64,12 @@ const Index = () => {
       <main className="flex-1">
         {/* Hero Search Section */}
         <section className="relative overflow-hidden py-12 md:py-16">
-          {/* Background image with overlay */}
+          {/* Background image with transparency */}
           <div 
-            className="absolute inset-0 bg-cover bg-center"
+            className="absolute inset-0 bg-cover bg-center opacity-20"
             style={{ backgroundImage: `url(${heroScrewsBg})` }}
-          >
-            <div className="absolute inset-0 bg-gradient-to-b from-background/95 via-background/85 to-background" />
-          </div>
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-background/30 to-background" />
           
           <div className="container relative z-10">
             {/* Main content with decorative images */}
