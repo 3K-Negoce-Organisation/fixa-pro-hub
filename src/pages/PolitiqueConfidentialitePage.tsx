@@ -30,13 +30,15 @@ const PolitiqueConfidentialitePage = () => {
               activités commerciales est :
             </p>
             <div className="text-muted-foreground mt-4">
-              <p><strong>Vis à Bois</strong></p>
-              <p>Société par Actions Simplifiée (SAS) au capital de [à compléter] euros</p>
-              <p>Siège social : [à compléter]</p>
-              <p>Immatriculée au Registre du Commerce et des Sociétés de [à compléter] sous le numéro [à compléter]</p>
-              <p>Numéro de TVA intracommunautaire : [à compléter]</p>
+              <p><strong>Luceka</strong> (exploitant la marque Vis à Bois)</p>
+              <p>Société par Actions Simplifiée (SAS) au capital de 2 000 euros</p>
+              <p>Siège social : 345 chemin de l'Espero, 13090 Aix-en-Provence</p>
+              <p>Immatriculée au Registre du Commerce et des Sociétés d'Aix-en-Provence sous le numéro SIREN 818 228 637</p>
+              <p>Inscrite au greffe d'Aix-en-Provence le 04/02/2016</p>
+              <p>Numéro de TVA intracommunautaire : FR43818228637</p>
+              <p>Dirigeant : Pierre Kaboré</p>
               <p className="mt-2">Email : contact@vis-a-bois.fr</p>
-              <p>Téléphone : [à compléter]</p>
+              <p>Téléphone : 06 17 91 20 29</p>
             </div>
           </section>
 

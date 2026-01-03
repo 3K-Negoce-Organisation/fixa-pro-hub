@@ -13,13 +13,14 @@ const MentionsLegalesPage = () => {
             <h2 className="text-xl font-semibold text-foreground mb-4">1. Éditeur du site</h2>
             <p className="text-muted-foreground">
               Le site vis-a-bois.fr est édité par :<br />
-              <strong>Vis à Bois</strong><br />
+              <strong>Luceka</strong> (exploitant la marque Vis à Bois)<br />
               Société par actions simplifiée (SAS)<br />
-              Capital social : [À compléter]<br />
-              RCS : [À compléter]<br />
-              SIRET : [À compléter]<br />
-              Siège social : [Adresse à compléter]<br />
-              Téléphone : 03 88 XX XX XX<br />
+              Capital social : 2 000 euros<br />
+              SIREN : 818 228 637<br />
+              TVA intracommunautaire : FR43818228637<br />
+              Siège social : 345 chemin de l'Espero, 13090 Aix-en-Provence<br />
+              Inscrite au greffe d'Aix-en-Provence le 04/02/2016<br />
+              Téléphone : 06 17 91 20 29<br />
               Email : contact@vis-a-bois.fr
             </p>
           </section>
@@ -27,7 +28,7 @@ const MentionsLegalesPage = () => {
           <section>
             <h2 className="text-xl font-semibold text-foreground mb-4">2. Directeur de la publication</h2>
             <p className="text-muted-foreground">
-              Le directeur de la publication est [Nom du directeur à compléter], en qualité de [fonction].
+              Le directeur de la publication est Pierre Kaboré, en qualité de gérant.
             </p>
           </section>
 
