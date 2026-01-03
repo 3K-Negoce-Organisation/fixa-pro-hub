@@ -316,6 +316,69 @@ serve(async (req) => {
 
     logStep("PDF file generated", { size: pdfBase64.length });
 
+    // Store PDF in order-documents bucket
+    const pdfFileName = `commande_${order.order_number}.pdf`;
+    const pdfPath = `${order.id}/${pdfFileName}`;
+    
+    // Decode base64 to binary
+    const binaryString = atob(pdfBase64);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+
+    const { error: uploadError } = await supabaseAdmin.storage
+      .from('order-documents')
+      .upload(pdfPath, bytes, {
+        contentType: 'application/pdf',
+        upsert: true,
+      });
+
+    if (uploadError) {
+      logStep("Error uploading PDF to storage", { error: uploadError.message });
+    } else {
+      logStep("PDF uploaded to storage", { path: pdfPath });
+
+      // Generate signed URL (valid for 1 year)
+      const { data: signedUrlData } = await supabaseAdmin.storage
+        .from('order-documents')
+        .createSignedUrl(pdfPath, 60 * 60 * 24 * 365);
+
+      if (signedUrlData?.signedUrl) {
+        // Get existing documents
+        const existingDocs = Array.isArray(order.documents) ? order.documents : [];
+        
+        // Check if this document already exists (avoid duplicates)
+        const docExists = existingDocs.some((doc: any) => doc.name === pdfFileName);
+        
+        if (!docExists) {
+          const newDocument = {
+            name: pdfFileName,
+            path: pdfPath,
+            url: signedUrlData.signedUrl,
+            type: 'application/pdf',
+            uploaded_at: new Date().toISOString(),
+          };
+
+          // Update order with new document
+          const { error: updateError } = await supabaseAdmin
+            .from('orders')
+            .update({
+              documents: [...existingDocs, newDocument],
+            })
+            .eq('id', order.id);
+
+          if (updateError) {
+            logStep("Error updating order documents", { error: updateError.message });
+          } else {
+            logStep("Order documents updated", { docCount: existingDocs.length + 1 });
+          }
+        } else {
+          logStep("Document already exists, skipping", { name: pdfFileName });
+        }
+      }
+    }
+
     // Build n8n payload
     const n8nPayload = {
       event: "order.paid",
@@ -356,7 +419,7 @@ serve(async (req) => {
         currency: "EUR",
       },
       pdf_file: {
-        filename: `commande_${order.order_number}.pdf`,
+        filename: pdfFileName,
         content_base64: pdfBase64,
         content_type: "application/pdf",
       },
@@ -388,7 +451,7 @@ serve(async (req) => {
         n8n_status: responseStatus,
         order_number: order.order_number,
         pdf_file: {
-          filename: `commande_${order.order_number}.pdf`,
+          filename: pdfFileName,
           content_base64: pdfBase64,
         },
       }),
