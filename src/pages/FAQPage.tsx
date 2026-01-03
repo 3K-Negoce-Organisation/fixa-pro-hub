@@ -156,7 +156,7 @@ const FAQPage = () => {
             </div>
             <div>
               <span className="font-medium text-foreground">Email :</span>{" "}
-              <a href="mailto:contact@luceka.fr" className="text-primary hover:underline">contact@luceka.fr</a>
+              <a href="mailto:contact@vis-a-bois.fr" className="text-primary hover:underline">contact@vis-a-bois.fr</a>
             </div>
           </div>
         </section>
