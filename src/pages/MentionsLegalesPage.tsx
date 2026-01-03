@@ -33,12 +33,17 @@ const MentionsLegalesPage = () => {
           </section>
 
           <section>
-            <h2 className="text-xl font-semibold text-foreground mb-4">3. Hébergeur</h2>
+            <h2 className="text-xl font-semibold text-foreground mb-4">3. Hébergement</h2>
             <p className="text-muted-foreground">
-              Le site est hébergé par :<br />
-              <strong>Lovable</strong><br />
-              Adresse : [Adresse de l'hébergeur]<br />
-              Site web : lovable.dev
+              <strong>Hébergement du nom de domaine :</strong><br />
+              OVH SAS<br />
+              2 rue Kellermann, 59100 Roubaix, France<br />
+              Site web : <a href="https://www.ovhcloud.com/fr/" className="text-primary hover:underline" target="_blank" rel="noopener noreferrer">www.ovhcloud.com</a>
+            </p>
+            <p className="text-muted-foreground mt-4">
+              <strong>Hébergement du contenu :</strong><br />
+              Luceka<br />
+              345 chemin de l'Espero, 13090 Aix-en-Provence
             </p>
           </section>
 
