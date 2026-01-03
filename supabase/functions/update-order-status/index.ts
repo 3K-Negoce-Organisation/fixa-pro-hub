@@ -13,7 +13,16 @@ serve(async (req) => {
   }
 
   try {
-    const { api_key, order_number, status, tracking_number, carrier } = await req.json();
+    const { 
+      api_key, 
+      order_number, 
+      status, 
+      tracking_number, 
+      carrier,
+      document_base64,
+      document_name,
+      document_type 
+    } = await req.json();
 
     // Validate API key
     const expectedApiKey = Deno.env.get('ORDER_UPDATE_API_KEY');
@@ -42,6 +51,14 @@ serve(async (req) => {
       );
     }
 
+    // Validate document fields if document is provided
+    if (document_base64 && !document_name) {
+      return new Response(
+        JSON.stringify({ error: 'document_name is required when uploading a document' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Create Supabase client with service role
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -50,7 +67,7 @@ serve(async (req) => {
     // Check if order exists
     const { data: existingOrder, error: fetchError } = await supabase
       .from('orders')
-      .select('id, order_number, status')
+      .select('id, order_number, status, documents')
       .eq('order_number', order_number.toUpperCase())
       .maybeSingle();
 
@@ -78,6 +95,78 @@ serve(async (req) => {
     if (tracking_number !== undefined) updateData.tracking_number = tracking_number;
     if (carrier !== undefined) updateData.carrier = carrier;
 
+    // Handle document upload if provided
+    let uploadedDocumentUrl: string | null = null;
+    if (document_base64) {
+      try {
+        console.log(`Uploading document: ${document_name} for order ${order_number}`);
+        
+        // Decode base64 to binary
+        const binaryString = atob(document_base64);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+
+        // Determine content type
+        const contentType = document_type || 'application/pdf';
+        
+        // Generate unique filename
+        const timestamp = Date.now();
+        const sanitizedName = document_name.replace(/[^a-zA-Z0-9._-]/g, '_');
+        const filePath = `${order_number.toUpperCase()}/${timestamp}_${sanitizedName}`;
+
+        // Upload to storage
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('order-documents')
+          .upload(filePath, bytes, {
+            contentType,
+            upsert: false,
+          });
+
+        if (uploadError) {
+          console.error('Error uploading document:', uploadError);
+          return new Response(
+            JSON.stringify({ error: 'Error uploading document', details: uploadError.message }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        console.log(`Document uploaded successfully: ${uploadData.path}`);
+
+        // Get signed URL for the document (valid for 1 year)
+        const { data: signedUrlData, error: signedUrlError } = await supabase.storage
+          .from('order-documents')
+          .createSignedUrl(filePath, 31536000); // 1 year in seconds
+
+        if (signedUrlError) {
+          console.error('Error creating signed URL:', signedUrlError);
+        }
+
+        uploadedDocumentUrl = signedUrlData?.signedUrl || filePath;
+
+        // Add document to existing documents array
+        const existingDocuments = existingOrder.documents || [];
+        const newDocument = {
+          name: document_name,
+          path: filePath,
+          url: uploadedDocumentUrl,
+          type: contentType,
+          uploaded_at: new Date().toISOString(),
+        };
+        
+        updateData.documents = [...existingDocuments, newDocument];
+        console.log(`Document added to order. Total documents: ${(updateData.documents as unknown[]).length}`);
+        
+      } catch (docError) {
+        console.error('Error processing document:', docError);
+        return new Response(
+          JSON.stringify({ error: 'Error processing document', details: String(docError) }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
     // Update order
     const { data: updatedOrder, error: updateError } = await supabase
       .from('orders')
@@ -94,13 +183,19 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Order ${order_number} updated successfully:`, updateData);
+    console.log(`Order ${order_number} updated successfully:`, {
+      status: updateData.status,
+      tracking_number: updateData.tracking_number,
+      carrier: updateData.carrier,
+      document_uploaded: !!uploadedDocumentUrl,
+    });
 
     return new Response(
       JSON.stringify({
         success: true,
         order: updatedOrder,
         message: `Order ${order_number} updated successfully`,
+        document_url: uploadedDocumentUrl,
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

@@ -65,6 +65,7 @@ export type Database = {
         Row: {
           carrier: string | null
           created_at: string
+          documents: Json | null
           id: string
           is_archived: boolean
           notes: string | null
@@ -85,6 +86,7 @@ export type Database = {
         Insert: {
           carrier?: string | null
           created_at?: string
+          documents?: Json | null
           id?: string
           is_archived?: boolean
           notes?: string | null
@@ -105,6 +107,7 @@ export type Database = {
         Update: {
           carrier?: string | null
           created_at?: string
+          documents?: Json | null
           id?: string
           is_archived?: boolean
           notes?: string | null
