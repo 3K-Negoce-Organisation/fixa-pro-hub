@@ -367,7 +367,7 @@ const OrderTrackingPage = () => {
               }
               
               return (
-                <div key={step.key} className="flex flex-col items-center relative z-10">
+                <div key={step.key} className="flex flex-col items-center relative z-10 w-16">
                   <div 
                     className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors ${
                       isCompleted 
@@ -379,33 +379,31 @@ const OrderTrackingPage = () => {
                   >
                     {isCompleted ? <CheckCircle className="h-4 w-4" /> : stepNumber}
                   </div>
-                  <span className={`mt-2 text-xs font-medium ${isCurrent ? 'text-primary' : 'text-muted-foreground'}`}>
+                  <span className={`mt-2 text-xs font-medium text-center ${isCurrent ? 'text-primary' : 'text-muted-foreground'}`}>
                     {step.label}
                   </span>
                   
-                  {/* Document icons */}
-                  {stepDocs.length > 0 && (
-                    <div className="flex gap-1 mt-1">
-                      {stepDocs.map((doc, docIndex) => (
-                        <Tooltip key={docIndex}>
-                          <TooltipTrigger asChild>
-                            <a
-                              href={doc.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="p-1 rounded hover:bg-muted transition-colors"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <FileText className="h-4 w-4 text-primary" />
-                            </a>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p className="text-xs">{doc.name}</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      ))}
-                    </div>
-                  )}
+                  {/* Document icons - fixed height container */}
+                  <div className="h-6 flex items-center justify-center gap-1 mt-1">
+                    {stepDocs.map((doc, docIndex) => (
+                      <Tooltip key={docIndex}>
+                        <TooltipTrigger asChild>
+                          <a
+                            href={doc.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-0.5 rounded hover:bg-muted transition-colors"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <FileText className="h-4 w-4 text-primary" />
+                          </a>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p className="text-xs">{doc.name}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    ))}
+                  </div>
                 </div>
               );
             })}
