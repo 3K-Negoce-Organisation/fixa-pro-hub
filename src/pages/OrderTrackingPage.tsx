@@ -15,7 +15,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Package, Truck, CheckCircle, Clock, XCircle, Search, AlertCircle, Loader2, ShoppingBag } from "lucide-react";
+import { Package, Truck, CheckCircle, Clock, XCircle, Search, AlertCircle, Loader2, ShoppingBag, FileText } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 
@@ -46,6 +47,14 @@ interface OrderItem {
   unit_price_ttc: number;
 }
 
+interface OrderDocument {
+  name: string;
+  path: string;
+  url: string;
+  type: string;
+  uploaded_at: string;
+}
+
 interface Order {
   id: string;
   order_number: string;
@@ -61,6 +70,7 @@ interface Order {
   created_at: string;
   updated_at: string;
   order_items: OrderItem[];
+  documents: OrderDocument[];
 }
 
 const statusConfig: Record<OrderStatus, { label: string; color: string; icon: React.ReactNode; step: number }> = {
@@ -238,10 +248,16 @@ const OrderTrackingPage = () => {
       console.error("Error loading order items:", itemsError);
     }
 
+    // Parse documents from JSONB
+    const documents: OrderDocument[] = Array.isArray(orderData.documents) 
+      ? (orderData.documents as unknown as OrderDocument[])
+      : [];
+
     setOrder({
       ...orderData,
       status: orderData.status as OrderStatus,
       order_items: itemsData || [],
+      documents,
     });
 
     setLoading(false);
@@ -277,6 +293,41 @@ const OrderTrackingPage = () => {
     });
   };
 
+  // Map documents to status steps for display
+  const getDocumentsForStep = (stepKey: string): OrderDocument[] => {
+    if (!order?.documents) return [];
+    
+    // Map step keys to document name patterns
+    const stepDocPatterns: Record<string, string[]> = {
+      'paid': ['commande', 'order', 'bon_de_commande'],
+      'confirmed': ['confirmation', 'accuse'],
+      'processing': ['preparation'],
+      'shipped': ['expedition', 'livraison', 'facture', 'invoice', 'bon_de_livraison'],
+      'delivered': ['livraison', 'delivery'],
+    };
+
+    const patterns = stepDocPatterns[stepKey] || [];
+    if (patterns.length === 0) return [];
+
+    return order.documents.filter(doc => {
+      const docNameLower = doc.name.toLowerCase();
+      return patterns.some(pattern => docNameLower.includes(pattern));
+    });
+  };
+
+  // Get all documents that don't match any step pattern (show on current step)
+  const getUnmappedDocuments = (): OrderDocument[] => {
+    if (!order?.documents) return [];
+    
+    const allPatterns = ['commande', 'order', 'bon_de_commande', 'confirmation', 'accuse', 
+      'preparation', 'expedition', 'livraison', 'facture', 'invoice', 'bon_de_livraison', 'delivery'];
+    
+    return order.documents.filter(doc => {
+      const docNameLower = doc.name.toLowerCase();
+      return !allPatterns.some(pattern => docNameLower.includes(pattern));
+    });
+  };
+
   const renderProgressBar = (status: OrderStatus) => {
     if (status === 'cancelled') {
       return (
@@ -288,44 +339,79 @@ const OrderTrackingPage = () => {
     }
 
     const currentStep = statusConfig[status].step;
+    const unmappedDocs = getUnmappedDocuments();
 
     return (
-      <div className="py-6">
-        <div className="flex items-center justify-between relative">
-          {/* Progress line */}
-          <div className="absolute left-0 right-0 top-4 h-1 bg-muted">
-            <div 
-              className="h-full bg-primary transition-all duration-500"
-              style={{ width: `${((currentStep - 1) / (statusSteps.length - 1)) * 100}%` }}
-            />
-          </div>
-          
-          {statusSteps.map((step, index) => {
-            const stepNumber = index + 1;
-            const isCompleted = stepNumber < currentStep;
-            const isCurrent = stepNumber === currentStep;
+      <TooltipProvider>
+        <div className="py-6">
+          <div className="flex items-center justify-between relative">
+            {/* Progress line */}
+            <div className="absolute left-0 right-0 top-4 h-1 bg-muted">
+              <div 
+                className="h-full bg-primary transition-all duration-500"
+                style={{ width: `${((currentStep - 1) / (statusSteps.length - 1)) * 100}%` }}
+              />
+            </div>
             
-            return (
-              <div key={step.key} className="flex flex-col items-center relative z-10">
-                <div 
-                  className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors ${
-                    isCompleted 
-                      ? 'bg-primary text-primary-foreground' 
-                      : isCurrent 
-                        ? 'bg-primary text-primary-foreground ring-4 ring-primary/20' 
-                        : 'bg-muted text-muted-foreground'
-                  }`}
-                >
-                  {isCompleted ? <CheckCircle className="h-4 w-4" /> : stepNumber}
+            {statusSteps.map((step, index) => {
+              const stepNumber = index + 1;
+              const isCompleted = stepNumber < currentStep;
+              const isCurrent = stepNumber === currentStep;
+              
+              // Get documents for this step
+              let stepDocs = getDocumentsForStep(step.key);
+              
+              // Add unmapped docs to current step
+              if (isCurrent) {
+                stepDocs = [...stepDocs, ...unmappedDocs];
+              }
+              
+              return (
+                <div key={step.key} className="flex flex-col items-center relative z-10">
+                  <div 
+                    className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors ${
+                      isCompleted 
+                        ? 'bg-primary text-primary-foreground' 
+                        : isCurrent 
+                          ? 'bg-primary text-primary-foreground ring-4 ring-primary/20' 
+                          : 'bg-muted text-muted-foreground'
+                    }`}
+                  >
+                    {isCompleted ? <CheckCircle className="h-4 w-4" /> : stepNumber}
+                  </div>
+                  <span className={`mt-2 text-xs font-medium ${isCurrent ? 'text-primary' : 'text-muted-foreground'}`}>
+                    {step.label}
+                  </span>
+                  
+                  {/* Document icons */}
+                  {stepDocs.length > 0 && (
+                    <div className="flex gap-1 mt-1">
+                      {stepDocs.map((doc, docIndex) => (
+                        <Tooltip key={docIndex}>
+                          <TooltipTrigger asChild>
+                            <a
+                              href={doc.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="p-1 rounded hover:bg-muted transition-colors"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <FileText className="h-4 w-4 text-primary" />
+                            </a>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p className="text-xs">{doc.name}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      ))}
+                    </div>
+                  )}
                 </div>
-                <span className={`mt-2 text-xs font-medium ${isCurrent ? 'text-primary' : 'text-muted-foreground'}`}>
-                  {step.label}
-                </span>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
-      </div>
+      </TooltipProvider>
     );
   };
 
