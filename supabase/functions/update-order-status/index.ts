@@ -51,6 +51,22 @@ serve(async (req) => {
       );
     }
 
+    // Validate tracking_number and carrier are required for "shipped" status
+    if (status === 'shipped') {
+      if (!tracking_number) {
+        return new Response(
+          JSON.stringify({ error: 'tracking_number is required when status is "shipped"' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      if (!carrier) {
+        return new Response(
+          JSON.stringify({ error: 'carrier is required when status is "shipped"' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
     // Validate document fields if document is provided
     if (document_base64 && !document_name) {
       return new Response(
