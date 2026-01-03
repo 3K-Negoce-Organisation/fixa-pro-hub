@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { ProductCard, DisplayProduct } from "@/components/products/ProductCard";
 import { fetchProducts, getProductImage, Product } from "@/lib/products";
+import { useCart } from "@/contexts/CartContext";
 import { toast } from "sonner";
 
 function mapProductToDisplay(product: Product): DisplayProduct {
@@ -26,6 +27,7 @@ function mapProductToDisplay(product: Product): DisplayProduct {
 }
 
 export function FeaturedProducts() {
+  const { addItem } = useCart();
   const { data: products, isLoading } = useQuery({
     queryKey: ["featured-products"],
     queryFn: () => fetchProducts(),
@@ -36,6 +38,15 @@ export function FeaturedProducts() {
   const handleAddToCart = (productId: string) => {
     const product = featuredProducts.find((p) => p.id === productId);
     if (product) {
+      addItem({
+        id: product.id,
+        variantId: product.variantId,
+        handle: product.handle,
+        title: product.title,
+        variantTitle: "Unité",
+        priceHT: product.priceHT,
+        image: product.image,
+      });
       toast.success("Produit ajouté au panier", {
         description: product.title,
       });
