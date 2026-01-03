@@ -24,6 +24,7 @@ import PromosPage from "./pages/PromosPage";
 import MentionsLegalesPage from "./pages/MentionsLegalesPage";
 import PolitiqueConfidentialitePage from "./pages/PolitiqueConfidentialitePage";
 import CookiesPage from "./pages/CookiesPage";
+import FAQPage from "./pages/FAQPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -54,6 +55,7 @@ const App = () => (
               <Route path="/mentions-legales" element={<AuthGuard><MentionsLegalesPage /></AuthGuard>} />
               <Route path="/politique-confidentialite" element={<AuthGuard><PolitiqueConfidentialitePage /></AuthGuard>} />
               <Route path="/cookies" element={<AuthGuard><CookiesPage /></AuthGuard>} />
+              <Route path="/faq" element={<AuthGuard><FAQPage /></AuthGuard>} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<AuthGuard><NotFound /></AuthGuard>} />
             </Routes>
