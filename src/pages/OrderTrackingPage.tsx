@@ -15,10 +15,35 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Package, Truck, CheckCircle, Clock, XCircle, Search, AlertCircle, Loader2, ShoppingBag, FileText } from "lucide-react";
+import { Package, Truck, CheckCircle, Clock, XCircle, Search, AlertCircle, Loader2, ShoppingBag, FileText, Download } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
+
+// Download document via fetch to avoid ad-blocker issues
+const downloadDocument = async (url: string, fileName: string) => {
+  try {
+    toast.loading("Téléchargement en cours...", { id: "download" });
+    const response = await fetch(url);
+    if (!response.ok) throw new Error("Erreur de téléchargement");
+    
+    const blob = await response.blob();
+    const blobUrl = window.URL.createObjectURL(blob);
+    
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(blobUrl);
+    
+    toast.success("Document téléchargé", { id: "download" });
+  } catch (error) {
+    console.error("Download error:", error);
+    toast.error("Erreur lors du téléchargement", { id: "download" });
+  }
+};
 
 const formatPriceHT = (price: number) => {
   return new Intl.NumberFormat("fr-FR", {
@@ -388,15 +413,16 @@ const OrderTrackingPage = () => {
                     {stepDocs.map((doc, docIndex) => (
                       <Tooltip key={docIndex}>
                         <TooltipTrigger asChild>
-                          <a
-                            href={doc.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="p-0.5 rounded hover:bg-muted transition-colors"
-                            onClick={(e) => e.stopPropagation()}
+                          <button
+                            type="button"
+                            className="p-0.5 rounded hover:bg-muted transition-colors cursor-pointer"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              downloadDocument(doc.url, doc.name);
+                            }}
                           >
                             <FileText className="h-4 w-4 text-primary" />
-                          </a>
+                          </button>
                         </TooltipTrigger>
                         <TooltipContent>
                           <p className="text-xs">{doc.name}</p>
