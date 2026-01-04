@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
+import { PageBackground } from "@/components/layout/PageBackground";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -74,7 +75,7 @@ const ContactPage = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <PageBackground>
       <Header />
       
       <main className="flex-1 container mx-auto px-4 py-8 md:py-12">
@@ -240,7 +241,7 @@ const ContactPage = () => {
       </main>
 
       <Footer />
-    </div>
+    </PageBackground>
   );
 };
 

@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/select";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
+import { PageBackground } from "@/components/layout/PageBackground";
 import { ProductFilters } from "@/components/products/ProductFilters";
 import { ProductGrid } from "@/components/products/ProductGrid";
 import { fetchProducts, getProductImage, parseVariants, type Product } from "@/lib/products";
@@ -289,7 +290,7 @@ const ProductsPage = () => {
   const endIndex = itemsPerPage === "all" ? totalProducts : Math.min(currentPage * perPage, totalProducts);
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <PageBackground>
       <Header />
 
       <main className="flex-1">
@@ -467,7 +468,7 @@ const ProductsPage = () => {
       </main>
 
       <Footer />
-    </div>
+    </PageBackground>
   );
 };
 

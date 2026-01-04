@@ -13,6 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
+import { PageBackground } from "@/components/layout/PageBackground";
 import { GDPRSettings } from "@/components/account/GDPRSettings";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -170,15 +171,18 @@ const AccountPage = () => {
     navigate("/");
   };
   if (isLoading) {
-    return <div className="min-h-screen flex flex-col bg-background">
+    return (
+      <PageBackground>
         <Header />
         <main className="flex-1 flex items-center justify-center">
           <div className="text-muted-foreground">Chargement...</div>
         </main>
         <Footer />
-      </div>;
+      </PageBackground>
+    );
   }
-  return <div className="min-h-screen flex flex-col bg-background">
+  return (
+    <PageBackground>
       <Header />
 
       <main className="flex-1">
@@ -435,6 +439,7 @@ const AccountPage = () => {
       </main>
 
       <Footer />
-    </div>;
+    </PageBackground>
+  );
 };
 export default AccountPage;

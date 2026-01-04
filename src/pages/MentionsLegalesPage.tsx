@@ -1,9 +1,10 @@
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
+import { PageBackground } from "@/components/layout/PageBackground";
 
 const MentionsLegalesPage = () => {
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <PageBackground>
       <Header />
       <main className="flex-1 container mx-auto px-4 py-12">
         <h1 className="text-3xl font-bold text-foreground mb-8">Mentions légales</h1>
@@ -76,7 +77,7 @@ const MentionsLegalesPage = () => {
         </div>
       </main>
       <Footer />
-    </div>
+    </PageBackground>
   );
 };
 
