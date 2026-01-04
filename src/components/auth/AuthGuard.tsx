@@ -15,20 +15,21 @@ const AuthGuard = ({ children }: AuthGuardProps) => {
 
   useEffect(() => {
     // Listener first (prevents missing events)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, nextSession) => {
-        setSession(nextSession);
-        setUser(nextSession?.user ?? null);
-        setLoading(false);
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      setSession(nextSession);
+      setUser(nextSession?.user ?? null);
 
-        if (!nextSession?.user) {
-          // Defer navigation to avoid potential auth state deadlocks
-          setTimeout(() => navigate("/auth"), 0);
-        }
+      // IMPORTANT: don't redirect on INITIAL_SESSION; wait for getSession() below.
+      if (event === "SIGNED_OUT") {
+        setTimeout(() => navigate("/auth"), 0);
       }
-    );
 
-    // Then fetch current session
+      setLoading(false);
+    });
+
+    // Then fetch current session (authoritative for initial state)
     supabase.auth
       .getSession()
       .then(({ data: { session: initialSession } }) => {
@@ -41,7 +42,6 @@ const AuthGuard = ({ children }: AuthGuardProps) => {
         }
       })
       .catch((err) => {
-        // If storage is blocked or any unexpected error happens, don't freeze on spinner
         console.error("[AuthGuard] getSession failed", err);
         setLoading(false);
         navigate("/auth");
