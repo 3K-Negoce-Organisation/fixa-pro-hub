@@ -77,67 +77,52 @@ const AccountPage = () => {
     }
   });
   const sameAsBilling = form.watch("same_as_billing");
-
-  const loadProfile = async (userId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("user_id", userId)
-        .maybeSingle();
-
-      if (error) {
-        console.error("[AccountPage] loadProfile error", error);
-      }
-
-      if (data) {
-        form.reset({
-          company_name: data.company_name || "",
-          siret: data.siret || "",
-          phone: data.phone || "",
-          billing_address: data.billing_address || "",
-          billing_city: data.billing_city || "",
-          billing_postal_code: data.billing_postal_code || "",
-          shipping_address: data.shipping_address || "",
-          shipping_city: data.shipping_city || "",
-          shipping_postal_code: data.shipping_postal_code || "",
-          same_as_billing: data.same_as_billing ?? true,
-        });
-      }
-    } finally {
-      // Never block the page on profile loading
-      setIsLoading(false);
-    }
-  };
-
   useEffect(() => {
-    // Get current session on mount
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      console.debug("[AccountPage] getSession", { hasUser: !!session?.user });
-      if (session?.user) {
-        setUser(session.user);
-        loadProfile(session.user.id).catch((e) => {
-          console.error("[AccountPage] loadProfile failed", e);
-          setIsLoading(false);
-        });
-      } else {
-        setIsLoading(false);
+    const {
+      data: {
+        subscription
+      }
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      setUser(session?.user ?? null);
+      if (!session?.user) {
+        navigate("/auth");
       }
     });
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        console.debug("[AccountPage] onAuthStateChange", { event, hasUser: !!session?.user });
-        setUser(session?.user ?? null);
-        if (!session?.user) {
-          navigate("/auth");
-        }
+    supabase.auth.getSession().then(({
+      data: {
+        session
       }
-    );
-
+    }) => {
+      setUser(session?.user ?? null);
+      if (!session?.user) {
+        navigate("/auth");
+      } else {
+        loadProfile(session.user.id);
+      }
+    });
     return () => subscription.unsubscribe();
   }, [navigate]);
+  const loadProfile = async (userId: string) => {
+    const {
+      data,
+      error
+    } = await supabase.from("profiles").select("*").eq("user_id", userId).maybeSingle();
+    if (data) {
+      form.reset({
+        company_name: data.company_name || "",
+        siret: data.siret || "",
+        phone: data.phone || "",
+        billing_address: data.billing_address || "",
+        billing_city: data.billing_city || "",
+        billing_postal_code: data.billing_postal_code || "",
+        shipping_address: data.shipping_address || "",
+        shipping_city: data.shipping_city || "",
+        shipping_postal_code: data.shipping_postal_code || "",
+        same_as_billing: data.same_as_billing ?? true
+      });
+    }
+    setIsLoading(false);
+  };
 
   const loadOrders = async (userId: string) => {
     setOrdersLoading(true);
