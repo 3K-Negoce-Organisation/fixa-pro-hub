@@ -17,7 +17,6 @@ const AuthGuard = ({ children }: AuthGuardProps) => {
     const finalize = (sessionUser: User | null) => {
       setUser(sessionUser);
 
-      // Ensure we stop showing the spinner exactly once (prevents race conditions)
       if (!initializedRef.current) {
         initializedRef.current = true;
         setLoading(false);
@@ -28,28 +27,54 @@ const AuthGuard = ({ children }: AuthGuardProps) => {
       }
     };
 
-    // Safety net: if auth never resolves (blocked storage/network), stop spinner
-    const timeoutId = window.setTimeout(() => {
-      if (!initializedRef.current) {
-        console.warn("[AuthGuard] Session init timeout; redirecting to /auth");
-        finalize(null);
-      }
-    }, 4000);
-
-    // 1) Listener FIRST
+    // 1) Listener FIRST (sync-only)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       finalize(session?.user ?? null);
     });
 
-    // 2) THEN initial session check
+    // 2) Resolve auth state.
+    // In some environments getSession can hang; getUser performs a network call and is a reliable fallback.
+    const timeoutId = window.setTimeout(() => {
+      if (!initializedRef.current) {
+        console.warn("[AuthGuard] getSession seems stuck; falling back to getUser()");
+        supabase.auth
+          .getUser()
+          .then(({ data, error }) => {
+            if (error) {
+              console.error("[AuthGuard] getUser error", error);
+              finalize(null);
+              return;
+            }
+            finalize(data.user ?? null);
+          })
+          .catch((err) => {
+            console.error("[AuthGuard] getUser unexpected error", err);
+            finalize(null);
+          });
+      }
+    }, 1200);
+
     supabase.auth
       .getSession()
       .then(({ data: { session } }) => {
+        window.clearTimeout(timeoutId);
         finalize(session?.user ?? null);
       })
       .catch((err) => {
+        window.clearTimeout(timeoutId);
         console.error("[AuthGuard] getSession error", err);
-        finalize(null);
+        // fallback
+        supabase.auth
+          .getUser()
+          .then(({ data, error }) => {
+            if (error) {
+              console.error("[AuthGuard] getUser error", error);
+              finalize(null);
+              return;
+            }
+            finalize(data.user ?? null);
+          })
+          .catch(() => finalize(null));
       });
 
     return () => {
