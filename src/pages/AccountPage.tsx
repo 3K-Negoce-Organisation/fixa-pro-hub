@@ -86,6 +86,8 @@ const AccountPage = () => {
       setUser(session?.user ?? null);
       if (!session?.user) {
         navigate("/auth");
+      } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        loadProfile(session.user.id);
       }
     });
     supabase.auth.getSession().then(({
@@ -95,6 +97,7 @@ const AccountPage = () => {
     }) => {
       setUser(session?.user ?? null);
       if (!session?.user) {
+        setIsLoading(false);
         navigate("/auth");
       } else {
         loadProfile(session.user.id);
