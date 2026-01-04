@@ -105,9 +105,13 @@ const AccountPage = () => {
   useEffect(() => {
     // Get current session on mount
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.debug("[AccountPage] getSession", { hasUser: !!session?.user });
       if (session?.user) {
         setUser(session.user);
-        loadProfile(session.user.id);
+        loadProfile(session.user.id).catch((e) => {
+          console.error("[AccountPage] loadProfile failed", e);
+          setIsLoading(false);
+        });
       } else {
         setIsLoading(false);
       }
@@ -116,6 +120,7 @@ const AccountPage = () => {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
+        console.debug("[AccountPage] onAuthStateChange", { event, hasUser: !!session?.user });
         setUser(session?.user ?? null);
         if (!session?.user) {
           navigate("/auth");
