@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
@@ -10,28 +10,40 @@ interface AuthGuardProps {
 const AuthGuard = ({ children }: AuthGuardProps) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const initializedRef = useRef(false);
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Set up auth state listener FIRST
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setUser(session?.user ?? null);
-        if (!session?.user) {
-          navigate("/auth");
-        }
-      }
-    );
+    const finalize = (sessionUser: User | null) => {
+      setUser(sessionUser);
 
-    // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      setLoading(false);
-      
-      if (!session?.user) {
+      // Ensure we stop showing the spinner exactly once (prevents race conditions)
+      if (!initializedRef.current) {
+        initializedRef.current = true;
+        setLoading(false);
+      }
+
+      if (!sessionUser) {
         navigate("/auth");
       }
+    };
+
+    // 1) Listener FIRST
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      finalize(session?.user ?? null);
     });
+
+    // 2) THEN initial session check
+    supabase.auth
+      .getSession()
+      .then(({ data: { session } }) => {
+        finalize(session?.user ?? null);
+      })
+      .catch(() => {
+        finalize(null);
+      });
 
     return () => subscription.unsubscribe();
   }, [navigate]);
