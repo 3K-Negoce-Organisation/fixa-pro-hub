@@ -44,8 +44,9 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log(`Sending contact email from ${name} (${email})`);
 
+    // TODO: Changer en "Vis-à-Bois <contact@vis-a-bois.com>" une fois SPF vérifié
     const { data, error } = await resend.emails.send({
-      from: "Vis-à-Bois <contact@vis-a-bois.com>",
+      from: "Vis-à-Bois <onboarding@resend.dev>",
       to: ["contact@vis-a-bois.com"],
       reply_to: email,
       subject: `[Contact] ${subject}`,
