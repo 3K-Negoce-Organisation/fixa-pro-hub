@@ -15,9 +15,10 @@ const AuthGuard = ({ children }: AuthGuardProps) => {
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
+        console.debug("[AuthGuard] onAuthStateChange", { event, hasUser: !!session?.user });
         setUser(session?.user ?? null);
         setLoading(false);
-        
+
         if (!session?.user) {
           navigate("/auth");
         }
@@ -25,9 +26,10 @@ const AuthGuard = ({ children }: AuthGuardProps) => {
     );
 
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.debug("[AuthGuard] getSession", { hasUser: !!session?.user });
       setUser(session?.user ?? null);
       setLoading(false);
-      
+
       if (!session?.user) {
         navigate("/auth");
       }
