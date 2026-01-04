@@ -72,7 +72,7 @@ const AuthPage = () => {
 
   const handleLogin = async (values: LoginFormValues) => {
     setIsLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email: values.email,
       password: values.password,
     });
@@ -83,9 +83,20 @@ const AuthPage = () => {
       } else {
         toast.error(error.message);
       }
-    } else {
-      toast.success("Connexion réussie");
+      setIsLoading(false);
+      return;
     }
+
+    // Force session to be set (helps when the auth event is missed / storage is flaky)
+    if (data?.session) {
+      await supabase.auth.setSession({
+        access_token: data.session.access_token,
+        refresh_token: data.session.refresh_token,
+      });
+    }
+
+    toast.success("Connexion réussie");
+    navigate("/compte");
     setIsLoading(false);
   };
 
