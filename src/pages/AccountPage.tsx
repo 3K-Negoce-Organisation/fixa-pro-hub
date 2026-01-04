@@ -78,29 +78,37 @@ const AccountPage = () => {
   });
   const sameAsBilling = form.watch("same_as_billing");
   useEffect(() => {
-    const {
-      data: {
-        subscription
+    let isMounted = true;
+    
+    const initializeAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!isMounted) return;
+      
+      if (!session?.user) {
+        navigate("/auth");
+        return;
       }
-    } = supabase.auth.onAuthStateChange((event, session) => {
+      
+      setUser(session.user);
+      await loadProfile(session.user.id);
+    };
+    
+    initializeAuth();
+    
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!isMounted) return;
+      
       setUser(session?.user ?? null);
       if (!session?.user) {
         navigate("/auth");
       }
     });
-    supabase.auth.getSession().then(({
-      data: {
-        session
-      }
-    }) => {
-      setUser(session?.user ?? null);
-      if (!session?.user) {
-        navigate("/auth");
-      } else {
-        loadProfile(session.user.id);
-      }
-    });
-    return () => subscription.unsubscribe();
+    
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
   }, [navigate]);
   const loadProfile = async (userId: string) => {
     const {
