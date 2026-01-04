@@ -179,38 +179,48 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
     initializeCart();
 
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    // Listen for auth changes (IMPORTANT: keep callback sync-only)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       const newUser = session?.user ?? null;
       setUser(newUser);
 
-      if (event === 'SIGNED_IN' && newUser && isInitializedRef.current) {
-        // User just signed in - merge local cart with Supabase
-        const supabaseCart = await loadCartFromSupabase(newUser.id);
-        const localCart = loadLocalCart();
-        
-        // Merge carts - combine items, avoiding duplicates
-        const mergedItems = [...supabaseCart];
-        for (const localItem of localCart.items) {
-          const existingIndex = mergedItems.findIndex(i => i.variantId === localItem.variantId);
-          if (existingIndex >= 0) {
-            // Add quantities
-            mergedItems[existingIndex].quantity += localItem.quantity;
-          } else {
-            mergedItems.push(localItem);
-          }
-        }
+      // Defer any Supabase calls to avoid auth deadlocks
+      window.setTimeout(() => {
+        (async () => {
+          try {
+            if (event === "SIGNED_IN" && newUser && isInitializedRef.current) {
+              // User just signed in - merge local cart with backend
+              const supabaseCart = await loadCartFromSupabase(newUser.id);
+              const localCart = loadLocalCart();
 
-        setItems(mergedItems);
-        if (mergedItems.length > 0) {
-          await saveCartToSupabase(newUser.id, mergedItems);
-        }
-        localStorage.removeItem(CART_STORAGE_KEY);
-      } else if (event === 'SIGNED_OUT') {
-        // User signed out - clear state
-        setItems([]);
-        setRemovedItems([]);
-      }
+              // Merge carts - combine items, avoiding duplicates
+              const mergedItems = [...supabaseCart];
+              for (const localItem of localCart.items) {
+                const existingIndex = mergedItems.findIndex(
+                  (i) => i.variantId === localItem.variantId
+                );
+                if (existingIndex >= 0) {
+                  mergedItems[existingIndex].quantity += localItem.quantity;
+                } else {
+                  mergedItems.push(localItem);
+                }
+              }
+
+              setItems(mergedItems);
+              if (mergedItems.length > 0) {
+                await saveCartToSupabase(newUser.id, mergedItems);
+              }
+              localStorage.removeItem(CART_STORAGE_KEY);
+            } else if (event === "SIGNED_OUT") {
+              // User signed out - clear state
+              setItems([]);
+              setRemovedItems([]);
+            }
+          } catch (err) {
+            console.error("[CART] onAuthStateChange handler failed", err);
+          }
+        })();
+      }, 0);
     });
 
     return () => {
