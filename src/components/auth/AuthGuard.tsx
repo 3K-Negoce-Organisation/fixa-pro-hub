@@ -14,10 +14,9 @@ const AuthGuard = ({ children }: AuthGuardProps) => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    let timeoutId: number | undefined;
-
+    // Listener first (prevents missing events)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, nextSession) => {
+      (_event, nextSession) => {
         setSession(nextSession);
         setUser(nextSession?.user ?? null);
         setLoading(false);
@@ -29,28 +28,26 @@ const AuthGuard = ({ children }: AuthGuardProps) => {
       }
     );
 
-    // Safety timeout: never block the app forever on the spinner
-    timeoutId = window.setTimeout(() => {
-      setLoading(false);
-      // If auth didn't resolve in time, force user back to login.
-      navigate("/auth");
-    }, 4000);
+    // Then fetch current session
+    supabase.auth
+      .getSession()
+      .then(({ data: { session: initialSession } }) => {
+        setSession(initialSession);
+        setUser(initialSession?.user ?? null);
+        setLoading(false);
 
-    supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
-      setSession(initialSession);
-      setUser(initialSession?.user ?? null);
-      setLoading(false);
-
-      if (!initialSession?.user) {
+        if (!initialSession?.user) {
+          navigate("/auth");
+        }
+      })
+      .catch((err) => {
+        // If storage is blocked or any unexpected error happens, don't freeze on spinner
+        console.error("[AuthGuard] getSession failed", err);
+        setLoading(false);
         navigate("/auth");
-      }
-    });
+      });
 
-    return () => {
-      subscription.unsubscribe();
-      if (timeoutId) window.clearTimeout(timeoutId);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => subscription.unsubscribe();
   }, [navigate]);
 
   if (loading) {
