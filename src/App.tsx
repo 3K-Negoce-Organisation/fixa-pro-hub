@@ -7,6 +7,7 @@ import { CartProvider } from "@/contexts/CartContext";
 import { FavoritesProvider } from "@/contexts/FavoritesContext";
 
 import AuthGuard from "@/components/auth/AuthGuard";
+import AdminGuard from "@/components/auth/AdminGuard";
 import { CookieConsent } from "@/components/CookieConsent";
 import Index from "./pages/Index";
 import ProductsPage from "./pages/ProductsPage";
@@ -17,6 +18,8 @@ import AccountPage from "./pages/AccountPage";
 import OrderTrackingPage from "./pages/OrderTrackingPage";
 import OrderConfirmationPage from "./pages/OrderConfirmationPage";
 import PaymentCancelPage from "./pages/PaymentCancelPage";
+import AdminOrdersPage from "./pages/AdminOrdersPage";
+import AdminProductsPage from "./pages/AdminProductsPage";
 import PromosPage from "./pages/PromosPage";
 import MentionsLegalesPage from "./pages/MentionsLegalesPage";
 import PolitiqueConfidentialitePage from "./pages/PolitiqueConfidentialitePage";
@@ -48,6 +51,8 @@ const App = () => (
               <Route path="/produit/:handle" element={<AuthGuard><ProductDetailPage /></AuthGuard>} />
               <Route path="/panier" element={<AuthGuard><CartPage /></AuthGuard>} />
               <Route path="/compte" element={<AuthGuard><AccountPage /></AuthGuard>} />
+              <Route path="/admin/commandes" element={<AdminGuard><AdminOrdersPage /></AdminGuard>} />
+              <Route path="/admin/produits" element={<AdminGuard><AdminProductsPage /></AdminGuard>} />
               <Route path="/mentions-legales" element={<AuthGuard><MentionsLegalesPage /></AuthGuard>} />
               <Route path="/politique-confidentialite" element={<AuthGuard><PolitiqueConfidentialitePage /></AuthGuard>} />
               <Route path="/cookies" element={<AuthGuard><CookiesPage /></AuthGuard>} />

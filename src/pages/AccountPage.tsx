@@ -79,68 +79,49 @@ const AccountPage = () => {
   const sameAsBilling = form.watch("same_as_billing");
   useEffect(() => {
     const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      const nextUser = session?.user ?? null;
-      setUser(nextUser);
-
-      if (!nextUser) {
-        setIsLoading(false);
-        navigate("/auth");
-        return;
+      data: {
+        subscription
       }
-
-      // Defer profile fetch to avoid doing Supabase calls inside the auth callback
-      setTimeout(() => {
-        loadProfile(nextUser.id);
-      }, 0);
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      setUser(session?.user ?? null);
+      if (!session?.user) {
+        navigate("/auth");
+      }
     });
-
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      const nextUser = session?.user ?? null;
-      setUser(nextUser);
-
-      if (!nextUser) {
-        setIsLoading(false);
+    supabase.auth.getSession().then(({
+      data: {
+        session
+      }
+    }) => {
+      setUser(session?.user ?? null);
+      if (!session?.user) {
         navigate("/auth");
       } else {
-        loadProfile(nextUser.id);
+        loadProfile(session.user.id);
       }
     });
-
     return () => subscription.unsubscribe();
   }, [navigate]);
   const loadProfile = async (userId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("user_id", userId)
-        .maybeSingle();
-
-      if (error) {
-        console.error("Error loading profile:", error);
-        toast.error("Erreur lors du chargement du profil");
-        return;
-      }
-
-      if (data) {
-        form.reset({
-          company_name: data.company_name || "",
-          siret: data.siret || "",
-          phone: data.phone || "",
-          billing_address: data.billing_address || "",
-          billing_city: data.billing_city || "",
-          billing_postal_code: data.billing_postal_code || "",
-          shipping_address: data.shipping_address || "",
-          shipping_city: data.shipping_city || "",
-          shipping_postal_code: data.shipping_postal_code || "",
-          same_as_billing: data.same_as_billing ?? true,
-        });
-      }
-    } finally {
-      setIsLoading(false);
+    const {
+      data,
+      error
+    } = await supabase.from("profiles").select("*").eq("user_id", userId).maybeSingle();
+    if (data) {
+      form.reset({
+        company_name: data.company_name || "",
+        siret: data.siret || "",
+        phone: data.phone || "",
+        billing_address: data.billing_address || "",
+        billing_city: data.billing_city || "",
+        billing_postal_code: data.billing_postal_code || "",
+        shipping_address: data.shipping_address || "",
+        shipping_city: data.shipping_city || "",
+        shipping_postal_code: data.shipping_postal_code || "",
+        same_as_billing: data.same_as_billing ?? true
+      });
     }
+    setIsLoading(false);
   };
 
   const loadOrders = async (userId: string) => {
