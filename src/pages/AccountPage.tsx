@@ -78,37 +78,30 @@ const AccountPage = () => {
   });
   const sameAsBilling = form.watch("same_as_billing");
   useEffect(() => {
-    let isMounted = true;
-    
-    const initializeAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!isMounted) return;
-      
-      if (!session?.user) {
-        navigate("/auth");
-        return;
-      }
-      
-      setUser(session.user);
-      await loadProfile(session.user.id);
-    };
-    
-    initializeAuth();
-    
+    // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (!isMounted) return;
-      
       setUser(session?.user ?? null);
       if (!session?.user) {
         navigate("/auth");
+      } else {
+        // Defer Supabase calls with setTimeout to avoid deadlock
+        setTimeout(() => {
+          loadProfile(session.user.id);
+        }, 0);
       }
     });
-    
-    return () => {
-      isMounted = false;
-      subscription.unsubscribe();
-    };
+
+    // THEN check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      if (!session?.user) {
+        navigate("/auth");
+      } else {
+        loadProfile(session.user.id);
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, [navigate]);
   const loadProfile = async (userId: string) => {
     const {
