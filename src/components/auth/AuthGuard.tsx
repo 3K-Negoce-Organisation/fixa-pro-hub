@@ -28,10 +28,16 @@ const AuthGuard = ({ children }: AuthGuardProps) => {
       }
     };
 
+    // Safety net: if auth never resolves (blocked storage/network), stop spinner
+    const timeoutId = window.setTimeout(() => {
+      if (!initializedRef.current) {
+        console.warn("[AuthGuard] Session init timeout; redirecting to /auth");
+        finalize(null);
+      }
+    }, 4000);
+
     // 1) Listener FIRST
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       finalize(session?.user ?? null);
     });
 
@@ -41,11 +47,15 @@ const AuthGuard = ({ children }: AuthGuardProps) => {
       .then(({ data: { session } }) => {
         finalize(session?.user ?? null);
       })
-      .catch(() => {
+      .catch((err) => {
+        console.error("[AuthGuard] getSession error", err);
         finalize(null);
       });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      window.clearTimeout(timeoutId);
+      subscription.unsubscribe();
+    };
   }, [navigate]);
 
   if (loading) {
