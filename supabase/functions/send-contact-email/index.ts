@@ -1,8 +1,7 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { Resend } from "https://esm.sh/resend@2.0.0";
 
-const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
-
-
+const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -45,39 +44,32 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log(`Sending contact email from ${name} (${email})`);
 
-    const emailResponse = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${RESEND_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        from: "Vis-à-Bois <contact@vis-a-bois.com>",
-        to: ["contact@vis-a-bois.com"],
-        reply_to: email,
-        subject: `[Contact] ${subject}`,
-        html: `
-          <h2>Nouveau message de contact</h2>
-          <p><strong>Nom:</strong> ${name}</p>
-          <p><strong>Email:</strong> ${email}</p>
-          ${phone ? `<p><strong>Téléphone:</strong> ${phone}</p>` : ''}
-          <p><strong>Sujet:</strong> ${subject}</p>
-          <hr />
-          <h3>Message:</h3>
-          <p>${message.replace(/\n/g, '<br>')}</p>
-        `,
-      }),
+    const { data, error } = await resend.emails.send({
+      from: "Vis-à-Bois <contact@vis-a-bois.com>",
+      to: ["contact@vis-a-bois.com"],
+      reply_to: email,
+      subject: `[Contact] ${subject}`,
+      html: `
+        <h2>Nouveau message de contact</h2>
+        <p><strong>Nom:</strong> ${name}</p>
+        <p><strong>Email:</strong> ${email}</p>
+        ${phone ? `<p><strong>Téléphone:</strong> ${phone}</p>` : ''}
+        <p><strong>Sujet:</strong> ${subject}</p>
+        <hr />
+        <h3>Message:</h3>
+        <p>${message.replace(/\n/g, '<br>')}</p>
+      `,
     });
 
-    if (!emailResponse.ok) {
-      const errorData = await emailResponse.text();
-      console.error("Resend API error:", errorData);
-      throw new Error("Erreur lors de l'envoi de l'email");
+    if (error) {
+      console.error("Resend API error:", JSON.stringify(error));
+      return new Response(
+        JSON.stringify({ error: `Erreur Resend: ${error.message}` }),
+        { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
     }
 
-    const result = await emailResponse.json();
-
-    console.log("Email sent successfully:", result);
+    console.log("Email sent successfully:", data);
 
     return new Response(
       JSON.stringify({ success: true, message: "Message envoyé avec succès" }),
