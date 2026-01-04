@@ -77,39 +77,14 @@ const AccountPage = () => {
     }
   });
   const sameAsBilling = form.watch("same_as_billing");
-  useEffect(() => {
-    const {
-      data: {
-        subscription
-      }
-    } = supabase.auth.onAuthStateChange((event, session) => {
-      setUser(session?.user ?? null);
-      if (!session?.user) {
-        navigate("/auth");
-      } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-        loadProfile(session.user.id);
-      }
-    });
-    supabase.auth.getSession().then(({
-      data: {
-        session
-      }
-    }) => {
-      setUser(session?.user ?? null);
-      if (!session?.user) {
-        setIsLoading(false);
-        navigate("/auth");
-      } else {
-        loadProfile(session.user.id);
-      }
-    });
-    return () => subscription.unsubscribe();
-  }, [navigate]);
+
   const loadProfile = async (userId: string) => {
-    const {
-      data,
-      error
-    } = await supabase.from("profiles").select("*").eq("user_id", userId).maybeSingle();
+    const { data } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("user_id", userId)
+      .maybeSingle();
+    
     if (data) {
       form.reset({
         company_name: data.company_name || "",
@@ -126,6 +101,30 @@ const AccountPage = () => {
     }
     setIsLoading(false);
   };
+
+  useEffect(() => {
+    // Get current session on mount
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        setUser(session.user);
+        loadProfile(session.user.id);
+      } else {
+        setIsLoading(false);
+      }
+    });
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setUser(session?.user ?? null);
+        if (!session?.user) {
+          navigate("/auth");
+        }
+      }
+    );
+
+    return () => subscription.unsubscribe();
+  }, [navigate]);
 
   const loadOrders = async (userId: string) => {
     setOrdersLoading(true);
