@@ -83,32 +83,7 @@ export function Header() {
               <span className="hidden md:inline">{userEmail || "Compte"}</span>
             </Link>
 
-            {isAdmin && <div className="relative" onMouseEnter={() => setAdminMenuOpen(true)} onMouseLeave={() => setAdminMenuOpen(false)}>
-                <button className="flex items-center gap-1.5 px-2 py-1 pb-3 text-sm text-accent hover:underline">
-                  <Settings className="h-4 w-4" />
-                  <span className="hidden md:inline">Admin</span>
-                  <ChevronDown className="h-3 w-3" />
-                </button>
-                {adminMenuOpen && <div className="absolute top-full right-0 bg-background border rounded-md shadow-lg py-1 min-w-[160px] z-50">
-                    <Link to="/admin/commandes" className="flex items-center gap-2 px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors" onClick={() => setAdminMenuOpen(false)}>
-                      <Settings className="h-4 w-4" />
-                      Commandes
-                    </Link>
-                    <Link to="/admin/produits" className="flex items-center gap-2 px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors" onClick={() => setAdminMenuOpen(false)}>
-                      <Package className="h-4 w-4" />
-                      Produits
-                    </Link>
-                    <button className="flex items-center gap-2 px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors w-full text-left" onClick={() => {
-                setAdminMenuOpen(false);
-                setSupplierDialogOpen(true);
-              }}>
-                      <Truck className="h-4 w-4" />
-                      Fournisseur
-                    </button>
-                  </div>}
-              </div>}
-
-            <SupplierSettingsDialog open={supplierDialogOpen} onOpenChange={setSupplierDialogOpen} />
+            {/* Admin menu hidden - moved to external site */}
 
             {userEmail && <button onClick={handleLogout} className="flex items-center gap-1.5 px-2 py-1 text-sm text-primary-foreground hover:underline">
                 <LogOut className="h-4 w-4" />
