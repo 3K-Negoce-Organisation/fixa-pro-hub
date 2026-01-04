@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
+import { PageBackground } from "@/components/layout/PageBackground";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -440,7 +441,7 @@ const OrderTrackingPage = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <PageBackground>
       <Header />
       <main className="flex-1 container mx-auto px-4 py-8">
         <h1 className="text-2xl font-bold text-foreground mb-6">Suivi de commande</h1>
@@ -698,7 +699,7 @@ const OrderTrackingPage = () => {
         </div>
       </main>
       <Footer />
-    </div>
+    </PageBackground>
   );
 };
 

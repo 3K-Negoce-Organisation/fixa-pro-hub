@@ -4,6 +4,7 @@ import { XCircle, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
+import { PageBackground } from "@/components/layout/PageBackground";
 
 const PAYMENT_CHANNEL = "payment-status";
 
@@ -16,7 +17,7 @@ const PaymentCancelPage = () => {
   }, []);
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <PageBackground>
       <Header />
 
       <main className="flex-1 container py-16">
@@ -55,7 +56,7 @@ const PaymentCancelPage = () => {
       </main>
 
       <Footer />
-    </div>
+    </PageBackground>
   );
 };
 

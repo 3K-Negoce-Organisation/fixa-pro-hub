@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/select";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
+import { PageBackground } from "@/components/layout/PageBackground";
 import { fetchProductByHandle, getProductImage, parseVariants, formatPriceHT, formatPrice, type ProductVariant } from "@/lib/products";
 import { toast } from "sonner";
 import { useCart } from "@/contexts/CartContext";
@@ -40,19 +41,19 @@ const ProductDetailPage = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex flex-col bg-background">
+      <PageBackground>
         <Header />
         <main className="flex-1 container py-16 flex items-center justify-center">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </main>
         <Footer />
-      </div>
+      </PageBackground>
     );
   }
 
   if (error || !product) {
     return (
-      <div className="min-h-screen flex flex-col bg-background">
+      <PageBackground>
         <Header />
         <main className="flex-1 container py-16 text-center">
           <h1 className="text-2xl font-bold mb-4">Produit non trouvé</h1>
@@ -64,7 +65,7 @@ const ProductDetailPage = () => {
           </Button>
         </main>
         <Footer />
-      </div>
+      </PageBackground>
     );
   }
 
@@ -124,7 +125,7 @@ const ProductDetailPage = () => {
   if (product.usage) technicalSpecs.push({ icon: <Box className="h-4 w-4" />, value: product.usage, label: "" });
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <PageBackground>
       <Header />
 
       <main className="flex-1">
@@ -398,7 +399,7 @@ const ProductDetailPage = () => {
       </main>
 
       <Footer />
-    </div>
+    </PageBackground>
   );
 };
 

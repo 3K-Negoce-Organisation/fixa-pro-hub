@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Tag, Percent } from "lucide-react";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
+import { PageBackground } from "@/components/layout/PageBackground";
 import { ProductGrid } from "@/components/products/ProductGrid";
 import { supabase } from "@/integrations/supabase/client";
 import { getProductImage, parseVariants, type Product } from "@/lib/products";
@@ -66,7 +67,7 @@ const PromosPage = () => {
   }, [products]);
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <PageBackground>
       <Header />
 
       <main className="flex-1">
@@ -118,7 +119,7 @@ const PromosPage = () => {
       </main>
 
       <Footer />
-    </div>
+    </PageBackground>
   );
 };
 

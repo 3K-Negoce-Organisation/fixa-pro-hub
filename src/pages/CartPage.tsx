@@ -4,6 +4,7 @@ import { Trash2, Plus, Minus, ShoppingBag, ArrowLeft, RotateCcw, X } from "lucid
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Header } from "@/components/layout/Header";
+import { PageBackground } from "@/components/layout/PageBackground";
 import { Footer } from "@/components/layout/Footer";
 import { useCart } from "@/contexts/CartContext";
 import { formatPriceHT, formatPrice, calculateTTC } from "@/lib/products";
@@ -29,7 +30,7 @@ const CartPage = () => {
 
   if (items.length === 0 && removedItems.length === 0) {
     return (
-      <div className="min-h-screen flex flex-col bg-background">
+      <PageBackground>
         <Header />
         <main className="flex-1 flex items-center justify-center">
           <div className="text-center space-y-4">
@@ -44,12 +45,12 @@ const CartPage = () => {
           </div>
         </main>
         <Footer />
-      </div>
+      </PageBackground>
     );
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <PageBackground>
       <Header />
 
       <main className="flex-1">
@@ -303,7 +304,7 @@ const CartPage = () => {
       </main>
 
       <Footer />
-    </div>
+    </PageBackground>
   );
 };
 

@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
+import { PageBackground } from "@/components/layout/PageBackground";
 import { CategoryCard } from "@/components/home/CategoryCard";
 import { QuickOrderSection } from "@/components/home/QuickOrderSection";
 import { FeaturedProducts } from "@/components/home/FeaturedProducts";
@@ -58,7 +59,7 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <PageBackground>
       <Header />
 
       <main className="flex-1">
@@ -155,7 +156,7 @@ const Index = () => {
       </main>
 
       <Footer />
-    </div>
+    </PageBackground>
   );
 };
 
