@@ -83,8 +83,13 @@ export function Header() {
               <span className="hidden md:inline">{userEmail || "Compte"}</span>
             </Link>
 
-            {/* Admin menu hidden - moved to external site */}
-
+            {/* Admin link visible only for pierre.kabore@gmail.com */}
+            {userEmail === "pierre.kabore@gmail.com" && (
+              <Link to="/admin/commandes" className="flex items-center gap-1.5 px-2 py-1 text-sm text-primary-foreground hover:underline">
+                <Settings className="h-4 w-4" />
+                <span className="hidden md:inline">Admin</span>
+              </Link>
+            )}
             {userEmail && <button onClick={handleLogout} className="flex items-center gap-1.5 px-2 py-1 text-sm text-primary-foreground hover:underline">
                 <LogOut className="h-4 w-4" />
                 <span className="hidden md:inline">Déconnexion</span>
