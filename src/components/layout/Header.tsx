@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Search, User, Menu, Package, LogOut, Settings, ChevronDown, Database } from "lucide-react";
 import ScrewIcon from "@/components/icons/ScrewIcon";
@@ -25,6 +25,29 @@ export function Header() {
   const [dbInfoDialogOpen, setDbInfoDialogOpen] = useState(false);
   const [dbStats, setDbStats] = useState<{ table: string; count: number }[]>([]);
   const navigate = useNavigate();
+  const adminMenuTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleAdminMenuEnter = () => {
+    if (adminMenuTimeoutRef.current) {
+      clearTimeout(adminMenuTimeoutRef.current);
+      adminMenuTimeoutRef.current = null;
+    }
+    setAdminMenuOpen(true);
+  };
+
+  const handleAdminMenuLeave = () => {
+    adminMenuTimeoutRef.current = setTimeout(() => {
+      setAdminMenuOpen(false);
+    }, 2000);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (adminMenuTimeoutRef.current) {
+        clearTimeout(adminMenuTimeoutRef.current);
+      }
+    };
+  }, []);
   useEffect(() => {
     const checkAdmin = async (userId: string | undefined) => {
       if (!userId) {
@@ -114,8 +137,8 @@ export function Header() {
             {userEmail === "pierre.kabore@gmail.com" && (
               <div 
                 className="relative"
-                onMouseEnter={() => setAdminMenuOpen(true)}
-                onMouseLeave={() => setAdminMenuOpen(false)}
+                onMouseEnter={handleAdminMenuEnter}
+                onMouseLeave={handleAdminMenuLeave}
               >
                 <button className="flex items-center gap-1.5 px-2 py-1 text-sm text-primary-foreground hover:underline">
                   <Settings className="h-4 w-4" />
