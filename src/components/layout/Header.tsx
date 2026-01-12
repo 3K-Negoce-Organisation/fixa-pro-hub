@@ -83,8 +83,47 @@ export function Header() {
               <span className="hidden md:inline">{userEmail || "Compte"}</span>
             </Link>
 
-            {/* Admin menu hidden - moved to external site */}
-
+            {/* Admin dropdown visible only for pierre.kabore@gmail.com */}
+            {userEmail === "pierre.kabore@gmail.com" && (
+              <div 
+                className="relative"
+                onMouseEnter={() => setAdminMenuOpen(true)}
+                onMouseLeave={() => setAdminMenuOpen(false)}
+              >
+                <button className="flex items-center gap-1.5 px-2 py-1 text-sm text-primary-foreground hover:underline">
+                  <Settings className="h-4 w-4" />
+                  <span className="hidden md:inline">Admin</span>
+                  <ChevronDown className="h-3 w-3" />
+                </button>
+                {adminMenuOpen && (
+                  <div className="absolute right-0 top-full mt-1 w-48 bg-background border border-border rounded-md shadow-lg z-50">
+                    <Link 
+                      to="/admin/commandes" 
+                      className="block px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors"
+                    >
+                      Gestion des commandes
+                    </Link>
+                    <Link 
+                      to="/admin/produits" 
+                      className="block px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors"
+                    >
+                      Gestion des produits
+                    </Link>
+                    <button
+                      onClick={() => setSupplierDialogOpen(true)}
+                      className="block w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors"
+                    >
+                      Paramètres fournisseur
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+            
+            <SupplierSettingsDialog 
+              open={supplierDialogOpen} 
+              onOpenChange={setSupplierDialogOpen} 
+            />
             {userEmail && <button onClick={handleLogout} className="flex items-center gap-1.5 px-2 py-1 text-sm text-primary-foreground hover:underline">
                 <LogOut className="h-4 w-4" />
                 <span className="hidden md:inline">Déconnexion</span>
