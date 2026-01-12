@@ -127,17 +127,26 @@ const AccountPage = () => {
 
   const loadOrders = async (userId: string) => {
     setOrdersLoading(true);
-    const { data, error } = await supabase
-      .from("orders")
-      .select("*")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: false });
-    
-    if (error) {
-      console.error("Error loading orders:", error);
-      toast.error("Erreur lors du chargement des commandes");
-    } else {
-      setOrders(data || []);
+    try {
+      const { data, error } = await supabase
+        .from("orders")
+        .select("*")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false });
+      
+      if (error) {
+        console.error("Error loading orders:", error.message, error.code, error.details);
+        // Ne pas afficher d'erreur si c'est juste qu'il n'y a pas de commandes
+        if (error.code !== 'PGRST116') {
+          toast.error("Erreur lors du chargement des commandes");
+        }
+        setOrders([]);
+      } else {
+        setOrders(data || []);
+      }
+    } catch (err) {
+      console.error("Exception loading orders:", err);
+      setOrders([]);
     }
     setOrdersLoading(false);
   };
