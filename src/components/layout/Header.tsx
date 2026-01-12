@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Search, User, Menu, Package, LogOut, Settings, ChevronDown, Truck } from "lucide-react";
+import { Search, User, Menu, Package, LogOut, Settings, ChevronDown, Database } from "lucide-react";
 import ScrewIcon from "@/components/icons/ScrewIcon";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { SupplierSettingsDialog } from "@/components/admin/SupplierSettingsDialog";
 import { CartDrawer } from "@/components/cart/CartDrawer";
+import { ENVIRONMENT, getEnvironmentLabel, getEnvironmentColor } from "@/lib/environment";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 export function Header() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -15,6 +22,8 @@ export function Header() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [adminMenuOpen, setAdminMenuOpen] = useState(false);
   const [supplierDialogOpen, setSupplierDialogOpen] = useState(false);
+  const [dbInfoDialogOpen, setDbInfoDialogOpen] = useState(false);
+  const [dbStats, setDbStats] = useState<{ table: string; count: number }[]>([]);
   const navigate = useNavigate();
   useEffect(() => {
     const checkAdmin = async (userId: string | undefined) => {
@@ -45,6 +54,24 @@ export function Header() {
     });
     return () => subscription.unsubscribe();
   }, []);
+
+  const fetchDbStats = async () => {
+    const tables = ['products', 'profiles', 'orders', 'order_items', 'user_carts', 'supplier_settings', 'user_roles'];
+    const stats: { table: string; count: number }[] = [];
+    
+    for (const table of tables) {
+      const { count } = await supabase.from(table as any).select('*', { count: 'exact', head: true });
+      stats.push({ table, count: count || 0 });
+    }
+    
+    setDbStats(stats);
+  };
+
+  const openDbInfoDialog = () => {
+    fetchDbStats();
+    setDbInfoDialogOpen(true);
+  };
+
   const handleLogout = async () => {
     await supabase.auth.signOut();
     toast.success("Déconnexion réussie");
@@ -83,7 +110,7 @@ export function Header() {
               <span className="hidden md:inline">{userEmail || "Compte"}</span>
             </Link>
 
-            {/* Admin dropdown visible only for pierre.kabore@gmail.com */}
+            {/* Admin dropdown visible only for pierre.kabore@gmail.com on all environments */}
             {userEmail === "pierre.kabore@gmail.com" && (
               <div 
                 className="relative"
@@ -93,10 +120,13 @@ export function Header() {
                 <button className="flex items-center gap-1.5 px-2 py-1 text-sm text-primary-foreground hover:underline">
                   <Settings className="h-4 w-4" />
                   <span className="hidden md:inline">Admin</span>
+                  <span className={`hidden md:inline text-xs px-1.5 py-0.5 rounded ${getEnvironmentColor()} bg-primary-foreground/20`}>
+                    {getEnvironmentLabel()}
+                  </span>
                   <ChevronDown className="h-3 w-3" />
                 </button>
                 {adminMenuOpen && (
-                  <div className="absolute right-0 top-full mt-1 w-48 bg-background border border-border rounded-md shadow-lg z-50">
+                  <div className="absolute right-0 top-full mt-1 w-56 bg-background border border-border rounded-md shadow-lg z-50">
                     <Link 
                       to="/admin/commandes" 
                       className="block px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors"
@@ -115,6 +145,14 @@ export function Header() {
                     >
                       Paramètres fournisseur
                     </button>
+                    <div className="border-t border-border" />
+                    <button
+                      onClick={openDbInfoDialog}
+                      className="flex items-center gap-2 w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors"
+                    >
+                      <Database className="h-4 w-4" />
+                      Infos Base de Données
+                    </button>
                   </div>
                 )}
               </div>
@@ -124,6 +162,67 @@ export function Header() {
               open={supplierDialogOpen} 
               onOpenChange={setSupplierDialogOpen} 
             />
+
+            {/* Database Info Dialog */}
+            <Dialog open={dbInfoDialogOpen} onOpenChange={setDbInfoDialogOpen}>
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <Database className="h-5 w-5" />
+                    Infos Base de Données
+                  </DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div className="bg-muted p-3 rounded-md space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="font-medium">Environnement:</span>
+                      <span className={getEnvironmentColor()}>{getEnvironmentLabel()}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="font-medium">Supabase Project ID:</span>
+                      <code className="text-xs bg-background px-2 py-0.5 rounded">
+                        {import.meta.env.VITE_SUPABASE_PROJECT_ID || "N/A"}
+                      </code>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="font-medium">Supabase URL:</span>
+                      <code className="text-xs bg-background px-2 py-0.5 rounded truncate max-w-[180px]" title={import.meta.env.VITE_SUPABASE_URL}>
+                        {import.meta.env.VITE_SUPABASE_URL?.replace('https://', '').split('.')[0] || "N/A"}
+                      </code>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <h4 className="font-medium text-sm mb-2">Tables & Enregistrements</h4>
+                    <div className="bg-muted rounded-md overflow-hidden">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-border">
+                            <th className="text-left px-3 py-2 font-medium">Table</th>
+                            <th className="text-right px-3 py-2 font-medium">Count</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {dbStats.map((stat) => (
+                            <tr key={stat.table} className="border-b border-border last:border-0">
+                              <td className="px-3 py-1.5 font-mono text-xs">{stat.table}</td>
+                              <td className="px-3 py-1.5 text-right font-medium">{stat.count}</td>
+                            </tr>
+                          ))}
+                          {dbStats.length === 0 && (
+                            <tr>
+                              <td colSpan={2} className="px-3 py-2 text-center text-muted-foreground">
+                                Chargement...
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
             {userEmail && <button onClick={handleLogout} className="flex items-center gap-1.5 px-2 py-1 text-sm text-primary-foreground hover:underline">
                 <LogOut className="h-4 w-4" />
                 <span className="hidden md:inline">Déconnexion</span>
