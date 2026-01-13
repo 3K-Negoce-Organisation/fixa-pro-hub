@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { CartProvider } from "@/contexts/CartContext";
 import { FavoritesProvider } from "@/contexts/FavoritesContext";
+import { AdminErrorProvider } from "@/contexts/AdminErrorContext";
 
 import AuthGuard from "@/components/auth/AuthGuard";
 import AdminGuard from "@/components/auth/AdminGuard";
@@ -35,33 +36,35 @@ const App = () => (
     <TooltipProvider>
       <CartProvider>
         <FavoritesProvider>
-          <BrowserRouter>
-            <Toaster />
-            <Sonner />
-            <CookieConsent />
-            
-            <Routes>
-              <Route path="/auth" element={<AuthPage />} />
-              <Route path="/suivi" element={<AuthGuard><OrderTrackingPage /></AuthGuard>} />
-              <Route path="/confirmation" element={<AuthGuard><OrderConfirmationPage /></AuthGuard>} />
-              <Route path="/paiement-annule" element={<AuthGuard><PaymentCancelPage /></AuthGuard>} />
-              <Route path="/" element={<AuthGuard><Index /></AuthGuard>} />
-              <Route path="/produits" element={<AuthGuard><ProductsPage /></AuthGuard>} />
-              <Route path="/promos" element={<AuthGuard><PromosPage /></AuthGuard>} />
-              <Route path="/produit/:handle" element={<AuthGuard><ProductDetailPage /></AuthGuard>} />
-              <Route path="/panier" element={<AuthGuard><CartPage /></AuthGuard>} />
-              <Route path="/compte" element={<AuthGuard><AccountPage /></AuthGuard>} />
-              <Route path="/admin/commandes" element={<AdminGuard><AdminOrdersPage /></AdminGuard>} />
-              <Route path="/admin/produits" element={<AdminGuard><AdminProductsPage /></AdminGuard>} />
-              <Route path="/mentions-legales" element={<AuthGuard><MentionsLegalesPage /></AuthGuard>} />
-              <Route path="/politique-confidentialite" element={<AuthGuard><PolitiqueConfidentialitePage /></AuthGuard>} />
-              <Route path="/cookies" element={<AuthGuard><CookiesPage /></AuthGuard>} />
-              <Route path="/faq" element={<AuthGuard><FAQPage /></AuthGuard>} />
-              <Route path="/contact" element={<AuthGuard><ContactPage /></AuthGuard>} />
-              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-              <Route path="*" element={<AuthGuard><NotFound /></AuthGuard>} />
-            </Routes>
-          </BrowserRouter>
+          <AdminErrorProvider>
+            <BrowserRouter>
+              <Toaster />
+              <Sonner />
+              <CookieConsent />
+              
+              <Routes>
+                <Route path="/auth" element={<AuthPage />} />
+                <Route path="/suivi" element={<AuthGuard><OrderTrackingPage /></AuthGuard>} />
+                <Route path="/confirmation" element={<AuthGuard><OrderConfirmationPage /></AuthGuard>} />
+                <Route path="/paiement-annule" element={<AuthGuard><PaymentCancelPage /></AuthGuard>} />
+                <Route path="/" element={<AuthGuard><Index /></AuthGuard>} />
+                <Route path="/produits" element={<AuthGuard><ProductsPage /></AuthGuard>} />
+                <Route path="/promos" element={<AuthGuard><PromosPage /></AuthGuard>} />
+                <Route path="/produit/:handle" element={<AuthGuard><ProductDetailPage /></AuthGuard>} />
+                <Route path="/panier" element={<AuthGuard><CartPage /></AuthGuard>} />
+                <Route path="/compte" element={<AuthGuard><AccountPage /></AuthGuard>} />
+                <Route path="/admin/commandes" element={<AdminGuard><AdminOrdersPage /></AdminGuard>} />
+                <Route path="/admin/produits" element={<AdminGuard><AdminProductsPage /></AdminGuard>} />
+                <Route path="/mentions-legales" element={<AuthGuard><MentionsLegalesPage /></AuthGuard>} />
+                <Route path="/politique-confidentialite" element={<AuthGuard><PolitiqueConfidentialitePage /></AuthGuard>} />
+                <Route path="/cookies" element={<AuthGuard><CookiesPage /></AuthGuard>} />
+                <Route path="/faq" element={<AuthGuard><FAQPage /></AuthGuard>} />
+                <Route path="/contact" element={<AuthGuard><ContactPage /></AuthGuard>} />
+                {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                <Route path="*" element={<AuthGuard><NotFound /></AuthGuard>} />
+              </Routes>
+            </BrowserRouter>
+          </AdminErrorProvider>
         </FavoritesProvider>
       </CartProvider>
     </TooltipProvider>
