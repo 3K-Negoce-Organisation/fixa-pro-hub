@@ -17,6 +17,7 @@ import { PageBackground } from "@/components/layout/PageBackground";
 import { GDPRSettings } from "@/components/account/GDPRSettings";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useAdminError } from "@/contexts/AdminErrorContext";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
 import type { Tables } from "@/integrations/supabase/types";
 
@@ -56,6 +57,7 @@ const statusColors: Record<string, string> = {
 
 const AccountPage = () => {
   const navigate = useNavigate();
+  const { logError } = useAdminError();
   const [user, setUser] = useState<SupabaseUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -136,7 +138,8 @@ const AccountPage = () => {
       
       if (error) {
         console.error("Error loading orders:", error.message, error.code, error.details);
-        // Ne pas afficher d'erreur si c'est juste qu'il n'y a pas de commandes
+        logError(error, "Chargement des commandes - AccountPage");
+        // Ne pas afficher d'erreur toast si c'est juste qu'il n'y a pas de commandes
         if (error.code !== 'PGRST116') {
           toast.error("Erreur lors du chargement des commandes");
         }
@@ -146,6 +149,7 @@ const AccountPage = () => {
       }
     } catch (err) {
       console.error("Exception loading orders:", err);
+      logError(err, "Exception lors du chargement des commandes - AccountPage");
       setOrders([]);
     }
     setOrdersLoading(false);
