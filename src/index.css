@@ -17,27 +17,27 @@
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 20%;
 
-    /* Industrial Blue - Primary (lighter) */
-    --primary: 37 85% 35%;
+    /* Terracotta Brown - Primary (from logo) */
+    --primary: 22 55% 42%;
     --primary-foreground: 0 0% 100%;
 
-    /* Light gray for secondary surfaces */
-    --secondary: 210 20% 96%;
-    --secondary-foreground: 0 0% 20%;
+    /* Lighter terracotta for secondary surfaces */
+    --secondary: 22 30% 95%;
+    --secondary-foreground: 22 55% 25%;
 
-    --muted: 210 15% 94%;
-    --muted-foreground: 0 0% 45%;
+    --muted: 22 20% 92%;
+    --muted-foreground: 22 20% 45%;
 
-    /* Accent - Vibrant Orange for CTAs */
-    --accent: 31 97.1631% 72.3529%;
+    /* Accent - Warm orange accent */
+    --accent: 28 80% 55%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 210 20% 88%;
-    --input: 210 20% 88%;
-    --ring: 25 95% 53%;
+    --border: 22 20% 85%;
+    --input: 22 20% 85%;
+    --ring: 22 55% 42%;
 
     --radius: 0.375rem;
 
@@ -55,14 +55,14 @@
     --stock-low: 38 92% 50%;
     --stock-out: 0 84% 60%;
 
-    --sidebar-background: 210 20% 98%;
-    --sidebar-foreground: 0 0% 20%;
-    --sidebar-primary: 210 100% 35%;
+    --sidebar-background: 22 20% 98%;
+    --sidebar-foreground: 22 55% 25%;
+    --sidebar-primary: 22 55% 42%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 210 15% 94%;
-    --sidebar-accent-foreground: 0 0% 20%;
-    --sidebar-border: 210 20% 88%;
-    --sidebar-ring: 210 100% 35%;
+    --sidebar-accent: 22 20% 92%;
+    --sidebar-accent-foreground: 22 55% 25%;
+    --sidebar-border: 22 20% 85%;
+    --sidebar-ring: 22 55% 42%;
   }
 
   .dark {
