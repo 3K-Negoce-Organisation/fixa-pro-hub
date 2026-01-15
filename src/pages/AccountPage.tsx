@@ -3,7 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { User, LogOut, MapPin, Phone, Package, ChevronRight, Eye, Shield } from "lucide-react";
+import { User, LogOut, MapPin, Phone, Package, ChevronRight, Eye, Shield, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -15,8 +15,10 @@ import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { PageBackground } from "@/components/layout/PageBackground";
 import { GDPRSettings } from "@/components/account/GDPRSettings";
+import { EmailChangeForm } from "@/components/account/EmailChangeForm";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useAdminError } from "@/contexts/AdminErrorContext";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
 import type { Tables } from "@/integrations/supabase/types";
 
@@ -56,6 +58,7 @@ const statusColors: Record<string, string> = {
 
 const AccountPage = () => {
   const navigate = useNavigate();
+  const { logError } = useAdminError();
   const [user, setUser] = useState<SupabaseUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -136,7 +139,8 @@ const AccountPage = () => {
       
       if (error) {
         console.error("Error loading orders:", error.message, error.code, error.details);
-        // Ne pas afficher d'erreur si c'est juste qu'il n'y a pas de commandes
+        logError(error, "Chargement des commandes - AccountPage");
+        // Ne pas afficher d'erreur toast si c'est juste qu'il n'y a pas de commandes
         if (error.code !== 'PGRST116') {
           toast.error("Erreur lors du chargement des commandes");
         }
@@ -146,6 +150,7 @@ const AccountPage = () => {
       }
     } catch (err) {
       console.error("Exception loading orders:", err);
+      logError(err, "Exception lors du chargement des commandes - AccountPage");
       setOrders([]);
     }
     setOrdersLoading(false);
@@ -358,6 +363,11 @@ const AccountPage = () => {
                     </Button>
                   </form>
                 </Form>
+              </div>
+
+              {/* Email Change Section */}
+              <div className="bg-card border border-border rounded-lg p-6 mt-6">
+                {user && <EmailChangeForm currentEmail={user.email || ""} />}
               </div>
             </TabsContent>
 
