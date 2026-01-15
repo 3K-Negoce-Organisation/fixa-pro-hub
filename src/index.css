@@ -17,8 +17,8 @@
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 20%;
 
-    /* Terracotta/Brun - Primary (from logo) */
-    --primary: 26 46% 45%;
+    /* Terracotta/Brun - Primary (exact match logo #A0593B) */
+    --primary: 19 47% 43%;
     --primary-foreground: 0 0% 98%;
 
     /* Light gray for secondary surfaces */
