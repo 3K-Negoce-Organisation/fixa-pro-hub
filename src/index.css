@@ -188,15 +188,18 @@
   }
 
   .stock-available {
-    @apply bg-green-50 text-green-700;
+    background-color: color-mix(in srgb, var(--theme-success) 10%, transparent);
+    color: var(--theme-success);
   }
 
   .stock-low {
-    @apply bg-amber-50 text-amber-700;
+    background-color: color-mix(in srgb, var(--theme-warning) 10%, transparent);
+    color: var(--theme-warning);
   }
 
   .stock-out {
-    @apply bg-red-50 text-red-700;
+    background-color: color-mix(in srgb, var(--theme-error) 10%, transparent);
+    color: var(--theme-error);
   }
 
   .filter-section {
@@ -208,14 +211,63 @@
   }
 
   .category-card {
-    @apply flex flex-col items-center gap-2 p-4 bg-secondary rounded-lg hover:bg-muted transition-colors cursor-pointer border border-transparent hover:border-primary/20;
+    @apply flex flex-col items-center gap-2 p-4 rounded-lg transition-colors cursor-pointer border border-transparent hover:border-primary/20;
+    background-color: var(--theme-card-bg);
+    color: var(--theme-card-text);
+  }
+  
+  .category-card:hover {
+    background-color: var(--theme-nav-hover-bg);
   }
 
   .product-card {
-    @apply bg-card border border-border rounded-lg overflow-hidden hover:shadow-md transition-shadow;
+    @apply border rounded-lg overflow-hidden hover:shadow-md transition-shadow;
+    background-color: var(--theme-card-bg);
+    border-color: var(--theme-card-border);
   }
 
   .btn-cart {
-    @apply bg-accent hover:bg-accent/90 text-accent-foreground font-semibold;
+    @apply font-semibold;
+    background-color: var(--theme-button-primary-bg);
+    color: var(--theme-button-primary-text);
+  }
+  
+  .btn-cart:hover {
+    filter: brightness(0.9);
+  }
+
+  /* Theme utility classes for Footer */
+  .bg-theme-footer {
+    background-color: var(--theme-footer-bg);
+  }
+  
+  .text-theme-footer {
+    color: var(--theme-footer-text);
+  }
+  
+  .text-theme-footer-hover:hover {
+    color: var(--theme-footer-link-hover);
+  }
+
+  /* Theme utility classes for Header */
+  .bg-theme-header {
+    background-color: var(--theme-header-bg);
+  }
+  
+  .text-theme-header {
+    color: var(--theme-header-text);
+  }
+  
+  .text-theme-header-hover:hover {
+    color: var(--theme-header-link-hover);
+  }
+
+  /* Stock indicator dots */
+  .stock-dot-available {
+    background-color: var(--theme-success);
+  }
+  
+  .stock-dot-out {
+    background-color: var(--theme-error);
   }
 }

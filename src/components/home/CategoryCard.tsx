@@ -22,7 +22,7 @@ export function CategoryCard({
   return (
     <Link
       to={`/produits?category=${id}`}
-      className="flex flex-col items-center p-4 bg-card border border-border rounded-lg hover:border-primary hover:shadow-sm transition-all"
+      className="category-card"
     >
       <Icon className="h-8 w-8 text-primary mb-2" />
       <span className="font-medium text-sm text-center">{name}</span>
