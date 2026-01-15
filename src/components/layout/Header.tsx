@@ -362,8 +362,7 @@ export function Header() {
         <div className="px-4 bg-primary">
           <div className="flex items-center justify-between py-0.5">
             <div className="flex items-center gap-1 overflow-x-auto">
-              <Link to="/produits" className="flex items-center gap-2.5 px-3 py-1.5 text-sm font-medium hover:bg-primary-foreground/10 rounded transition-colors whitespace-nowrap">
-                <Menu className="h-4 w-4" />
+              <Link to="/produits" className="px-3 py-1.5 text-sm font-medium hover:bg-primary-foreground/10 rounded transition-colors whitespace-nowrap">
                 Tous les produits
               </Link>
               <span className="text-primary-foreground/30">|</span>
