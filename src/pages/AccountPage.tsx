@@ -106,6 +106,16 @@ const AccountPage = () => {
 
     return () => subscription.unsubscribe();
   }, [navigate]);
+  // Format phone number as XX XX XX XX XX
+  const formatPhoneNumber = (phone: string | null): string => {
+    if (!phone) return "";
+    const digits = phone.replace(/\D/g, '');
+    return digits
+      .slice(0, 10)
+      .replace(/(\d{2})(?=\d)/g, '$1 ')
+      .trim();
+  };
+
   const loadProfile = async (userId: string) => {
     const {
       data,
@@ -115,7 +125,7 @@ const AccountPage = () => {
       form.reset({
         first_name: data.first_name || "",
         last_name: data.last_name || "",
-        phone: data.phone || "",
+        phone: formatPhoneNumber(data.phone),
         billing_address: data.billing_address || "",
         billing_city: data.billing_city || "",
         billing_postal_code: data.billing_postal_code || "",
