@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Search, User, Menu, Package, LogOut, Settings, ChevronDown, Database } from "lucide-react";
-import ScrewIcon from "@/components/icons/ScrewIcon";
+import logoVisABois from "@/assets/logo-vis-a-bois.jpeg";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -111,9 +111,12 @@ export function Header() {
       <div className="py-3 px-4">
         <div className="flex items-center justify-between gap-6 w-full">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2 shrink-0">
-            <ScrewIcon size={32} className="text-primary-foreground" />
-            <span className="font-bold text-lg leading-none">Vis à Bois</span>
+          <Link to="/" className="flex items-center shrink-0">
+            <img 
+              src={logoVisABois} 
+              alt="Vis à Bois" 
+              className="h-10 md:h-12 w-auto"
+            />
           </Link>
 
           {/* Search bar */}

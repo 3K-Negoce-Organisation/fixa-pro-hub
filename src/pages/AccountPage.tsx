@@ -3,7 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { User, LogOut, MapPin, Phone, Package, ChevronRight, Eye, Shield } from "lucide-react";
+import { User, LogOut, MapPin, Phone, Package, ChevronRight, Eye, Shield, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -15,6 +15,7 @@ import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { PageBackground } from "@/components/layout/PageBackground";
 import { GDPRSettings } from "@/components/account/GDPRSettings";
+import { EmailChangeForm } from "@/components/account/EmailChangeForm";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAdminError } from "@/contexts/AdminErrorContext";
@@ -362,6 +363,11 @@ const AccountPage = () => {
                     </Button>
                   </form>
                 </Form>
+              </div>
+
+              {/* Email Change Section */}
+              <div className="bg-card border border-border rounded-lg p-6 mt-6">
+                {user && <EmailChangeForm currentEmail={user.email || ""} />}
               </div>
             </TabsContent>
 
