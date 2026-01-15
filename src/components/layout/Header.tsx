@@ -362,19 +362,25 @@ export function Header() {
         <div className="px-4 bg-primary">
           <div className="flex items-center justify-between py-0.5">
             <div className="flex items-center gap-1 overflow-x-auto">
-              <Link to="/produits" className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium hover:bg-primary-foreground/10 rounded transition-colors whitespace-nowrap">
+              <Link to="/produits" className="flex items-center gap-2.5 px-3 py-1.5 text-sm font-medium hover:bg-primary-foreground/10 rounded transition-colors whitespace-nowrap">
                 <Menu className="h-4 w-4" />
                 Tous les produits
               </Link>
-              {categories.map((cat) => (
-                <Link 
-                  key={cat.slug} 
-                  to={`/produits?category=${cat.slug}`} 
-                  className="px-3 py-1.5 text-sm hover:bg-primary-foreground/10 rounded transition-colors whitespace-nowrap"
-                >
-                  {cat.name}
-                </Link>
+              <span className="text-primary-foreground/30">|</span>
+              {categories.map((cat, index) => (
+                <span key={cat.slug} className="flex items-center">
+                  <Link 
+                    to={`/produits?category=${cat.slug}`} 
+                    className="px-3 py-1.5 text-sm hover:bg-primary-foreground/10 rounded transition-colors whitespace-nowrap"
+                  >
+                    {cat.name}
+                  </Link>
+                  {index < categories.length - 1 && (
+                    <span className="text-primary-foreground/30">|</span>
+                  )}
+                </span>
               ))}
+              <span className="text-primary-foreground/30">|</span>
               <Link to="/promos" className="px-3 py-1.5 text-sm font-medium text-accent hover:bg-primary-foreground/10 rounded transition-colors whitespace-nowrap">
                 Promos
               </Link>
