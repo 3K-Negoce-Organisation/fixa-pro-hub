@@ -95,15 +95,15 @@ export function ProductCard({ product, onAddToCart }: ProductCardProps) {
         </Link>
 
         {/* Specs preview */}
-        <div className="flex flex-wrap gap-1 mb-3 text-[10px] text-muted-foreground">
+        <div className="flex flex-wrap gap-1 mb-3 text-[10px]">
           {product.diameter_mm && (
-            <span className="bg-muted px-1.5 py-0.5 rounded">Ø{product.diameter_mm}mm</span>
+            <span className="bg-secondary text-secondary-foreground px-1.5 py-0.5 rounded">Ø{product.diameter_mm}mm</span>
           )}
           {product.length_mm && (
-            <span className="bg-muted px-1.5 py-0.5 rounded">{product.length_mm}mm</span>
+            <span className="bg-secondary text-secondary-foreground px-1.5 py-0.5 rounded">{product.length_mm}mm</span>
           )}
           {product.drive_type && (
-            <span className="bg-muted px-1.5 py-0.5 rounded">{product.drive_type}</span>
+            <span className="bg-secondary text-secondary-foreground px-1.5 py-0.5 rounded">{product.drive_type}</span>
           )}
         </div>
 
