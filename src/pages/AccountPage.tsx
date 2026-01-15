@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -58,12 +58,17 @@ const statusColors: Record<string, string> = {
 
 const AccountPage = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { logError } = useAdminError();
   const [user, setUser] = useState<SupabaseUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [orders, setOrders] = useState<Order[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
+  
+  // Get tab from URL or default to "profile"
+  const tabFromUrl = searchParams.get("tab");
+  const defaultTab = tabFromUrl === "orders" || tabFromUrl === "privacy" ? tabFromUrl : "profile";
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
     defaultValues: {
@@ -230,7 +235,7 @@ const AccountPage = () => {
             </Button>
           </div>
 
-          <Tabs defaultValue="profile" className="space-y-6">
+          <Tabs defaultValue={defaultTab} className="space-y-6">
             <TabsList>
             <TabsTrigger value="profile">
               <User className="h-4 w-4 mr-2" />
