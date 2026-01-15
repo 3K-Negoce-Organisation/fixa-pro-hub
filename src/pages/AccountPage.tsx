@@ -274,7 +274,22 @@ const AccountPage = () => {
                             <FormControl>
                                 <div className="relative">
                                   <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                  <Input placeholder="04 XX XX XX XX" className="pl-10" {...field} />
+                                  <Input 
+                                    placeholder="06 12 34 56 78" 
+                                    className="pl-10" 
+                                    {...field}
+                                    onChange={(e) => {
+                                      // Remove all non-digits
+                                      const digits = e.target.value.replace(/\D/g, '');
+                                      // Format as XX XX XX XX XX
+                                      const formatted = digits
+                                        .slice(0, 10)
+                                        .replace(/(\d{2})(?=\d)/g, '$1 ')
+                                        .trim();
+                                      field.onChange(formatted);
+                                    }}
+                                    maxLength={14}
+                                  />
                                 </div>
                               </FormControl>
                               <FormMessage />
