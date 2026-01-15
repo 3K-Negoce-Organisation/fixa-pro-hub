@@ -63,6 +63,60 @@
     --sidebar-accent-foreground: 0 0% 20%;
     --sidebar-border: 210 20% 88%;
     --sidebar-ring: 210 100% 35%;
+
+    /* Dynamic theme variables (fallback values) */
+    --theme-primary: #93441B;
+    --theme-secondary: #F1F4F7;
+    --theme-accent: #FCB95B;
+    --theme-background: #FFFFFF;
+    --theme-text: #333333;
+    --theme-muted: #737373;
+    
+    --theme-button-primary-bg: #93441B;
+    --theme-button-primary-text: #FAFAFA;
+    --theme-button-secondary-bg: #F1F4F7;
+    --theme-button-secondary-text: #333333;
+    
+    --theme-border-color: #D6DEE6;
+    --theme-border-radius: 0.375rem;
+    
+    --theme-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --theme-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    --theme-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    
+    --theme-font-family: 'Inter', sans-serif;
+    --theme-heading-font: 'Inter', sans-serif;
+    
+    --theme-header-bg: #93441B;
+    --theme-header-text: #FAFAFA;
+    --theme-header-link-hover: #FCB95B;
+    
+    --theme-footer-bg: #18181B;
+    --theme-footer-text: #737373;
+    --theme-footer-link-hover: #FAFAFA;
+    
+    --theme-nav-bg: #F1F4F7;
+    --theme-nav-text: #333333;
+    --theme-nav-active-bg: #93441B;
+    --theme-nav-active-text: #FAFAFA;
+    --theme-nav-hover-bg: #EBEEF1;
+    
+    --theme-card-bg: #FFFFFF;
+    --theme-card-text: #333333;
+    --theme-card-border: #D6DEE6;
+    
+    --theme-link-color: #93441B;
+    --theme-link-hover: #7a3816;
+    --theme-focus-ring: #F97316;
+    
+    --theme-success: #16A34A;
+    --theme-warning: #F59E0B;
+    --theme-error: #EF4444;
+    --theme-info: #0080FF;
+    
+    --theme-input-bg: #FFFFFF;
+    --theme-input-border: #D6DEE6;
+    --theme-input-focus-border: #F97316;
   }
 
   .dark {
