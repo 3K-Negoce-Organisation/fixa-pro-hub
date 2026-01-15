@@ -111,12 +111,12 @@ export function ProductCard({ product, onAddToCart }: ProductCardProps) {
         <div className="mb-2">
           {product.inStock ? (
             <span className="stock-badge stock-available text-xs">
-              <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+              <span className="w-2 h-2 stock-dot-available rounded-full"></span>
               En stock
             </span>
           ) : (
             <span className="stock-badge stock-out text-xs">
-              <span className="w-2 h-2 bg-red-500 rounded-full"></span>
+              <span className="w-2 h-2 stock-dot-out rounded-full"></span>
               Rupture
             </span>
           )}
