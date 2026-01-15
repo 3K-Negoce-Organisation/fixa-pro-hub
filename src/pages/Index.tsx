@@ -12,8 +12,8 @@ import { QuickOrderSection } from "@/components/home/QuickOrderSection";
 import { FeaturedProducts } from "@/components/home/FeaturedProducts";
 import { supabase } from "@/integrations/supabase/client";
 import heroScrewsBg from "@/assets/hero-screws-new.jpg";
-import screwsDetailLeft from "@/assets/screws-detail-left.jpg";
-import screwsDetailRight from "@/assets/screws-detail-right.jpg";
+import screwsDetailLeft from "@/assets/screws-detail-left-optimized.jpg";
+import screwsDetailRight from "@/assets/screws-detail-right-optimized.jpg";
 
 // Preload critical images
 const preloadImages = [heroScrewsBg, screwsDetailLeft, screwsDetailRight];
