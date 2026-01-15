@@ -72,7 +72,7 @@ export function QuickOrderSection() {
           <h2 className="font-semibold text-lg">Commandes rapides</h2>
         </div>
         <Button variant="ghost" size="sm" asChild>
-          <Link to="/commandes">
+          <Link to="/compte?tab=orders">
             Historique
             <ArrowRight className="h-4 w-4 ml-1" />
           </Link>
