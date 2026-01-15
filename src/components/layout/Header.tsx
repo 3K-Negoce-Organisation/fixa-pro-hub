@@ -362,30 +362,19 @@ export function Header() {
         <div className="px-4 bg-primary">
           <div className="flex items-center justify-between py-0.5">
             <div className="flex items-center gap-1 overflow-x-auto">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium hover:bg-primary-foreground/10 rounded transition-colors whitespace-nowrap">
-                    <Menu className="h-4 w-4" />
-                    Produits
-                    <ChevronDown className="h-3 w-3" />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="bg-card border-border z-50">
-                  <DropdownMenuItem asChild>
-                    <Link to="/produits" className="cursor-pointer">
-                      Tous les produits
-                    </Link>
-                  </DropdownMenuItem>
-                  {categories.length > 0 && <DropdownMenuSeparator />}
-                  {categories.map((cat) => (
-                    <DropdownMenuItem key={cat.slug} asChild>
-                      <Link to={`/produits?category=${cat.slug}`} className="cursor-pointer">
-                        {cat.name}
-                      </Link>
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <Link to="/produits" className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium hover:bg-primary-foreground/10 rounded transition-colors whitespace-nowrap">
+                <Menu className="h-4 w-4" />
+                Tous les produits
+              </Link>
+              {categories.map((cat) => (
+                <Link 
+                  key={cat.slug} 
+                  to={`/produits?category=${cat.slug}`} 
+                  className="px-3 py-1.5 text-sm hover:bg-primary-foreground/10 rounded transition-colors whitespace-nowrap"
+                >
+                  {cat.name}
+                </Link>
+              ))}
               <Link to="/promos" className="px-3 py-1.5 text-sm font-medium text-accent hover:bg-primary-foreground/10 rounded transition-colors whitespace-nowrap">
                 Promos
               </Link>
