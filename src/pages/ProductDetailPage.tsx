@@ -170,11 +170,11 @@ const ProductDetailPage = () => {
                   {technicalSpecs.map((spec, index) => (
                     <div
                       key={index}
-                      className="inline-flex items-center gap-1.5 bg-muted border border-border rounded-full px-3 py-1.5 text-sm"
+                      className="inline-flex items-center gap-1.5 bg-secondary border border-border rounded-full px-3 py-1.5 text-sm"
                     >
                       <span className="text-primary">{spec.icon}</span>
-                      <span className="font-medium">{spec.value}</span>
-                      {spec.label && <span className="text-muted-foreground text-xs">{spec.label}</span>}
+                      <span className="font-medium text-secondary-foreground">{spec.value}</span>
+                      {spec.label && <span className="text-secondary-foreground/70 text-xs">{spec.label}</span>}
                     </div>
                   ))}
                 </div>
