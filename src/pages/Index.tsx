@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search, Shield, Truck } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
@@ -15,6 +15,13 @@ import heroScrewsBg from "@/assets/hero-screws-new.jpg";
 import screwsDetailLeft from "@/assets/screws-detail-left.jpg";
 import screwsDetailRight from "@/assets/screws-detail-right.jpg";
 
+// Preload critical images
+const preloadImages = [heroScrewsBg, screwsDetailLeft, screwsDetailRight];
+preloadImages.forEach((src) => {
+  const img = new Image();
+  img.src = src;
+});
+
 const categoryConfig = [
   { id: "terrasse", name: "Vis Terrasse", icon: "deck", dbCategory: "Vis terrasse" },
   { id: "charpente", name: "Vis Charpente", icon: "frame", dbCategory: "Vis de charpente" },
@@ -24,7 +31,35 @@ const categoryConfig = [
 
 const Index = () => {
   const [searchQuery, setSearchQuery] = useState("");
+  const [imagesLoaded, setImagesLoaded] = useState(false);
   const navigate = useNavigate();
+
+  // Track image loading state
+  useEffect(() => {
+    let loadedCount = 0;
+    const totalImages = preloadImages.length;
+    
+    preloadImages.forEach((src) => {
+      const img = new Image();
+      img.onload = () => {
+        loadedCount++;
+        if (loadedCount === totalImages) {
+          setImagesLoaded(true);
+        }
+      };
+      img.onerror = () => {
+        loadedCount++;
+        if (loadedCount === totalImages) {
+          setImagesLoaded(true);
+        }
+      };
+      img.src = src;
+    });
+    
+    // Fallback: consider loaded after 2s max
+    const timeout = setTimeout(() => setImagesLoaded(true), 2000);
+    return () => clearTimeout(timeout);
+  }, []);
 
   // Fetch product counts by category
   const { data: categoryCounts } = useQuery({
@@ -77,13 +112,17 @@ const Index = () => {
             <div className="flex items-center justify-center gap-6 lg:gap-12">
               {/* Left decorative image - hidden on mobile */}
               <div className="hidden md:block flex-shrink-0">
-                <div className="w-32 lg:w-40 h-32 lg:h-40 rounded-2xl overflow-hidden shadow-xl ring-4 ring-primary/20 rotate-[-6deg] hover:rotate-0 transition-transform duration-300">
+                <div className={`w-32 lg:w-40 h-32 lg:h-40 rounded-2xl overflow-hidden shadow-xl ring-4 ring-primary/20 rotate-[-6deg] hover:rotate-0 transition-all duration-300 ${imagesLoaded ? 'opacity-100' : 'opacity-0'}`}>
                   <img 
                     src={screwsDetailLeft} 
                     alt="Vis dorées sur bois" 
                     className="w-full h-full object-cover"
+                    loading="eager"
                   />
                 </div>
+                {!imagesLoaded && (
+                  <div className="w-32 lg:w-40 h-32 lg:h-40 rounded-2xl bg-muted animate-pulse rotate-[-6deg] absolute" />
+                )}
               </div>
               
               {/* Main Search */}
@@ -123,13 +162,17 @@ const Index = () => {
               
               {/* Right decorative image - hidden on mobile */}
               <div className="hidden md:block flex-shrink-0">
-                <div className="w-32 lg:w-40 h-32 lg:h-40 rounded-2xl overflow-hidden shadow-xl ring-4 ring-primary/20 rotate-[6deg] hover:rotate-0 transition-transform duration-300">
+                <div className={`w-32 lg:w-40 h-32 lg:h-40 rounded-2xl overflow-hidden shadow-xl ring-4 ring-primary/20 rotate-[6deg] hover:rotate-0 transition-all duration-300 ${imagesLoaded ? 'opacity-100' : 'opacity-0'}`}>
                   <img 
                     src={screwsDetailRight} 
                     alt="Vis inox sur bois" 
                     className="w-full h-full object-cover"
+                    loading="eager"
                   />
                 </div>
+                {!imagesLoaded && (
+                  <div className="w-32 lg:w-40 h-32 lg:h-40 rounded-2xl bg-muted animate-pulse rotate-[6deg] absolute" />
+                )}
               </div>
             </div>
 
