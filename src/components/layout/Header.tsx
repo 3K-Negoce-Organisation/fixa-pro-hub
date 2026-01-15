@@ -16,6 +16,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export function Header() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -312,22 +319,43 @@ export function Header() {
         <div className="px-4 bg-primary">
           <div className="flex items-center justify-between py-0.5">
             <div className="flex items-center gap-1 overflow-x-auto">
-              <Link to="/produits" className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium hover:bg-primary-foreground/10 rounded transition-colors whitespace-nowrap">
-                <Menu className="h-4 w-4" />
-                Tous les produits
-              </Link>
-              <Link to="/produits?category=terrasse" className="px-3 py-1.5 text-sm hover:bg-primary-foreground/10 rounded transition-colors whitespace-nowrap">
-                Vis Terrasse
-              </Link>
-              <Link to="/produits?category=charpente" className="px-3 py-1.5 text-sm hover:bg-primary-foreground/10 rounded transition-colors whitespace-nowrap">
-                Vis Charpente
-              </Link>
-              <Link to="/produits?category=menuiserie" className="px-3 py-1.5 text-sm hover:bg-primary-foreground/10 rounded transition-colors whitespace-nowrap">
-                Vis Menuiserie
-              </Link>
-              <Link to="/produits?category=tirefond" className="px-3 py-1.5 text-sm hover:bg-primary-foreground/10 rounded transition-colors whitespace-nowrap">
-                Tirefond
-              </Link>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium hover:bg-primary-foreground/10 rounded transition-colors whitespace-nowrap">
+                    <Menu className="h-4 w-4" />
+                    Produits
+                    <ChevronDown className="h-3 w-3" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="bg-card border-border z-50">
+                  <DropdownMenuItem asChild>
+                    <Link to="/produits" className="cursor-pointer">
+                      Tous les produits
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link to="/produits?category=terrasse" className="cursor-pointer">
+                      Vis Terrasse
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/produits?category=charpente" className="cursor-pointer">
+                      Vis Charpente
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/produits?category=menuiserie" className="cursor-pointer">
+                      Vis Menuiserie
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/produits?category=tirefond" className="cursor-pointer">
+                      Tirefond
+                    </Link>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
               <Link to="/promos" className="px-3 py-1.5 text-sm font-medium text-accent hover:bg-primary-foreground/10 rounded transition-colors whitespace-nowrap">
                 Promos
               </Link>
