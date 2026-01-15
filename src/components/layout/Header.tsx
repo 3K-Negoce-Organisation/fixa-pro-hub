@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Search, User, Menu, Package, LogOut, Settings, ChevronDown, Database } from "lucide-react";
+import { Search, User, Menu, Package, LogOut, Settings, ChevronDown, Database, Palette } from "lucide-react";
 import logoVisABois from "@/assets/logo-vis-a-bois.jpeg";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { SupplierSettingsDialog } from "@/components/admin/SupplierSettingsDialog";
+import { ThemeSettingsDialog } from "@/components/admin/ThemeSettingsDialog";
 import { CartDrawer } from "@/components/cart/CartDrawer";
 import { ENVIRONMENT, getEnvironmentLabel, getEnvironmentColor } from "@/lib/environment";
 import {
@@ -23,6 +24,7 @@ export function Header() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [adminMenuOpen, setAdminMenuOpen] = useState(false);
   const [supplierDialogOpen, setSupplierDialogOpen] = useState(false);
+  const [themeDialogOpen, setThemeDialogOpen] = useState(false);
   const [dbInfoDialogOpen, setDbInfoDialogOpen] = useState(false);
   const [dbStats, setDbStats] = useState<{ table: string; count: number }[]>([]);
   const navigate = useNavigate();
@@ -207,6 +209,13 @@ export function Header() {
                     >
                       Paramètres fournisseur
                     </button>
+                    <button
+                      onClick={() => setThemeDialogOpen(true)}
+                      className="flex items-center gap-2 w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors"
+                    >
+                      <Palette className="h-4 w-4" />
+                      Personnalisation thème
+                    </button>
                     <div className="border-t border-border" />
                     <button
                       onClick={openDbInfoDialog}
@@ -223,6 +232,11 @@ export function Header() {
             <SupplierSettingsDialog 
               open={supplierDialogOpen} 
               onOpenChange={setSupplierDialogOpen} 
+            />
+            
+            <ThemeSettingsDialog
+              open={themeDialogOpen}
+              onOpenChange={setThemeDialogOpen}
             />
 
             {/* Database Info Dialog */}
