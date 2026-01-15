@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Search, User, Menu, Package, LogOut, Settings, ChevronDown, Database, Palette } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import logoVisABois from "@/assets/logo-vis-a-bois.jpeg";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,16 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
+// Fonction pour générer un slug URL à partir du nom de catégorie
+const categoryToSlug = (category: string): string => {
+  return category
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "") // Supprimer les accents
+    .replace(/\s+/g, "-") // Espaces vers tirets
+    .replace(/[^a-z0-9-]/g, ""); // Supprimer caractères spéciaux
+};
+
 export function Header() {
   const [searchQuery, setSearchQuery] = useState("");
   const [userEmail, setUserEmail] = useState<string | null>(null);
@@ -36,6 +47,38 @@ export function Header() {
   const [dbStats, setDbStats] = useState<{ table: string; count: number }[]>([]);
   const navigate = useNavigate();
   const adminMenuTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Fetch categories from database
+  const { data: categories = [] } = useQuery({
+    queryKey: ["product-categories"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("products")
+        .select("category")
+        .eq("is_active", true)
+        .not("category", "is", null);
+
+      if (error) throw error;
+
+      // Get unique categories and count
+      const categoryMap = new Map<string, number>();
+      data?.forEach((p) => {
+        if (p.category) {
+          categoryMap.set(p.category, (categoryMap.get(p.category) || 0) + 1);
+        }
+      });
+
+      // Convert to array and sort by name
+      return Array.from(categoryMap.entries())
+        .map(([name, count]) => ({
+          name,
+          slug: categoryToSlug(name),
+          count,
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name, "fr"));
+    },
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+  });
 
   const handleAdminMenuEnter = () => {
     if (adminMenuTimeoutRef.current) {
@@ -333,27 +376,14 @@ export function Header() {
                       Tous les produits
                     </Link>
                   </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <Link to="/produits?category=terrasse" className="cursor-pointer">
-                      Vis Terrasse
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/produits?category=charpente" className="cursor-pointer">
-                      Vis Charpente
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/produits?category=menuiserie" className="cursor-pointer">
-                      Vis Menuiserie
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/produits?category=tirefond" className="cursor-pointer">
-                      Tirefond
-                    </Link>
-                  </DropdownMenuItem>
+                  {categories.length > 0 && <DropdownMenuSeparator />}
+                  {categories.map((cat) => (
+                    <DropdownMenuItem key={cat.slug} asChild>
+                      <Link to={`/produits?category=${cat.slug}`} className="cursor-pointer">
+                        {cat.name}
+                      </Link>
+                    </DropdownMenuItem>
+                  ))}
                 </DropdownMenuContent>
               </DropdownMenu>
               <Link to="/promos" className="px-3 py-1.5 text-sm font-medium text-accent hover:bg-primary-foreground/10 rounded transition-colors whitespace-nowrap">
