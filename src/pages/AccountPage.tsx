@@ -25,8 +25,8 @@ import type { Tables } from "@/integrations/supabase/types";
 type Order = Tables<"orders">;
 
 const profileSchema = z.object({
-  company_name: z.string().max(100).optional(),
-  siret: z.string().max(14).optional(),
+  first_name: z.string().max(50).optional(),
+  last_name: z.string().max(50).optional(),
   phone: z.string().max(20).optional(),
   billing_address: z.string().max(200).optional(),
   billing_city: z.string().max(100).optional(),
@@ -67,8 +67,8 @@ const AccountPage = () => {
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
     defaultValues: {
-      company_name: "",
-      siret: "",
+      first_name: "",
+      last_name: "",
       phone: "",
       billing_address: "",
       billing_city: "",
@@ -113,8 +113,8 @@ const AccountPage = () => {
     } = await supabase.from("profiles").select("*").eq("user_id", userId).maybeSingle();
     if (data) {
       form.reset({
-        company_name: data.company_name || "",
-        siret: data.siret || "",
+        first_name: data.first_name || "",
+        last_name: data.last_name || "",
         phone: data.phone || "",
         billing_address: data.billing_address || "",
         billing_city: data.billing_city || "",
@@ -247,15 +247,26 @@ const AccountPage = () => {
                       Informations personnelles
                     </h2>
                     <div className="grid md:grid-cols-2 gap-4">
-                      <FormField control={form.control} name="company_name" render={({
+                      <FormField control={form.control} name="first_name" render={({
                       field
                     }) => <FormItem>
-                            <FormLabel>Nom complet</FormLabel>
+                            <FormLabel>Prénom</FormLabel>
                             <FormControl>
-                              <Input placeholder="Jean Dupont" {...field} />
+                              <Input placeholder="Jean" {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>} />
+                      <FormField control={form.control} name="last_name" render={({
+                      field
+                    }) => <FormItem>
+                            <FormLabel>Nom</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Dupont" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>} />
+                    </div>
+                    <div className="grid md:grid-cols-2 gap-4">
                       <FormField control={form.control} name="phone" render={({
                       field
                     }) => <FormItem>
@@ -268,7 +279,7 @@ const AccountPage = () => {
                               </FormControl>
                               <FormMessage />
                             </FormItem>} />
-                      </div>
+                    </div>
                     </div>
 
                     {/* Billing Address */}

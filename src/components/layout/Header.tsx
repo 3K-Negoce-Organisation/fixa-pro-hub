@@ -19,6 +19,7 @@ import {
 export function Header() {
   const [searchQuery, setSearchQuery] = useState("");
   const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [userFirstName, setUserFirstName] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [adminMenuOpen, setAdminMenuOpen] = useState(false);
   const [supplierDialogOpen, setSupplierDialogOpen] = useState(false);
@@ -48,6 +49,33 @@ export function Header() {
       }
     };
   }, []);
+
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    return hour >= 18 ? "Bonsoir" : "Bonjour";
+  };
+
+  const getDisplayName = () => {
+    if (userFirstName) {
+      return `${getGreeting()} ${userFirstName}`;
+    }
+    return userEmail || "Compte";
+  };
+
+  const loadUserProfile = async (userId: string) => {
+    const { data } = await supabase
+      .from("profiles")
+      .select("first_name")
+      .eq("user_id", userId)
+      .maybeSingle();
+    
+    if (data?.first_name) {
+      setUserFirstName(data.first_name);
+    } else {
+      setUserFirstName(null);
+    }
+  };
+
   useEffect(() => {
     const checkAdmin = async (userId: string | undefined) => {
       if (!userId) {
@@ -66,6 +94,11 @@ export function Header() {
     } = supabase.auth.onAuthStateChange((event, session) => {
       setUserEmail(session?.user?.email ?? null);
       checkAdmin(session?.user?.id);
+      if (session?.user?.id) {
+        loadUserProfile(session.user.id);
+      } else {
+        setUserFirstName(null);
+      }
     });
     supabase.auth.getSession().then(({
       data: {
@@ -74,6 +107,9 @@ export function Header() {
     }) => {
       setUserEmail(session?.user?.email ?? null);
       checkAdmin(session?.user?.id);
+      if (session?.user?.id) {
+        loadUserProfile(session.user.id);
+      }
     });
     return () => subscription.unsubscribe();
   }, []);
@@ -133,7 +169,7 @@ export function Header() {
           <div className="flex items-center gap-3 shrink-0">
             <Link to="/compte" className="flex items-center gap-1.5 px-2 py-1 text-sm text-primary-foreground hover:underline">
               <User className="h-4 w-4" />
-              <span className="hidden md:inline">{userEmail || "Compte"}</span>
+              <span className="hidden md:inline">{getDisplayName()}</span>
             </Link>
 
             {/* Admin dropdown visible only for pierre.kabore@gmail.com on all environments */}
