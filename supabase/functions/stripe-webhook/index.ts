@@ -166,6 +166,65 @@ serve(async (req) => {
       const paymentIntent = event.data.object as Stripe.PaymentIntent;
       logStep("Processing PaymentIntent succeeded", { paymentIntentId: paymentIntent.id });
 
+      // Check if order already exists with this PaymentIntent ID
+      // (Frontend may have already created the order)
+      const { data: existingOrder } = await supabaseAdmin
+        .from("orders")
+        .select("id, order_number, total_ht, total_ttc, user_email, shipping_address, shipping_city, shipping_postal_code, shipping_name")
+        .ilike("notes", `%${paymentIntent.id}%`)
+        .maybeSingle();
+
+      if (existingOrder) {
+        logStep("Order already exists for this PaymentIntent", { 
+          orderId: existingOrder.id, 
+          orderNumber: existingOrder.order_number 
+        });
+
+        // Get order items for n8n webhook
+        const { data: existingItems } = await supabaseAdmin
+          .from("order_items")
+          .select("*")
+          .eq("order_id", existingOrder.id);
+
+        // Send webhook to n8n for fulfillment (even if order already exists)
+        if (n8nWebhookUrl) {
+          const cartItems = (existingItems || []).map(item => ({
+            id: item.product_id,
+            title: item.product_title,
+            variantTitle: item.variant_title,
+            image: item.product_image,
+            quantity: item.quantity,
+            priceHT: item.unit_price_ht,
+          }));
+
+          await sendToN8n(
+            n8nWebhookUrl,
+            supabaseAdmin,
+            existingOrder.order_number,
+            existingOrder.id,
+            paymentIntent.id,
+            existingOrder.shipping_name,
+            existingOrder.user_email,
+            null, // phone
+            existingOrder.shipping_address ? {
+              line1: existingOrder.shipping_address,
+              city: existingOrder.shipping_city,
+              postal_code: existingOrder.shipping_postal_code,
+            } : null,
+            cartItems,
+            existingOrder.total_ht,
+            existingOrder.total_ttc
+          );
+        }
+
+        logStep("PaymentIntent processing complete (existing order)");
+        return new Response(JSON.stringify({ received: true, existing_order: true }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
+        });
+      }
+
+      // No existing order found - create new one
       const metadata = paymentIntent.metadata || {};
       const userId = metadata.user_id !== "guest" ? metadata.user_id : null;
       const userEmail = metadata.user_email || null;
@@ -310,6 +369,63 @@ serve(async (req) => {
     if (event.type === "checkout.session.completed") {
       const session = event.data.object as Stripe.Checkout.Session;
       logStep("Processing checkout session", { sessionId: session.id });
+
+      // Check if order already exists with this Session ID
+      const { data: existingOrder } = await supabaseAdmin
+        .from("orders")
+        .select("id, order_number, total_ht, total_ttc, user_email, shipping_address, shipping_city, shipping_postal_code, shipping_name")
+        .ilike("notes", `%${session.id}%`)
+        .maybeSingle();
+
+      if (existingOrder) {
+        logStep("Order already exists for this Checkout Session", { 
+          orderId: existingOrder.id, 
+          orderNumber: existingOrder.order_number 
+        });
+
+        // Get order items for n8n webhook
+        const { data: existingItems } = await supabaseAdmin
+          .from("order_items")
+          .select("*")
+          .eq("order_id", existingOrder.id);
+
+        // Send webhook to n8n for fulfillment (even if order already exists)
+        if (n8nWebhookUrl) {
+          const cartItems = (existingItems || []).map(item => ({
+            id: item.product_id,
+            title: item.product_title,
+            variantTitle: item.variant_title,
+            image: item.product_image,
+            quantity: item.quantity,
+            priceHT: item.unit_price_ht,
+          }));
+
+          await sendToN8n(
+            n8nWebhookUrl,
+            supabaseAdmin,
+            existingOrder.order_number,
+            existingOrder.id,
+            session.id,
+            existingOrder.shipping_name,
+            existingOrder.user_email,
+            null, // phone
+            existingOrder.shipping_address ? {
+              line1: existingOrder.shipping_address,
+              city: existingOrder.shipping_city,
+              postal_code: existingOrder.shipping_postal_code,
+            } : null,
+            cartItems,
+            existingOrder.total_ht,
+            existingOrder.total_ttc
+          );
+        }
+
+        logStep("Checkout session processing complete (existing order)");
+        return new Response(JSON.stringify({ received: true, existing_order: true }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
+        });
+      }
 
       // Get session details with line items
       const fullSession = await stripe.checkout.sessions.retrieve(session.id, {

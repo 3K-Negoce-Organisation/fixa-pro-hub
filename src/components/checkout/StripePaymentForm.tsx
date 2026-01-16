@@ -17,7 +17,8 @@ import { useNavigate } from "react-router-dom";
 import { useCart, CartItem } from "@/contexts/CartContext";
 import { formatPrice } from "@/lib/products";
 
-const STRIPE_PUBLISHABLE_KEY = "pk_test_51Sd81FLdlL70a9Pj6JpRNhY6hna6DZZ8I4Id57wBuIppTvQh3GA4RQwpMAFR3h7dSMOstwk45IdQjqRlDYGACA4R00mUtZfUP7";
+// Stripe publishable key - use environment variable with fallback to test key
+const STRIPE_PUBLISHABLE_KEY = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || "pk_test_51Sd81FLdlL70a9Pj6JpRNhY6hna6DZZ8I4Id57wBuIppTvQh3GA4RQwpMAFR3h7dSMOstwk45IdQjqRlDYGACA4R00mUtZfUP7";
 
 // Load Stripe with error handling
 const loadStripeWithRetry = async (): Promise<Stripe | null> => {
