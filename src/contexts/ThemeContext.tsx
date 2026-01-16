@@ -14,8 +14,23 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
  * Applique les variables CSS du thème sur :root
  * Convertit les couleurs HEX en HSL pour compatibilité Tailwind
  */
+function applyFavicon(faviconUrl: string | null | undefined) {
+  if (faviconUrl) {
+    let link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
+    if (!link) {
+      link = document.createElement('link');
+      link.rel = 'icon';
+      document.head.appendChild(link);
+    }
+    link.href = faviconUrl;
+  }
+}
+
 function applyThemeToCSS(theme: Partial<SiteTheme>) {
   const root = document.documentElement;
+  
+  // Appliquer le favicon dynamique
+  applyFavicon(theme.favicon_url);
   
   // Mapping des propriétés du thème vers les variables CSS personnalisées
   const themeVariables: Record<string, string | undefined> = {

@@ -1,6 +1,10 @@
 export interface SiteTheme {
   id: string;
   
+  // Branding
+  logo_url: string | null;
+  favicon_url: string | null;
+  
   // Couleurs principales
   primary_color: string;
   secondary_color: string;
@@ -76,6 +80,9 @@ export interface SiteTheme {
 }
 
 export const DEFAULT_THEME: Omit<SiteTheme, 'id' | 'created_at' | 'updated_at'> = {
+  logo_url: null,
+  favicon_url: null,
+  
   primary_color: '#93441B',
   secondary_color: '#F1F4F7',
   accent_color: '#FCB95B',

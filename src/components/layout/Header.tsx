@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { SupplierSettingsDialog } from "@/components/admin/SupplierSettingsDialog";
 import { ThemeSettingsDialog } from "@/components/admin/ThemeSettingsDialog";
 import { CartDrawer } from "@/components/cart/CartDrawer";
+import { useTheme } from "@/contexts/ThemeContext";
 import { ENVIRONMENT, getEnvironmentLabel, getEnvironmentColor } from "@/lib/environment";
 import {
   Dialog,
@@ -36,6 +37,7 @@ const categoryToSlug = (category: string): string => {
 };
 
 export function Header() {
+  const { theme } = useTheme();
   const [searchQuery, setSearchQuery] = useState("");
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [userFirstName, setUserFirstName] = useState<string | null>(null);
@@ -47,6 +49,9 @@ export function Header() {
   const [dbStats, setDbStats] = useState<{ table: string; count: number }[]>([]);
   const navigate = useNavigate();
   const adminMenuTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Use dynamic logo from theme or fallback to default
+  const logoSrc = theme.logo_url || logoVisABois;
 
   // Fetch categories from database
   const { data: categories = [] } = useQuery({
@@ -198,10 +203,9 @@ export function Header() {
       {/* Main header */}
       <div className="py-2 sm:py-3 px-3 sm:px-4">
         <div className="flex items-center justify-between gap-2 sm:gap-6 w-full">
-          {/* Logo */}
           <Link to="/" className="flex items-center shrink-0">
             <img 
-              src={logoVisABois} 
+              src={logoSrc} 
               alt="Vis à Bois" 
               className="h-8 sm:h-10 md:h-12 w-auto"
             />
