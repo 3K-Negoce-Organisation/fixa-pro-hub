@@ -83,7 +83,7 @@ export function QuickOrderSection() {
         {recentProducts.map((product) => (
           <div
             key={product.id}
-            className="flex items-center gap-3 p-3 bg-secondary rounded-lg hover:bg-muted transition-colors"
+            className="flex items-center gap-3 p-3 bg-secondary rounded-lg hover:bg-primary/10 transition-colors"
           >
             <img
               src={product.image}
