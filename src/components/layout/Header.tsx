@@ -243,25 +243,25 @@ export function Header() {
                   <div className="absolute right-0 top-full mt-1 w-56 bg-background border border-border rounded-md shadow-lg z-50">
                     <Link 
                       to="/admin/commandes" 
-                      className="block px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors"
+                      className="block px-4 py-2 text-sm text-foreground hover:bg-primary/10 transition-colors"
                     >
                       Gestion des commandes
                     </Link>
                     <Link 
                       to="/admin/produits" 
-                      className="block px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors"
+                      className="block px-4 py-2 text-sm text-foreground hover:bg-primary/10 transition-colors"
                     >
                       Gestion des produits
                     </Link>
                     <button
                       onClick={() => setSupplierDialogOpen(true)}
-                      className="block w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors"
+                      className="block w-full text-left px-4 py-2 text-sm text-foreground hover:bg-primary/10 transition-colors"
                     >
                       Paramètres fournisseur
                     </button>
                     <button
                       onClick={() => setThemeDialogOpen(true)}
-                      className="flex items-center gap-2 w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors"
+                      className="flex items-center gap-2 w-full text-left px-4 py-2 text-sm text-foreground hover:bg-primary/10 transition-colors"
                     >
                       <Palette className="h-4 w-4" />
                       Personnalisation thème
@@ -269,7 +269,7 @@ export function Header() {
                     <div className="border-t border-border" />
                     <button
                       onClick={openDbInfoDialog}
-                      className="flex items-center gap-2 w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors"
+                      className="flex items-center gap-2 w-full text-left px-4 py-2 text-sm text-foreground hover:bg-primary/10 transition-colors"
                     >
                       <Database className="h-4 w-4" />
                       Infos Base de Données

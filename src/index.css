@@ -217,7 +217,7 @@
   }
   
   .category-card:hover {
-    background-color: var(--theme-nav-hover-bg);
+    background-color: hsl(var(--primary) / 0.08);
   }
 
   .product-card {
