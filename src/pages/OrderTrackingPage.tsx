@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
@@ -16,7 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Package, Truck, CheckCircle, Clock, XCircle, Search, AlertCircle, Loader2, ShoppingBag, FileText, Download } from "lucide-react";
+import { Package, Truck, CheckCircle, Clock, XCircle, Search, AlertCircle, Loader2, ShoppingBag, FileText, Download, Home, ChevronRight } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -443,16 +443,26 @@ const OrderTrackingPage = () => {
   return (
     <PageBackground>
       <Header />
-      <main className="flex-1 container mx-auto px-4 py-8">
-        <h1 className="text-2xl font-bold text-foreground mb-6">Suivi de commande</h1>
+      <main className="flex-1 container mx-auto px-4 py-6">
+        {/* Breadcrumb */}
+        <nav className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
+          <Link to="/" className="hover:text-foreground flex items-center gap-1">
+            <Home className="h-4 w-4" />
+            <span className="hidden sm:inline">Accueil</span>
+          </Link>
+          <ChevronRight className="h-4 w-4" />
+          <span className="text-foreground">Suivi de commande</span>
+        </nav>
+        
+        <h1 className="text-xl sm:text-2xl font-bold text-foreground mb-6">Suivi de commande</h1>
 
-        <div className="grid lg:grid-cols-3 gap-6">
+        <div className="grid lg:grid-cols-3 gap-4 sm:gap-6">
           {/* Left column: Search + User orders list */}
-          <div className="space-y-6">
+          <div className="space-y-4 sm:space-y-6">
             {/* Search form */}
             <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Rechercher une commande</CardTitle>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base sm:text-lg">Rechercher une commande</CardTitle>
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleSearch} className="flex flex-col gap-3">
@@ -472,9 +482,9 @@ const OrderTrackingPage = () => {
 
             {/* User's orders list */}
             <Card>
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <ShoppingBag className="h-5 w-5" />
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+                  <ShoppingBag className="h-4 w-4 sm:h-5 sm:w-5" />
                   Mes commandes
                 </CardTitle>
               </CardHeader>
@@ -633,50 +643,83 @@ const OrderTrackingPage = () => {
                 <Card>
                   <CardContent className="pt-6">
                     <h3 className="font-semibold text-foreground mb-4">Articles commandés</h3>
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Produit</TableHead>
-                          <TableHead className="text-center">Qté</TableHead>
-                          <TableHead className="text-right">Prix HT</TableHead>
-                          <TableHead className="text-right">Total HT</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {order.order_items.map((item) => (
-                          <TableRow key={item.id}>
-                            <TableCell>
-                              <div className="flex items-center gap-3">
-                                {item.product_image && (
-                                  <img
-                                    src={item.product_image}
-                                    alt={item.product_title}
-                                    className="w-12 h-12 object-contain rounded border"
-                                  />
-                                )}
-                                <div>
-                                  <p className="font-medium text-foreground">
-                                    {item.product_title}
-                                  </p>
-                                  {item.variant_title && (
-                                    <p className="text-sm text-muted-foreground">
-                                      {item.variant_title}
-                                    </p>
-                                  )}
-                                </div>
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-center">{item.quantity}</TableCell>
-                            <TableCell className="text-right">
-                              {formatPriceHT(item.unit_price_ht)}
-                            </TableCell>
-                            <TableCell className="text-right font-medium">
-                              {formatPriceHT(item.unit_price_ht * item.quantity)}
-                            </TableCell>
+                    
+                    {/* Mobile: Card-based layout */}
+                    <div className="sm:hidden space-y-3">
+                      {order.order_items.map((item) => (
+                        <div key={item.id} className="flex gap-3 p-3 bg-muted/30 rounded-lg">
+                          {item.product_image && (
+                            <img
+                              src={item.product_image}
+                              alt={item.product_title}
+                              className="w-12 h-12 object-contain rounded border shrink-0"
+                            />
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-foreground text-sm line-clamp-2">
+                              {item.product_title}
+                            </p>
+                            {item.variant_title && (
+                              <p className="text-xs text-muted-foreground">
+                                {item.variant_title}
+                              </p>
+                            )}
+                            <div className="flex items-center justify-between mt-1">
+                              <span className="text-xs text-muted-foreground">Qté: {item.quantity}</span>
+                              <span className="text-sm font-medium">{formatPriceHT(item.unit_price_ht * item.quantity)}</span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    
+                    {/* Desktop: Table layout */}
+                    <div className="hidden sm:block overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Produit</TableHead>
+                            <TableHead className="text-center">Qté</TableHead>
+                            <TableHead className="text-right">Prix HT</TableHead>
+                            <TableHead className="text-right">Total HT</TableHead>
                           </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
+                        </TableHeader>
+                        <TableBody>
+                          {order.order_items.map((item) => (
+                            <TableRow key={item.id}>
+                              <TableCell>
+                                <div className="flex items-center gap-3">
+                                  {item.product_image && (
+                                    <img
+                                      src={item.product_image}
+                                      alt={item.product_title}
+                                      className="w-12 h-12 object-contain rounded border"
+                                    />
+                                  )}
+                                  <div>
+                                    <p className="font-medium text-foreground">
+                                      {item.product_title}
+                                    </p>
+                                    {item.variant_title && (
+                                      <p className="text-sm text-muted-foreground">
+                                        {item.variant_title}
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-center">{item.quantity}</TableCell>
+                              <TableCell className="text-right">
+                                {formatPriceHT(item.unit_price_ht)}
+                              </TableCell>
+                              <TableCell className="text-right font-medium">
+                                {formatPriceHT(item.unit_price_ht * item.quantity)}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
 
                     {/* Totals */}
                     <div className="border-t mt-4 pt-4">

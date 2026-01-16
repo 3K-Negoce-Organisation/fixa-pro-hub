@@ -194,32 +194,32 @@ export function Header() {
       navigate(`/produits?q=${encodeURIComponent(searchQuery.trim())}`);
     }
   };
-  return <header className="sticky top-0 z-50 bg-primary text-primary-foreground shadow-md">
+  return <header className="sticky top-0 z-50 bg-primary text-primary-foreground shadow-md overflow-x-hidden">
       {/* Main header */}
-      <div className="py-3 px-4">
-        <div className="flex items-center justify-between gap-6 w-full">
+      <div className="py-2 sm:py-3 px-3 sm:px-4">
+        <div className="flex items-center justify-between gap-2 sm:gap-6 w-full">
           {/* Logo */}
           <Link to="/" className="flex items-center shrink-0">
             <img 
               src={logoVisABois} 
               alt="Vis à Bois" 
-              className="h-10 md:h-12 w-auto"
+              className="h-8 sm:h-10 md:h-12 w-auto"
             />
           </Link>
 
           {/* Search bar */}
-          <form onSubmit={handleSearch} className="flex-1">
+          <form onSubmit={handleSearch} className="flex-1 min-w-0">
             <div className="flex">
-              <Input type="search" placeholder="Rechercher un produit, une référence..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full h-10 pl-4 pr-4 bg-background text-foreground border-0 rounded-l-md rounded-r-none focus-visible:ring-0 focus-visible:ring-offset-0" />
-              <Button type="submit" className="h-10 px-4 bg-accent hover:bg-accent/90 rounded-l-none rounded-r-md">
-                <Search className="h-5 w-5" />
+              <Input type="search" placeholder="Rechercher..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full h-8 sm:h-10 pl-2 sm:pl-4 pr-2 sm:pr-4 text-sm bg-background text-foreground border-0 rounded-l-md rounded-r-none focus-visible:ring-0 focus-visible:ring-offset-0" />
+              <Button type="submit" className="h-8 sm:h-10 px-2 sm:px-4 bg-accent hover:bg-accent/90 rounded-l-none rounded-r-md">
+                <Search className="h-4 w-4 sm:h-5 sm:w-5" />
               </Button>
             </div>
           </form>
 
           {/* Right actions */}
-          <div className="flex items-center gap-3 shrink-0">
-            <Link to="/compte" className="flex items-center gap-1.5 px-2 py-1 text-sm text-primary-foreground hover:underline">
+          <div className="flex items-center gap-1 sm:gap-3 shrink-0">
+            <Link to="/compte" className="flex items-center gap-1 sm:gap-1.5 px-1 sm:px-2 py-1 text-xs sm:text-sm text-primary-foreground hover:underline">
               <User className="h-4 w-4" />
               <span className="hidden md:inline">{getDisplayName()}</span>
             </Link>
@@ -349,7 +349,7 @@ export function Header() {
                 </div>
               </DialogContent>
             </Dialog>
-            {userEmail && <button onClick={handleLogout} className="flex items-center gap-1.5 px-2 py-1 text-sm text-primary-foreground hover:underline">
+            {userEmail && <button onClick={handleLogout} className="flex items-center gap-1 sm:gap-1.5 px-1 sm:px-2 py-1 text-xs sm:text-sm text-primary-foreground hover:underline">
                 <LogOut className="h-4 w-4" />
                 <span className="hidden md:inline">Déconnexion</span>
               </button>}
@@ -358,35 +358,37 @@ export function Header() {
       </div>
 
       {/* Categories nav */}
-      <nav className="bg-primary-foreground/5 border-t border-primary-foreground/10">
-        <div className="px-4 bg-primary">
-          <div className="flex items-center justify-between py-0.5">
-            <div className="flex items-center gap-1 overflow-x-auto">
-              <Link to="/produits" className="px-3 py-1.5 text-sm font-medium hover:bg-primary-foreground/10 rounded transition-colors whitespace-nowrap">
-                Tous les produits
+      <nav className="bg-primary-foreground/5 border-t border-primary-foreground/10 overflow-x-hidden">
+        <div className="px-2 sm:px-4 bg-primary">
+          <div className="flex items-center justify-between py-0.5 gap-2">
+            <div className="flex items-center gap-1 overflow-x-auto scrollbar-hide min-w-0 flex-1">
+              <Link to="/produits" className="px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm font-medium hover:bg-primary-foreground/10 rounded transition-colors whitespace-nowrap">
+                Produits
               </Link>
-              <span className="text-primary-foreground/30">|</span>
-              {categories.map((cat, index) => (
-                <span key={cat.slug} className="flex items-center">
-                  <Link 
-                    to={`/produits?category=${cat.slug}`} 
-                    className="px-3 py-1.5 text-sm hover:bg-primary-foreground/10 rounded transition-colors whitespace-nowrap"
-                  >
-                    {cat.name}
-                  </Link>
-                  {index < categories.length - 1 && (
-                    <span className="text-primary-foreground/30">|</span>
-                  )}
-                </span>
-              ))}
-              <span className="text-primary-foreground/30">|</span>
-              <Link to="/promos" className="px-3 py-1.5 text-sm font-medium text-accent hover:bg-primary-foreground/10 rounded transition-colors whitespace-nowrap">
+              <span className="text-primary-foreground/30 hidden sm:inline">|</span>
+              <div className="hidden sm:flex items-center gap-1">
+                {categories.map((cat, index) => (
+                  <span key={cat.slug} className="flex items-center">
+                    <Link 
+                      to={`/produits?category=${cat.slug}`} 
+                      className="px-3 py-1.5 text-sm hover:bg-primary-foreground/10 rounded transition-colors whitespace-nowrap"
+                    >
+                      {cat.name}
+                    </Link>
+                    {index < categories.length - 1 && (
+                      <span className="text-primary-foreground/30">|</span>
+                    )}
+                  </span>
+                ))}
+              </div>
+              <span className="text-primary-foreground/30 hidden sm:inline">|</span>
+              <Link to="/promos" className="px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm font-medium text-accent hover:bg-primary-foreground/10 rounded transition-colors whitespace-nowrap">
                 Promos
               </Link>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <Link to="/suivi" className="flex items-center gap-1.5 px-3 py-1.5 text-sm hover:bg-primary-foreground/10 rounded transition-colors whitespace-nowrap">
-                <Package className="h-4 w-4" />
+            <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+              <Link to="/suivi" className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm hover:bg-primary-foreground/10 rounded transition-colors whitespace-nowrap">
+                <Package className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 <span className="hidden md:inline">Suivi de commandes</span>
               </Link>
               <CartDrawer />
