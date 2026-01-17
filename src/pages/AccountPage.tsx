@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -25,8 +25,8 @@ import type { Tables } from "@/integrations/supabase/types";
 type Order = Tables<"orders">;
 
 const profileSchema = z.object({
-  company_name: z.string().max(100).optional(),
-  siret: z.string().max(14).optional(),
+  first_name: z.string().max(50).optional(),
+  last_name: z.string().max(50).optional(),
   phone: z.string().max(20).optional(),
   billing_address: z.string().max(200).optional(),
   billing_city: z.string().max(100).optional(),
@@ -58,17 +58,22 @@ const statusColors: Record<string, string> = {
 
 const AccountPage = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { logError } = useAdminError();
   const [user, setUser] = useState<SupabaseUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [orders, setOrders] = useState<Order[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
+  
+  // Get tab from URL or default to "profile"
+  const tabFromUrl = searchParams.get("tab");
+  const defaultTab = tabFromUrl === "orders" || tabFromUrl === "privacy" ? tabFromUrl : "profile";
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
     defaultValues: {
-      company_name: "",
-      siret: "",
+      first_name: "",
+      last_name: "",
       phone: "",
       billing_address: "",
       billing_city: "",
@@ -106,6 +111,16 @@ const AccountPage = () => {
 
     return () => subscription.unsubscribe();
   }, [navigate]);
+  // Format phone number as XX XX XX XX XX
+  const formatPhoneNumber = (phone: string | null): string => {
+    if (!phone) return "";
+    const digits = phone.replace(/\D/g, '');
+    return digits
+      .slice(0, 10)
+      .replace(/(\d{2})(?=\d)/g, '$1 ')
+      .trim();
+  };
+
   const loadProfile = async (userId: string) => {
     const {
       data,
@@ -113,9 +128,9 @@ const AccountPage = () => {
     } = await supabase.from("profiles").select("*").eq("user_id", userId).maybeSingle();
     if (data) {
       form.reset({
-        company_name: data.company_name || "",
-        siret: data.siret || "",
-        phone: data.phone || "",
+        first_name: data.first_name || "",
+        last_name: data.last_name || "",
+        phone: formatPhoneNumber(data.phone),
         billing_address: data.billing_address || "",
         billing_city: data.billing_city || "",
         billing_postal_code: data.billing_postal_code || "",
@@ -220,7 +235,7 @@ const AccountPage = () => {
             </Button>
           </div>
 
-          <Tabs defaultValue="profile" className="space-y-6">
+          <Tabs defaultValue={defaultTab} className="space-y-6">
             <TabsList>
             <TabsTrigger value="profile">
               <User className="h-4 w-4 mr-2" />
@@ -247,15 +262,26 @@ const AccountPage = () => {
                       Informations personnelles
                     </h2>
                     <div className="grid md:grid-cols-2 gap-4">
-                      <FormField control={form.control} name="company_name" render={({
+                      <FormField control={form.control} name="first_name" render={({
                       field
                     }) => <FormItem>
-                            <FormLabel>Nom complet</FormLabel>
+                            <FormLabel>Prénom</FormLabel>
                             <FormControl>
-                              <Input placeholder="Jean Dupont" {...field} />
+                              <Input placeholder="Jean" {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>} />
+                      <FormField control={form.control} name="last_name" render={({
+                      field
+                    }) => <FormItem>
+                            <FormLabel>Nom</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Dupont" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>} />
+                    </div>
+                    <div className="grid md:grid-cols-2 gap-4">
                       <FormField control={form.control} name="phone" render={({
                       field
                     }) => <FormItem>
@@ -263,12 +289,27 @@ const AccountPage = () => {
                             <FormControl>
                                 <div className="relative">
                                   <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                  <Input placeholder="04 XX XX XX XX" className="pl-10" {...field} />
+                                  <Input 
+                                    placeholder="06 12 34 56 78" 
+                                    className="pl-10" 
+                                    {...field}
+                                    onChange={(e) => {
+                                      // Remove all non-digits
+                                      const digits = e.target.value.replace(/\D/g, '');
+                                      // Format as XX XX XX XX XX
+                                      const formatted = digits
+                                        .slice(0, 10)
+                                        .replace(/(\d{2})(?=\d)/g, '$1 ')
+                                        .trim();
+                                      field.onChange(formatted);
+                                    }}
+                                    maxLength={14}
+                                  />
                                 </div>
                               </FormControl>
                               <FormMessage />
                             </FormItem>} />
-                      </div>
+                    </div>
                     </div>
 
                     {/* Billing Address */}

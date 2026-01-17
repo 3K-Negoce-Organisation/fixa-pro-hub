@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Trash2, Plus, Minus, ShoppingBag, ArrowLeft, RotateCcw, X } from "lucide-react";
+import { Trash2, Plus, Minus, ShoppingBag, ArrowLeft, RotateCcw, X, ChevronRight, Home } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Header } from "@/components/layout/Header";
@@ -54,7 +54,17 @@ const CartPage = () => {
       <Header />
 
       <main className="flex-1">
-        <div className="container py-6">
+        <div className="container py-6 px-4">
+          {/* Breadcrumb */}
+          <nav className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
+            <Link to="/" className="hover:text-foreground flex items-center gap-1">
+              <Home className="h-4 w-4" />
+              <span className="hidden sm:inline">Accueil</span>
+            </Link>
+            <ChevronRight className="h-4 w-4" />
+            <span className="text-foreground">Panier</span>
+          </nav>
+          
           <h1 className="text-2xl font-bold mb-6">Votre panier</h1>
 
           <div className="grid lg:grid-cols-3 gap-8">
@@ -73,52 +83,46 @@ const CartPage = () => {
                   {items.map((item) => (
                     <div
                       key={item.variantId}
-                      className="flex gap-4 p-4 bg-card border border-border rounded-lg"
+                      className="flex flex-col sm:flex-row gap-3 sm:gap-4 p-3 sm:p-4 bg-card border border-border rounded-lg"
                     >
-                      {/* Image */}
-                      <Link
-                        to={`/produit/${item.handle}`}
-                        className="shrink-0 w-24 h-24 bg-white rounded border border-border flex items-center justify-center"
-                      >
-                        <img
-                          src={item.image}
-                          alt={item.title}
-                          className="w-full h-full object-contain p-2"
-                        />
-                      </Link>
-
-                      {/* Details */}
-                      <div className="flex-1 min-w-0">
+                      {/* Top row on mobile: image + details */}
+                      <div className="flex gap-3 flex-1 min-w-0">
+                        {/* Image */}
                         <Link
                           to={`/produit/${item.handle}`}
-                          className="font-medium hover:text-primary line-clamp-2"
+                          className="shrink-0 w-16 h-16 sm:w-24 sm:h-24 bg-white rounded border border-border flex items-center justify-center"
                         >
-                          {item.title}
+                          <img
+                            src={item.image}
+                            alt={item.title}
+                            className="w-full h-full object-contain p-1 sm:p-2"
+                          />
                         </Link>
-                        <p className="text-sm text-muted-foreground">
-                          {item.variantTitle}
-                        </p>
-                        <p className="text-sm font-semibold mt-1">
-                          {formatPrice(calculateTTC(item.priceHT))}
-                        </p>
+
+                        {/* Details */}
+                        <div className="flex-1 min-w-0">
+                          <Link
+                            to={`/produit/${item.handle}`}
+                            className="font-medium hover:text-primary line-clamp-2 text-sm sm:text-base"
+                          >
+                            {item.title}
+                          </Link>
+                          <p className="text-xs sm:text-sm text-muted-foreground truncate">
+                            {item.variantTitle}
+                          </p>
+                          <p className="text-sm font-semibold mt-1 sm:hidden">
+                            {formatPrice(calculateTTC(item.priceHT))}
+                          </p>
+                        </div>
                       </div>
 
-                      {/* Quantity & Actions */}
-                      <div className="flex flex-col items-end gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeItem(item.variantId)}
-                          className="text-destructive hover:text-destructive"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-
+                      {/* Quantity & Actions - Row on mobile */}
+                      <div className="flex items-center justify-between sm:flex-col sm:items-end gap-2 pt-2 sm:pt-0 border-t sm:border-t-0 border-border/50">
                         <div className="flex items-center gap-1">
                           <Button
                             variant="outline"
                             size="icon"
-                            className="h-8 w-8"
+                            className="h-7 w-7 sm:h-8 sm:w-8"
                             onClick={() =>
                               updateQuantity(item.variantId, item.quantity - 1)
                             }
@@ -135,12 +139,12 @@ const CartPage = () => {
                                 parseInt(e.target.value) || 1
                               )
                             }
-                            className="w-14 h-8 text-center"
+                            className="w-12 sm:w-14 h-7 sm:h-8 text-center text-sm"
                           />
                           <Button
                             variant="outline"
                             size="icon"
-                            className="h-8 w-8"
+                            className="h-7 w-7 sm:h-8 sm:w-8"
                             onClick={() =>
                               updateQuantity(item.variantId, item.quantity + 1)
                             }
@@ -149,9 +153,19 @@ const CartPage = () => {
                           </Button>
                         </div>
 
-                        <p className="text-sm font-bold">
-                          {formatPrice(calculateTTC(item.priceHT * item.quantity))}
-                        </p>
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-bold hidden sm:block">
+                            {formatPrice(calculateTTC(item.priceHT * item.quantity))}
+                          </p>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeItem(item.variantId)}
+                            className="text-destructive hover:text-destructive h-7 w-7 sm:h-8 sm:w-8 p-0"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   ))}

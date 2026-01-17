@@ -95,15 +95,15 @@ export function ProductCard({ product, onAddToCart }: ProductCardProps) {
         </Link>
 
         {/* Specs preview */}
-        <div className="flex flex-wrap gap-1 mb-3 text-[10px] text-muted-foreground">
+        <div className="flex flex-wrap gap-1 mb-3 text-[10px]">
           {product.diameter_mm && (
-            <span className="bg-muted px-1.5 py-0.5 rounded">Ø{product.diameter_mm}mm</span>
+            <span className="bg-secondary text-secondary-foreground px-1.5 py-0.5 rounded">Ø{product.diameter_mm}mm</span>
           )}
           {product.length_mm && (
-            <span className="bg-muted px-1.5 py-0.5 rounded">{product.length_mm}mm</span>
+            <span className="bg-secondary text-secondary-foreground px-1.5 py-0.5 rounded">{product.length_mm}mm</span>
           )}
           {product.drive_type && (
-            <span className="bg-muted px-1.5 py-0.5 rounded">{product.drive_type}</span>
+            <span className="bg-secondary text-secondary-foreground px-1.5 py-0.5 rounded">{product.drive_type}</span>
           )}
         </div>
 
@@ -111,12 +111,12 @@ export function ProductCard({ product, onAddToCart }: ProductCardProps) {
         <div className="mb-2">
           {product.inStock ? (
             <span className="stock-badge stock-available text-xs">
-              <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+              <span className="w-2 h-2 stock-dot-available rounded-full"></span>
               En stock
             </span>
           ) : (
             <span className="stock-badge stock-out text-xs">
-              <span className="w-2 h-2 bg-red-500 rounded-full"></span>
+              <span className="w-2 h-2 stock-dot-out rounded-full"></span>
               Rupture
             </span>
           )}
