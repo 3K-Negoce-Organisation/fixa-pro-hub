@@ -16,9 +16,14 @@ import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { useCart, CartItem } from "@/contexts/CartContext";
 import { formatPrice } from "@/lib/products";
+import { isProduction, isStaging } from "@/lib/environment";
 
 // Use environment variable for multi-environment support (dev/staging/prod)
-const STRIPE_PUBLISHABLE_KEY = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || "pk_test_51Sd81FLdlL70a9Pj6JpRNhY6hna6DZZ8I4Id57wBuIppTvQh3GA4RQwpMAFR3h7dSMOstwk45IdQjqRlDYGACA4R00mUtZfUP7";
+const STRIPE_PUBLISHABLE_KEY = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || "";
+
+if ((isProduction || isStaging) && !STRIPE_PUBLISHABLE_KEY) {
+  console.error("[STRIPE] Missing VITE_STRIPE_PUBLISHABLE_KEY for this environment");
+}
 
 // Lazy load Stripe - only when actually needed
 let stripePromise: Promise<Stripe | null> | null = null;
@@ -618,7 +623,7 @@ export const StripePaymentForm = ({ items, totalTTC, onSuccess, onCancel }: Stri
       // Create payment intent - works for both guests and logged in users
       console.log("[STRIPE] Calling create-payment-intent edge function...");
       const { data, error: invokeError } = await supabase.functions.invoke("create-payment-intent", {
-        body: { items, guestEmail: user?.email || undefined },
+        body: { items, guestEmail: user?.email ?? userEmail ?? undefined },
       });
 
       // Clear timeout on success
@@ -634,7 +639,10 @@ export const StripePaymentForm = ({ items, totalTTC, onSuccess, onCancel }: Stri
       });
 
       if (invokeError || data?.error) {
-        throw new Error(data?.error || invokeError?.message || "Erreur lors de la création du paiement");
+        const details = invokeError && "details" in invokeError ? (invokeError as any).details : undefined;
+        const hint = invokeError && "hint" in invokeError ? (invokeError as any).hint : undefined;
+        const composed = data?.error || [invokeError?.message, details, hint].filter(Boolean).join(" - ") || "Erreur lors de la création du paiement";
+        throw new Error(composed);
       }
 
       setClientSecret(data.clientSecret);
