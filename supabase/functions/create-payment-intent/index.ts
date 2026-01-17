@@ -31,7 +31,10 @@ serve(async (req) => {
     logStep("Function started");
 
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
-    if (!stripeKey) throw new Error("STRIPE_SECRET_KEY is not set");
+    if (!stripeKey) {
+      logStep("ERROR: STRIPE_SECRET_KEY is not set");
+      throw new Error("STRIPE_SECRET_KEY is not set - please configure this secret in your Supabase project");
+    }
     logStep("Stripe key verified");
 
     const supabaseClient = createClient(
@@ -39,22 +42,32 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_ANON_KEY") ?? ""
     );
 
-    // Get user from auth header (optional for guests)
+    // Get user from auth header (optional for guests - verify_jwt is false)
     const authHeader = req.headers.get("Authorization");
     let userEmail: string | undefined;
     let userId: string | undefined;
 
-    if (authHeader) {
+    if (authHeader && authHeader.startsWith("Bearer ")) {
       const token = authHeader.replace("Bearer ", "");
-      const { data: userData } = await supabaseClient.auth.getUser(token);
-      userEmail = userData.user?.email;
-      userId = userData.user?.id;
-      logStep("User authenticated", { userId, email: userEmail });
+      try {
+        const { data: userData, error } = await supabaseClient.auth.getUser(token);
+        if (!error && userData.user) {
+          userEmail = userData.user.email;
+          userId = userData.user.id;
+          logStep("User authenticated", { userId, email: userEmail });
+        } else {
+          logStep("Auth token invalid or expired, treating as guest", { error: error?.message });
+        }
+      } catch (authError) {
+        logStep("Auth error, treating as guest", { error: String(authError) });
+      }
+    } else {
+      logStep("No auth header, treating as guest checkout");
     }
 
     // Parse request body
     const { items, guestEmail } = await req.json() as { items: CartItem[]; guestEmail?: string };
-    logStep("Received cart items", { itemCount: items.length, isGuest: !userId });
+    logStep("Received cart items", { itemCount: items.length, isGuest: !userId, guestEmail });
 
     if (!items || items.length === 0) {
       throw new Error("Cart is empty");
