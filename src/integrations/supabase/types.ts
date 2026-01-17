@@ -236,7 +236,9 @@ export type Database = {
           billing_postal_code: string | null
           company_name: string | null
           created_at: string
+          first_name: string | null
           id: string
+          last_name: string | null
           marketing_consent: boolean | null
           marketing_consent_date: string | null
           newsletter_consent: boolean | null
@@ -256,7 +258,9 @@ export type Database = {
           billing_postal_code?: string | null
           company_name?: string | null
           created_at?: string
+          first_name?: string | null
           id?: string
+          last_name?: string | null
           marketing_consent?: boolean | null
           marketing_consent_date?: string | null
           newsletter_consent?: boolean | null
@@ -276,7 +280,9 @@ export type Database = {
           billing_postal_code?: string | null
           company_name?: string | null
           created_at?: string
+          first_name?: string | null
           id?: string
+          last_name?: string | null
           marketing_consent?: boolean | null
           marketing_consent_date?: string | null
           newsletter_consent?: boolean | null

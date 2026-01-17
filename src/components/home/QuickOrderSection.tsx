@@ -72,7 +72,7 @@ export function QuickOrderSection() {
           <h2 className="font-semibold text-lg">Commandes rapides</h2>
         </div>
         <Button variant="ghost" size="sm" asChild>
-          <Link to="/commandes">
+          <Link to="/compte?tab=orders">
             Historique
             <ArrowRight className="h-4 w-4 ml-1" />
           </Link>
@@ -83,7 +83,7 @@ export function QuickOrderSection() {
         {recentProducts.map((product) => (
           <div
             key={product.id}
-            className="flex items-center gap-3 p-3 bg-secondary rounded-lg hover:bg-muted transition-colors"
+            className="flex items-center gap-3 p-3 bg-secondary rounded-lg hover:bg-primary/10 transition-colors"
           >
             <img
               src={product.image}

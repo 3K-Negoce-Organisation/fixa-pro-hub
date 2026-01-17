@@ -129,32 +129,32 @@ const ProductDetailPage = () => {
       <Header />
 
       <main className="flex-1">
-        <div className="container py-6">
+        <div className="container py-4 sm:py-6 px-4">
           {/* Breadcrumb */}
-          <nav className="flex items-center gap-2 text-sm text-muted-foreground mb-6">
-            <Link to="/" className="hover:text-foreground">
+          <nav className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm text-muted-foreground mb-4 sm:mb-6 overflow-x-auto">
+            <Link to="/" className="hover:text-foreground shrink-0">
               Accueil
             </Link>
-            <ChevronRight className="h-4 w-4" />
-            <Link to="/produits" className="hover:text-foreground">
+            <ChevronRight className="h-3 w-3 sm:h-4 sm:w-4 shrink-0" />
+            <Link to="/produits" className="hover:text-foreground shrink-0">
               Produits
             </Link>
-            <ChevronRight className="h-4 w-4" />
             {product.category && (
               <>
+                <ChevronRight className="h-3 w-3 sm:h-4 sm:w-4 shrink-0" />
                 <Link
                   to={`/produits?cat=${product.category.toLowerCase().replace(" ", "-")}`}
-                  className="hover:text-foreground"
+                  className="hover:text-foreground shrink-0"
                 >
                   {product.category}
                 </Link>
-                <ChevronRight className="h-4 w-4" />
               </>
             )}
-            <span className="text-foreground truncate max-w-xs">{product.title}</span>
+            <ChevronRight className="h-3 w-3 sm:h-4 sm:w-4 shrink-0" />
+            <span className="text-foreground truncate">{product.title}</span>
           </nav>
 
-          <div className="grid lg:grid-cols-2 gap-6">
+          <div className="grid lg:grid-cols-2 gap-4 sm:gap-6">
             {/* Product Images + Characteristics */}
             <div className="space-y-4">
               <div className="aspect-square bg-white rounded-lg flex items-center justify-center p-4 border border-border">
@@ -170,11 +170,11 @@ const ProductDetailPage = () => {
                   {technicalSpecs.map((spec, index) => (
                     <div
                       key={index}
-                      className="inline-flex items-center gap-1.5 bg-muted border border-border rounded-full px-3 py-1.5 text-sm"
+                      className="inline-flex items-center gap-1.5 bg-secondary border border-border rounded-full px-3 py-1.5 text-sm"
                     >
                       <span className="text-primary">{spec.icon}</span>
-                      <span className="font-medium">{spec.value}</span>
-                      {spec.label && <span className="text-muted-foreground text-xs">{spec.label}</span>}
+                      <span className="font-medium text-secondary-foreground">{spec.value}</span>
+                      {spec.label && <span className="text-secondary-foreground/70 text-xs">{spec.label}</span>}
                     </div>
                   ))}
                 </div>
@@ -338,7 +338,7 @@ const ProductDetailPage = () => {
               )}
 
               {/* Add to Cart */}
-              <div className="flex items-center gap-3">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
                 <div className="flex items-center gap-2">
                   <label className="text-sm font-medium">Qté :</label>
                   <Input
@@ -353,42 +353,45 @@ const ProductDetailPage = () => {
                     disabled={!currentVariant?.available}
                   />
                 </div>
-                <Button
-                  className="btn-cart flex-1"
-                  size="lg"
-                  onClick={handleAddToCart}
-                  disabled={!currentVariant?.available}
-                >
-                  <ShoppingCart className="h-5 w-5 mr-2" />
-                  Ajouter au panier
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="lg"
-                  onClick={handleToggleFavorite}
-                  className={isFavorite(product.id) ? "text-destructive border-destructive hover:bg-destructive/10" : ""}
-                >
-                  <Heart className={`h-5 w-5 ${isFavorite(product.id) ? "fill-current" : ""}`} />
-                </Button>
+                <div className="flex gap-2 flex-1">
+                  <Button
+                    className="btn-cart flex-1"
+                    size="lg"
+                    onClick={handleAddToCart}
+                    disabled={!currentVariant?.available}
+                  >
+                    <ShoppingCart className="h-5 w-5 mr-2" />
+                    <span className="hidden sm:inline">Ajouter au panier</span>
+                    <span className="sm:hidden">Ajouter</span>
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="lg"
+                    onClick={handleToggleFavorite}
+                    className={isFavorite(product.id) ? "text-destructive border-destructive hover:bg-destructive/10" : ""}
+                  >
+                    <Heart className={`h-5 w-5 ${isFavorite(product.id) ? "fill-current" : ""}`} />
+                  </Button>
+                </div>
               </div>
 
               {/* Quick benefits */}
-              <div className="grid grid-cols-3 gap-3 pt-3 border-t border-border">
+              <div className="grid grid-cols-3 gap-2 sm:gap-3 pt-3 border-t border-border">
                 <div className="flex flex-col items-center text-center gap-0.5">
                   <Truck className="h-4 w-4 text-primary" />
-                  <span className="text-xs text-muted-foreground">
+                  <span className="text-[10px] sm:text-xs text-muted-foreground">
                     Livraison 24/48h
                   </span>
                 </div>
                 <div className="flex flex-col items-center text-center gap-0.5">
                   <Shield className="h-4 w-4 text-primary" />
-                  <span className="text-xs text-muted-foreground">
+                  <span className="text-[10px] sm:text-xs text-muted-foreground">
                     Qualité garantie
                   </span>
                 </div>
                 <div className="flex flex-col items-center text-center gap-0.5">
                   <RotateCcw className="h-4 w-4 text-primary" />
-                  <span className="text-xs text-muted-foreground">
+                  <span className="text-[10px] sm:text-xs text-muted-foreground">
                     Retour 30 jours
                   </span>
                 </div>

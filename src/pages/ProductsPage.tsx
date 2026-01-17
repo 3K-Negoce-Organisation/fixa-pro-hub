@@ -43,19 +43,28 @@ const ProductsPage = () => {
     queryFn: () => fetchProducts(query || undefined),
   });
 
+  // Fonction pour convertir slug URL vers nom de catégorie DB
+  const slugToCategory = (slug: string): string | null => {
+    // Chercher une catégorie dont le slug correspond
+    const match = products.find((p: Product) => {
+      if (!p.category) return false;
+      const productSlug = p.category
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/\s+/g, "-")
+        .replace(/[^a-z0-9-]/g, "");
+      return productSlug === slug;
+    });
+    return match?.category || null;
+  };
+
   // Get products filtered by category (base for filter options)
   const categoryFilteredProducts = useMemo(() => {
     let result = products;
-    
-    const categoryMap: Record<string, string> = {
-      terrasse: "Vis terrasse",
-      charpente: "Vis de charpente",
-      menuiserie: "Vis menuiserie",
-      tirefond: "Tirefond",
-    };
 
     if (categoryParam) {
-      const dbCategory = categoryMap[categoryParam];
+      const dbCategory = slugToCategory(categoryParam);
       if (dbCategory) {
         result = result.filter((p: Product) => p.category?.trim() === dbCategory);
       }

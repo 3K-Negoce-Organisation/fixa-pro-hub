@@ -19,24 +19,26 @@ import { formatPrice } from "@/lib/products";
 
 const STRIPE_PUBLISHABLE_KEY = "pk_test_51Sd81FLdlL70a9Pj6JpRNhY6hna6DZZ8I4Id57wBuIppTvQh3GA4RQwpMAFR3h7dSMOstwk45IdQjqRlDYGACA4R00mUtZfUP7";
 
-// Load Stripe with error handling
-const loadStripeWithRetry = async (): Promise<Stripe | null> => {
-  console.log("[STRIPE] Starting Stripe.js load...");
-  try {
-    const stripe = await loadStripe(STRIPE_PUBLISHABLE_KEY);
-    if (stripe) {
-      console.log("[STRIPE] Stripe.js loaded successfully");
-    } else {
-      console.error("[STRIPE] Stripe.js returned null - possible ad blocker or network issue");
-    }
-    return stripe;
-  } catch (error) {
-    console.error("[STRIPE] Failed to load Stripe.js:", error);
-    return null;
-  }
-};
+// Lazy load Stripe - only when actually needed
+let stripePromise: Promise<Stripe | null> | null = null;
 
-const stripePromise = loadStripeWithRetry();
+const getStripePromise = (): Promise<Stripe | null> => {
+  if (!stripePromise) {
+    console.log("[STRIPE] Starting Stripe.js load...");
+    stripePromise = loadStripe(STRIPE_PUBLISHABLE_KEY).then((stripe) => {
+      if (stripe) {
+        console.log("[STRIPE] Stripe.js loaded successfully");
+      } else {
+        console.error("[STRIPE] Stripe.js returned null - possible ad blocker or network issue");
+      }
+      return stripe;
+    }).catch((error) => {
+      console.error("[STRIPE] Failed to load Stripe.js:", error);
+      return null;
+    });
+  }
+  return stripePromise;
+};
 
 interface CheckoutFormProps {
   totalTTC: number;
@@ -558,7 +560,7 @@ export const StripePaymentForm = ({ items, totalTTC, onSuccess, onCancel }: Stri
   // Check if Stripe loaded
   useEffect(() => {
     console.log("[STRIPE] Checking Stripe.js load status...");
-    stripePromise.then((stripe) => {
+    getStripePromise().then((stripe) => {
       const loaded = stripe !== null;
       console.log("[STRIPE] Stripe.js loaded:", loaded);
       setStripeLoaded(loaded);
@@ -729,7 +731,7 @@ export const StripePaymentForm = ({ items, totalTTC, onSuccess, onCancel }: Stri
 
   return (
     <Elements
-      stripe={stripePromise}
+      stripe={getStripePromise()}
       options={{
         clientSecret,
         appearance: {
