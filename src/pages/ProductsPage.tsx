@@ -317,7 +317,7 @@ const ProductsPage = () => {
               </p>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
               {/* Mobile filter toggle */}
               <Button
                 variant="outline"
@@ -325,10 +325,10 @@ const ProductsPage = () => {
                 onClick={() => setShowFilters(!showFilters)}
                 className="md:hidden"
               >
-                <SlidersHorizontal className="h-4 w-4 mr-2" />
-                Filtres
+                <SlidersHorizontal className="h-4 w-4 mr-1 sm:mr-2" />
+                <span className="hidden xs:inline">Filtres</span>
                 {activeFilterCount > 0 && (
-                  <Badge className="ml-2 h-5 w-5 p-0 flex items-center justify-center">
+                  <Badge className="ml-1 sm:ml-2 h-5 w-5 p-0 flex items-center justify-center">
                     {activeFilterCount}
                   </Badge>
                 )}
@@ -336,7 +336,7 @@ const ProductsPage = () => {
 
               {/* Items per page select */}
               <Select value={itemsPerPage} onValueChange={handleItemsPerPageChange}>
-                <SelectTrigger className="w-28">
+                <SelectTrigger className="w-20 sm:w-28">
                   <SelectValue placeholder="Par page" />
                 </SelectTrigger>
                 <SelectContent>
@@ -349,7 +349,7 @@ const ProductsPage = () => {
 
               {/* Sort select */}
               <Select value={sortBy} onValueChange={setSortBy}>
-                <SelectTrigger className="w-44">
+                <SelectTrigger className="w-32 sm:w-44">
                   <SelectValue placeholder="Trier par" />
                 </SelectTrigger>
                 <SelectContent>
@@ -424,7 +424,33 @@ const ProductsPage = () => {
               {/* Pagination */}
               {itemsPerPage !== "all" && totalPages > 1 && (
                 <div className="mt-8 flex flex-col items-center gap-4">
-                  <div className="flex items-center gap-2">
+                  {/* Mobile: Simplified pagination */}
+                  <div className="flex sm:hidden items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handlePageChange(currentPage - 1)}
+                      disabled={currentPage === 1}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    
+                    <span className="text-sm px-3">
+                      {currentPage} / {totalPages}
+                    </span>
+
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handlePageChange(currentPage + 1)}
+                      disabled={currentPage === totalPages}
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+
+                  {/* Desktop: Full pagination */}
+                  <div className="hidden sm:flex items-center gap-2">
                     <Button
                       variant="outline"
                       size="sm"
