@@ -546,8 +546,21 @@ export const StripePaymentForm = ({ items, totalTTC, onSuccess, onCancel }: Stri
       }
 
       if (data?.url) {
-        console.log("[STRIPE] Redirecting to Stripe Checkout:", data.url);
-        window.location.href = data.url;
+        console.log("[STRIPE] Opening Stripe Checkout in new tab:", data.url);
+        // Open in new tab to avoid iframe navigation issues
+        const newWindow = window.open(data.url, '_blank');
+        if (!newWindow) {
+          // If popup blocked, fallback to redirect
+          console.log("[STRIPE] Popup blocked, using redirect fallback");
+          window.location.href = data.url;
+        } else {
+          // Show message that payment is in progress
+          toast({
+            title: "Page de paiement ouverte",
+            description: "Terminez votre paiement dans le nouvel onglet qui vient de s'ouvrir.",
+          });
+          setFallbackLoading(false);
+        }
       } else {
         throw new Error("URL de paiement non reçue");
       }
