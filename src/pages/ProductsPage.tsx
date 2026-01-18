@@ -404,10 +404,9 @@ const ProductsPage = () => {
             </div>
           )}
 
-          {/* Main content with sidebar */}
-          <div className="flex gap-6">
-            {/* Filters sidebar */}
-            {showFilters && (
+          {/* Mobile: Filters at top */}
+          {showFilters && (
+            <div className="md:hidden">
               <ProductFilters
                 filters={filters}
                 filterOptions={filterOptions}
@@ -415,10 +414,26 @@ const ProductsPage = () => {
                 onClearFilters={handleClearFilters}
                 isCartOpen={isCartOpen}
               />
+            </div>
+          )}
+
+          {/* Main content with sidebar */}
+          <div className="flex gap-6">
+            {/* Desktop: Filters sidebar */}
+            {showFilters && (
+              <div className="hidden md:block">
+                <ProductFilters
+                  filters={filters}
+                  filterOptions={filterOptions}
+                  onFilterChange={handleFilterChange}
+                  onClearFilters={handleClearFilters}
+                  isCartOpen={isCartOpen}
+                />
+              </div>
             )}
 
             {/* Products grid */}
-            <div className="flex-1">
+            <div className="flex-1 min-w-0">
               <ProductGrid products={paginatedProducts} isLoading={isLoading} />
 
               {/* Pagination */}
