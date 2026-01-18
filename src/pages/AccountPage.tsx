@@ -224,35 +224,35 @@ const AccountPage = () => {
             <span className="text-foreground">Mon compte</span>
           </nav>
 
-          <div className="flex items-center justify-between mb-6">
-            <div>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+            <div className="min-w-0">
               <h1 className="text-2xl font-bold">Mon compte</h1>
-              <p className="text-muted-foreground">{user?.email}</p>
+              <p className="text-muted-foreground text-sm truncate">{user?.email}</p>
             </div>
-            <Button variant="outline" onClick={handleLogout}>
+            <Button variant="outline" onClick={handleLogout} className="w-full sm:w-auto">
               <LogOut className="h-4 w-4 mr-2" />
               Déconnexion
             </Button>
           </div>
 
           <Tabs defaultValue={defaultTab} className="space-y-6">
-            <TabsList>
-            <TabsTrigger value="profile">
-              <User className="h-4 w-4 mr-2" />
-              Coordonnées
-            </TabsTrigger>
-            <TabsTrigger value="orders">
-              <Package className="h-4 w-4 mr-2" />
-              Mes commandes
-            </TabsTrigger>
-            <TabsTrigger value="privacy">
-              <Shield className="h-4 w-4 mr-2" />
-              Vie privée & RGPD
-            </TabsTrigger>
-          </TabsList>
+            <TabsList className="w-full flex flex-wrap h-auto gap-1 p-1">
+              <TabsTrigger value="profile" className="flex-1 min-w-0 text-xs sm:text-sm px-2 sm:px-3 py-2">
+                <User className="h-4 w-4 mr-1 sm:mr-2 flex-shrink-0" />
+                <span className="truncate">Coordonnées</span>
+              </TabsTrigger>
+              <TabsTrigger value="orders" className="flex-1 min-w-0 text-xs sm:text-sm px-2 sm:px-3 py-2">
+                <Package className="h-4 w-4 mr-1 sm:mr-2 flex-shrink-0" />
+                <span className="truncate">Commandes</span>
+              </TabsTrigger>
+              <TabsTrigger value="privacy" className="flex-1 min-w-0 text-xs sm:text-sm px-2 sm:px-3 py-2">
+                <Shield className="h-4 w-4 mr-1 sm:mr-2 flex-shrink-0" />
+                <span className="truncate">RGPD</span>
+              </TabsTrigger>
+            </TabsList>
 
           <TabsContent value="profile">
-            <div className="bg-card border border-border rounded-lg p-6">
+            <div className="bg-card border border-border rounded-lg p-4 sm:p-6">
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(handleSaveProfile)} className="space-y-6">
                   {/* Personal Info */}
@@ -351,7 +351,7 @@ const AccountPage = () => {
 
                     {/* Shipping Address */}
                     <div className="space-y-4">
-                      <div className="flex items-center justify-between">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                         <h2 className="text-lg font-semibold flex items-center gap-2">
                           <MapPin className="h-5 w-5 text-primary" />
                           Adresse de livraison
@@ -362,8 +362,8 @@ const AccountPage = () => {
                               <FormControl>
                                 <Checkbox checked={field.value} onCheckedChange={field.onChange} />
                               </FormControl>
-                              <FormLabel className="text-sm font-normal cursor-pointer">
-                                Identique à l'adresse de facturation
+                              <FormLabel className="text-xs sm:text-sm font-normal cursor-pointer">
+                                Identique à la facturation
                               </FormLabel>
                             </FormItem>} />
                       </div>
@@ -407,13 +407,13 @@ const AccountPage = () => {
               </div>
 
               {/* Email Change Section */}
-              <div className="bg-card border border-border rounded-lg p-6 mt-6">
+              <div className="bg-card border border-border rounded-lg p-4 sm:p-6 mt-6">
                 {user && <EmailChangeForm currentEmail={user.email || ""} />}
               </div>
             </TabsContent>
 
             <TabsContent value="orders">
-              <div className="bg-card border border-border rounded-lg p-6">
+              <div className="bg-card border border-border rounded-lg p-4 sm:p-6">
                 {ordersLoading ? (
                   <div className="text-center py-8">
                     <div className="text-muted-foreground">Chargement des commandes...</div>
@@ -430,53 +430,87 @@ const AccountPage = () => {
                     </Button>
                   </div>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>N° Commande</TableHead>
-                          <TableHead>Date</TableHead>
-                          <TableHead>Statut</TableHead>
-                          <TableHead className="text-right">Total HT</TableHead>
-                          <TableHead className="text-right">Total TTC</TableHead>
-                          <TableHead></TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {orders.map((order) => (
-                          <TableRow key={order.id}>
-                            <TableCell className="font-medium">{order.order_number}</TableCell>
-                            <TableCell>
-                              {new Date(order.created_at).toLocaleDateString("fr-FR", {
-                                day: "2-digit",
-                                month: "2-digit",
-                                year: "numeric"
-                              })}
-                            </TableCell>
-                            <TableCell>
-                              <Badge className={statusColors[order.status] || "bg-gray-100 text-gray-800"}>
-                                {statusLabels[order.status] || order.status}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="text-right">
-                              {Number(order.total_ht).toFixed(2)} € HT
-                            </TableCell>
-                            <TableCell className="text-right">
-                              {Number(order.total_ttc).toFixed(2)} € TTC
-                            </TableCell>
-                            <TableCell>
-                              <Button variant="ghost" size="sm" asChild>
-                                <Link to={`/suivi?order=${order.order_number}`}>
-                                  <Eye className="h-4 w-4 mr-1" />
-                                  Suivre
-                                </Link>
-                              </Button>
-                            </TableCell>
+                  <>
+                    {/* Mobile: Card layout */}
+                    <div className="space-y-4 sm:hidden">
+                      {orders.map((order) => (
+                        <div key={order.id} className="border border-border rounded-lg p-4 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="font-medium text-sm">{order.order_number}</span>
+                            <Badge className={statusColors[order.status] || "bg-gray-100 text-gray-800"}>
+                              {statusLabels[order.status] || order.status}
+                            </Badge>
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            {new Date(order.created_at).toLocaleDateString("fr-FR", {
+                              day: "2-digit",
+                              month: "2-digit",
+                              year: "numeric"
+                            })}
+                          </div>
+                          <div className="flex items-center justify-between text-sm">
+                            <span>{Number(order.total_ht).toFixed(2)} € HT</span>
+                            <span className="font-medium">{Number(order.total_ttc).toFixed(2)} € TTC</span>
+                          </div>
+                          <Button variant="outline" size="sm" className="w-full" asChild>
+                            <Link to={`/suivi?order=${order.order_number}`}>
+                              <Eye className="h-4 w-4 mr-2" />
+                              Suivre la commande
+                            </Link>
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Desktop: Table layout */}
+                    <div className="hidden sm:block overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>N° Commande</TableHead>
+                            <TableHead>Date</TableHead>
+                            <TableHead>Statut</TableHead>
+                            <TableHead className="text-right">Total HT</TableHead>
+                            <TableHead className="text-right">Total TTC</TableHead>
+                            <TableHead></TableHead>
                           </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
+                        </TableHeader>
+                        <TableBody>
+                          {orders.map((order) => (
+                            <TableRow key={order.id}>
+                              <TableCell className="font-medium">{order.order_number}</TableCell>
+                              <TableCell>
+                                {new Date(order.created_at).toLocaleDateString("fr-FR", {
+                                  day: "2-digit",
+                                  month: "2-digit",
+                                  year: "numeric"
+                                })}
+                              </TableCell>
+                              <TableCell>
+                                <Badge className={statusColors[order.status] || "bg-gray-100 text-gray-800"}>
+                                  {statusLabels[order.status] || order.status}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-right">
+                                {Number(order.total_ht).toFixed(2)} € HT
+                              </TableCell>
+                              <TableCell className="text-right">
+                                {Number(order.total_ttc).toFixed(2)} € TTC
+                              </TableCell>
+                              <TableCell>
+                                <Button variant="ghost" size="sm" asChild>
+                                  <Link to={`/suivi?order=${order.order_number}`}>
+                                    <Eye className="h-4 w-4 mr-1" />
+                                    Suivre
+                                  </Link>
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </>
                 )}
               </div>
             </TabsContent>
