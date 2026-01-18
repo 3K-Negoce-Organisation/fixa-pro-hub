@@ -535,7 +535,7 @@ serve(async (req) => {
   }
 });
 
-// Helper function to send to n8n
+// Helper function to send to n8n and save document
 async function sendToN8n(
   n8nWebhookUrl: string,
   supabaseAdmin: any,
@@ -581,6 +581,73 @@ async function sendToN8n(
 
     logStep("PDF file generated", { size: pdfBase64.length });
 
+    // Upload PDF to Supabase Storage and update order documents
+    const pdfFileName = `commande_${orderNumber}.pdf`;
+    const filePath = `${orderId}/${pdfFileName}`;
+    
+    try {
+      // Decode base64 and upload to storage
+      const binaryString = atob(pdfBase64);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+
+      const { error: uploadError } = await supabaseAdmin.storage
+        .from('order-documents')
+        .upload(filePath, bytes, {
+          contentType: 'application/pdf',
+          upsert: true
+        });
+
+      if (uploadError) {
+        logStep("Error uploading PDF to storage", { error: uploadError.message });
+      } else {
+        logStep("PDF uploaded to storage", { filePath });
+
+        // Create signed URL for the document (valid for 1 year)
+        const { data: signedUrlData, error: signedUrlError } = await supabaseAdmin.storage
+          .from('order-documents')
+          .createSignedUrl(filePath, 60 * 60 * 24 * 365);
+
+        if (signedUrlError) {
+          logStep("Error creating signed URL", { error: signedUrlError.message });
+        } else {
+          // Update order with document reference
+          const newDocument = {
+            name: pdfFileName,
+            type: 'order_confirmation',
+            url: signedUrlData.signedUrl,
+            created_at: new Date().toISOString(),
+            status: 'paid'
+          };
+
+          // Get current documents array
+          const { data: currentOrder } = await supabaseAdmin
+            .from('orders')
+            .select('documents')
+            .eq('id', orderId)
+            .single();
+
+          const existingDocuments = currentOrder?.documents || [];
+          const updatedDocuments = [...existingDocuments, newDocument];
+
+          const { error: updateError } = await supabaseAdmin
+            .from('orders')
+            .update({ documents: updatedDocuments })
+            .eq('id', orderId);
+
+          if (updateError) {
+            logStep("Error updating order with document", { error: updateError.message });
+          } else {
+            logStep("Order updated with document reference", { documentCount: updatedDocuments.length });
+          }
+        }
+      }
+    } catch (storageError) {
+      logStep("Storage operation failed", { error: String(storageError) });
+    }
+
     const n8nPayload = {
       event: "order.paid",
       order_number: orderNumber,
@@ -618,7 +685,7 @@ async function sendToN8n(
       },
       // PDF file as base64 (replaces excel_file for Deno Edge compatibility)
       pdf_file: {
-        filename: `commande_${orderNumber}.pdf`,
+        filename: pdfFileName,
         content_base64: pdfBase64,
         content_type: "application/pdf",
       },
