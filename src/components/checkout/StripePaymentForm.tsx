@@ -18,8 +18,8 @@ import { useCart, CartItem } from "@/contexts/CartContext";
 import { formatPrice } from "@/lib/products";
 import { isProduction, isStaging } from "@/lib/environment";
 
-// Use environment variable for multi-environment support (dev/staging/prod)
-const STRIPE_PUBLISHABLE_KEY = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || "";
+// Stripe publishable key - use environment variable with fallback to test key
+const STRIPE_PUBLISHABLE_KEY = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || "pk_test_51Sd81FLdlL70a9Pj6JpRNhY6hna6DZZ8I4Id57wBuIppTvQh3GA4RQwpMAFR3h7dSMOstwk45IdQjqRlDYGACA4R00mUtZfUP7";
 
 if ((isProduction || isStaging) && !STRIPE_PUBLISHABLE_KEY) {
   console.error("[STRIPE] Missing VITE_STRIPE_PUBLISHABLE_KEY for this environment");
