@@ -16,9 +16,14 @@ import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { useCart, CartItem } from "@/contexts/CartContext";
 import { formatPrice } from "@/lib/products";
+import { isProduction, isStaging } from "@/lib/environment";
 
-// Use environment variable for multi-environment support (dev/staging/prod)
+// Stripe publishable key - use environment variable with fallback to test key
 const STRIPE_PUBLISHABLE_KEY = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || "pk_test_51Sd81FLdlL70a9Pj6JpRNhY6hna6DZZ8I4Id57wBuIppTvQh3GA4RQwpMAFR3h7dSMOstwk45IdQjqRlDYGACA4R00mUtZfUP7";
+
+if ((isProduction || isStaging) && !STRIPE_PUBLISHABLE_KEY) {
+  console.error("[STRIPE] Missing VITE_STRIPE_PUBLISHABLE_KEY for this environment");
+}
 
 // Lazy load Stripe - only when actually needed
 let stripePromise: Promise<Stripe | null> | null = null;
@@ -618,7 +623,7 @@ export const StripePaymentForm = ({ items, totalTTC, onSuccess, onCancel }: Stri
       // Create payment intent - works for both guests and logged in users
       console.log("[STRIPE] Calling create-payment-intent edge function...");
       const { data, error: invokeError } = await supabase.functions.invoke("create-payment-intent", {
-        body: { items, guestEmail: user?.email || undefined },
+        body: { items, guestEmail: user?.email ?? userEmail ?? undefined },
       });
 
       // Clear timeout on success
@@ -634,7 +639,10 @@ export const StripePaymentForm = ({ items, totalTTC, onSuccess, onCancel }: Stri
       });
 
       if (invokeError || data?.error) {
-        throw new Error(data?.error || invokeError?.message || "Erreur lors de la création du paiement");
+        const details = invokeError && "details" in invokeError ? (invokeError as any).details : undefined;
+        const hint = invokeError && "hint" in invokeError ? (invokeError as any).hint : undefined;
+        const composed = data?.error || [invokeError?.message, details, hint].filter(Boolean).join(" - ") || "Erreur lors de la création du paiement";
+        throw new Error(composed);
       }
 
       setClientSecret(data.clientSecret);
@@ -672,6 +680,18 @@ export const StripePaymentForm = ({ items, totalTTC, onSuccess, onCancel }: Stri
     };
   }, [stripeLoaded, retryCount]);
 
+  // Auto-trigger fallback when Stripe Elements fails to load
+  const shouldFallback = !isLoading && (error || !clientSecret || stripeLoaded === false);
+  useEffect(() => {
+    if (shouldFallback && !fallbackLoading) {
+      console.log("[STRIPE] Stripe Elements failed, auto-triggering Checkout fallback in 1.5s...");
+      const autoFallbackTimer = setTimeout(() => {
+        handleFallbackToCheckout();
+      }, 1500); // Give 1.5s for user to see the message before redirect
+      return () => clearTimeout(autoFallbackTimer);
+    }
+  }, [shouldFallback, fallbackLoading]);
+
   const handleRetry = () => {
     console.log("[STRIPE] User clicked retry button");
     setRetryCount(prev => prev + 1);
@@ -688,43 +708,43 @@ export const StripePaymentForm = ({ items, totalTTC, onSuccess, onCancel }: Stri
     );
   }
 
-  // Error state with retry and fallback options
-  if (error || !clientSecret || stripeLoaded === false) {
+  // Error state - auto-fallback to Stripe Checkout
+  if (shouldFallback) {
     return (
       <div className="text-center py-8 space-y-4">
         <div className="flex justify-center">
-          <AlertTriangle className="h-12 w-12 text-destructive/70" />
+          {fallbackLoading ? (
+            <Loader2 className="h-12 w-12 animate-spin text-primary" />
+          ) : (
+            <AlertTriangle className="h-12 w-12 text-amber-500" />
+          )}
         </div>
         <div className="space-y-2">
-          <p className="text-destructive font-medium">Impossible de charger le formulaire de paiement</p>
-          <p className="text-sm text-muted-foreground max-w-md mx-auto">
-            {error || "Une erreur inattendue s'est produite"}
+          <p className="font-medium text-foreground">
+            {fallbackLoading ? "Redirection vers la page de paiement sécurisée..." : "Formulaire intégré indisponible"}
           </p>
-          <p className="text-xs text-muted-foreground">
-            Votre antivirus (Kaspersky, Norton...), VPN ou proxy peut bloquer le formulaire de paiement.
+          <p className="text-sm text-muted-foreground max-w-md mx-auto">
+            {fallbackLoading 
+              ? "Vous allez être redirigé vers la page de paiement Stripe..."
+              : "Votre antivirus, VPN ou bloqueur bloque le formulaire. Redirection automatique..."}
           </p>
         </div>
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <Button variant="outline" onClick={onCancel}>
             Retour au panier
           </Button>
-          <Button variant="outline" onClick={handleRetry} className="gap-2">
-            <RefreshCw className="h-4 w-4" />
-            Réessayer
-          </Button>
-          <Button onClick={handleFallbackToCheckout} disabled={fallbackLoading} className="gap-2">
-            {fallbackLoading ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Redirection...
-              </>
-            ) : (
-              <>
+          {!fallbackLoading && (
+            <>
+              <Button variant="outline" onClick={handleRetry} className="gap-2">
+                <RefreshCw className="h-4 w-4" />
+                Réessayer ici
+              </Button>
+              <Button onClick={handleFallbackToCheckout} className="gap-2">
                 <Lock className="h-4 w-4" />
-                Payer sur page sécurisée
-              </>
-            )}
-          </Button>
+                Aller à Stripe maintenant
+              </Button>
+            </>
+          )}
         </div>
       </div>
     );

@@ -68,16 +68,17 @@ export function ProductFilters({
   };
 
   return (
-    <aside className={`shrink-0 transition-all duration-300 ${isCartOpen ? 'w-48' : 'w-64'}`}>
-      <div className="sticky top-24 bg-card border border-border rounded-lg p-4">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-semibold text-foreground">Filtres</h3>
+    <>
+      {/* Mobile: Horizontal filters */}
+      <div className="md:hidden w-full bg-card border border-border rounded-lg p-3 mb-4">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="font-semibold text-foreground text-sm">Filtres</h3>
           {hasActiveFilters && (
             <Button 
               variant="ghost" 
               size="sm" 
               onClick={onClearFilters} 
-              className="text-xs text-muted-foreground hover:text-foreground"
+              className="text-xs text-muted-foreground hover:text-foreground h-7 px-2"
             >
               <X className="h-3 w-3 mr-1" />
               Effacer
@@ -85,25 +86,109 @@ export function ProductFilters({
           )}
         </div>
 
-        <FilterSection 
-          title="Diamètre (mm)" 
-          filterKey="diameter" 
-          options={filterOptions.diameter} 
-        />
+        <div className="flex flex-wrap gap-3">
+          {filterOptions.diameter.length > 0 && (
+            <div className="flex-1 min-w-[100px]">
+              <h4 className="text-xs font-medium text-muted-foreground mb-1.5">Ø (mm)</h4>
+              <div className="flex flex-wrap gap-1 max-h-20 overflow-y-auto">
+                {filterOptions.diameter.map(option => (
+                  <button
+                    key={option}
+                    onClick={() => handleCheckboxChange('diameter', option, !(filters.diameter || []).includes(option))}
+                    className={`text-xs px-2 py-1 rounded border transition-colors ${
+                      (filters.diameter || []).includes(option)
+                        ? 'bg-primary text-primary-foreground border-primary'
+                        : 'bg-background border-border hover:bg-primary/10'
+                    }`}
+                  >
+                    {option}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
-        <FilterSection 
-          title="Longueur (mm)" 
-          filterKey="length" 
-          options={filterOptions.length} 
-        />
+          {filterOptions.length.length > 0 && (
+            <div className="flex-1 min-w-[100px]">
+              <h4 className="text-xs font-medium text-muted-foreground mb-1.5">Long. (mm)</h4>
+              <div className="flex flex-wrap gap-1 max-h-20 overflow-y-auto">
+                {filterOptions.length.map(option => (
+                  <button
+                    key={option}
+                    onClick={() => handleCheckboxChange('length', option, !(filters.length || []).includes(option))}
+                    className={`text-xs px-2 py-1 rounded border transition-colors ${
+                      (filters.length || []).includes(option)
+                        ? 'bg-primary text-primary-foreground border-primary'
+                        : 'bg-background border-border hover:bg-primary/10'
+                    }`}
+                  >
+                    {option}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
-        <FilterSection 
-          title="Matière" 
-          filterKey="material" 
-          options={filterOptions.material} 
-        />
-
+          {filterOptions.material.length > 0 && (
+            <div className="flex-1 min-w-[100px]">
+              <h4 className="text-xs font-medium text-muted-foreground mb-1.5">Matière</h4>
+              <div className="flex flex-wrap gap-1 max-h-20 overflow-y-auto">
+                {filterOptions.material.map(option => (
+                  <button
+                    key={option}
+                    onClick={() => handleCheckboxChange('material', option, !(filters.material || []).includes(option))}
+                    className={`text-xs px-2 py-1 rounded border transition-colors ${
+                      (filters.material || []).includes(option)
+                        ? 'bg-primary text-primary-foreground border-primary'
+                        : 'bg-background border-border hover:bg-primary/10'
+                    }`}
+                  >
+                    {option}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
-    </aside>
+
+      {/* Desktop: Sidebar filters */}
+      <aside className={`hidden md:block shrink-0 transition-all duration-300 ${isCartOpen ? 'w-48' : 'w-64'}`}>
+        <div className="sticky top-24 bg-card border border-border rounded-lg p-4">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-semibold text-foreground">Filtres</h3>
+            {hasActiveFilters && (
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={onClearFilters} 
+                className="text-xs text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-3 w-3 mr-1" />
+                Effacer
+              </Button>
+            )}
+          </div>
+
+          <FilterSection 
+            title="Diamètre (mm)" 
+            filterKey="diameter" 
+            options={filterOptions.diameter} 
+          />
+
+          <FilterSection 
+            title="Longueur (mm)" 
+            filterKey="length" 
+            options={filterOptions.length} 
+          />
+
+          <FilterSection 
+            title="Matière" 
+            filterKey="material" 
+            options={filterOptions.material} 
+          />
+        </div>
+      </aside>
+    </>
   );
 }

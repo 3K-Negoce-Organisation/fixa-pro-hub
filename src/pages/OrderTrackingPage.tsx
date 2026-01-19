@@ -369,8 +369,56 @@ const OrderTrackingPage = () => {
 
     return (
       <TooltipProvider>
-        <div className="py-6">
-          <div className="flex items-center justify-between relative">
+        <div className="py-4 sm:py-6">
+          {/* Mobile: Vertical timeline */}
+          <div className="sm:hidden space-y-3">
+            {statusSteps.map((step, index) => {
+              const stepNumber = index + 1;
+              const isCompleted = stepNumber < currentStep;
+              const isCurrent = stepNumber === currentStep;
+              
+              let stepDocs = getDocumentsForStep(step.key);
+              if (isCurrent) {
+                stepDocs = [...stepDocs, ...unmappedDocs];
+              }
+              
+              return (
+                <div key={step.key} className="flex items-center gap-3">
+                  <div 
+                    className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium shrink-0 ${
+                      isCompleted 
+                        ? 'bg-primary text-primary-foreground' 
+                        : isCurrent 
+                          ? 'bg-primary text-primary-foreground ring-2 ring-primary/20' 
+                          : 'bg-muted text-muted-foreground'
+                    }`}
+                  >
+                    {isCompleted ? <CheckCircle className="h-4 w-4" /> : stepNumber}
+                  </div>
+                  <span className={`text-sm font-medium flex-1 ${isCurrent ? 'text-primary' : 'text-muted-foreground'}`}>
+                    {step.label}
+                  </span>
+                  {stepDocs.length > 0 && (
+                    <div className="flex items-center gap-1">
+                      {stepDocs.map((doc, docIndex) => (
+                        <button
+                          key={docIndex}
+                          type="button"
+                          className="p-1 rounded hover:bg-muted transition-colors"
+                          onClick={() => downloadDocument(doc.url, doc.name)}
+                        >
+                          <Download className="h-4 w-4 text-primary" />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Desktop: Horizontal progress bar */}
+          <div className="hidden sm:flex items-center justify-between relative">
             {/* Progress line */}
             <div className="absolute left-0 right-0 top-4 h-1 bg-muted">
               <div 
@@ -384,10 +432,7 @@ const OrderTrackingPage = () => {
               const isCompleted = stepNumber < currentStep;
               const isCurrent = stepNumber === currentStep;
               
-              // Get documents for this step
               let stepDocs = getDocumentsForStep(step.key);
-              
-              // Add unmapped docs to current step
               if (isCurrent) {
                 stepDocs = [...stepDocs, ...unmappedDocs];
               }
@@ -409,7 +454,7 @@ const OrderTrackingPage = () => {
                     {step.label}
                   </span>
                   
-                  {/* Document icons - fixed height container */}
+                  {/* Document icons */}
                   <div className="h-6 flex items-center justify-center gap-1 mt-1">
                     {stepDocs.map((doc, docIndex) => (
                       <Tooltip key={docIndex}>
