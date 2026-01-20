@@ -1,9 +1,15 @@
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { PageBackground } from "@/components/layout/PageBackground";
-import { FileText, Download, ExternalLink } from "lucide-react";
+import { FileText, Download, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState } from "react";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 
 const documents = [
   {
@@ -33,10 +39,6 @@ const documents = [
 ];
 
 export default function InformationTechniquePage() {
-  const handleView = (file: string) => {
-    window.open(file, "_blank");
-  };
-
   const handleDownload = (file: string, title: string) => {
     const link = document.createElement("a");
     link.href = file;
@@ -51,7 +53,7 @@ export default function InformationTechniquePage() {
       <Header />
       
       <main className="flex-1 container py-8">
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-foreground mb-2">
               Informations Techniques
@@ -61,47 +63,48 @@ export default function InformationTechniquePage() {
             </p>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2">
+          <Accordion type="single" collapsible className="space-y-4">
             {documents.map((doc) => (
-              <Card key={doc.id} className="bg-card border-border hover:shadow-lg transition-shadow">
-                <CardHeader className="pb-3">
-                  <div className="flex items-start gap-3">
+              <AccordionItem 
+                key={doc.id} 
+                value={doc.id}
+                className="bg-card border border-border rounded-lg overflow-hidden"
+              >
+                <AccordionTrigger className="px-4 py-4 hover:no-underline hover:bg-muted/50">
+                  <div className="flex items-center gap-3 text-left">
                     <div className="p-2 bg-primary/10 rounded-lg shrink-0">
-                      <FileText className="h-6 w-6 text-primary" />
+                      <FileText className="h-5 w-5 text-primary" />
                     </div>
                     <div>
-                      <CardTitle className="text-lg">{doc.title}</CardTitle>
-                      <CardDescription className="mt-1">
-                        {doc.description}
-                      </CardDescription>
+                      <h3 className="font-semibold text-foreground">{doc.title}</h3>
+                      <p className="text-sm text-muted-foreground">{doc.description}</p>
                     </div>
                   </div>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="flex-1"
-                      onClick={() => handleView(doc.file)}
-                    >
-                      <ExternalLink className="h-4 w-4 mr-2" />
-                      Consulter
-                    </Button>
-                    <Button
-                      variant="default"
-                      size="sm"
-                      className="flex-1"
-                      onClick={() => handleDownload(doc.file, doc.title)}
-                    >
-                      <Download className="h-4 w-4 mr-2" />
-                      Télécharger
-                    </Button>
+                </AccordionTrigger>
+                <AccordionContent className="px-4 pb-4">
+                  <div className="space-y-4">
+                    <div className="flex justify-end">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDownload(doc.file, doc.title)}
+                      >
+                        <Download className="h-4 w-4 mr-2" />
+                        Télécharger le PDF
+                      </Button>
+                    </div>
+                    <div className="w-full bg-muted rounded-lg overflow-hidden">
+                      <iframe
+                        src={doc.file}
+                        className="w-full h-[600px] md:h-[800px]"
+                        title={doc.title}
+                      />
+                    </div>
                   </div>
-                </CardContent>
-              </Card>
+                </AccordionContent>
+              </AccordionItem>
             ))}
-          </div>
+          </Accordion>
         </div>
       </main>
 
