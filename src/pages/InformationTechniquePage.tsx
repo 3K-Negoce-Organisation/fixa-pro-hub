@@ -1,15 +1,8 @@
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { PageBackground } from "@/components/layout/PageBackground";
-import { FileText, Download, ChevronDown } from "lucide-react";
+import { FileText, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
 
 const documents = [
   {
@@ -53,7 +46,7 @@ export default function InformationTechniquePage() {
       <Header />
       
       <main className="flex-1 container py-8">
-        <div className="max-w-5xl mx-auto">
+        <div className="max-w-3xl mx-auto">
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-foreground mb-2">
               Informations Techniques
@@ -63,48 +56,33 @@ export default function InformationTechniquePage() {
             </p>
           </div>
 
-          <Accordion type="single" collapsible className="space-y-4">
+          <div className="space-y-3">
             {documents.map((doc) => (
-              <AccordionItem 
-                key={doc.id} 
-                value={doc.id}
-                className="bg-card border border-border rounded-lg overflow-hidden"
+              <div 
+                key={doc.id}
+                className="flex items-center justify-between gap-4 p-4 bg-card border border-border rounded-lg hover:bg-muted/50 transition-colors"
               >
-                <AccordionTrigger className="px-4 py-4 hover:no-underline hover:bg-muted/50">
-                  <div className="flex items-center gap-3 text-left">
-                    <div className="p-2 bg-primary/10 rounded-lg shrink-0">
-                      <FileText className="h-5 w-5 text-primary" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-foreground">{doc.title}</h3>
-                      <p className="text-sm text-muted-foreground">{doc.description}</p>
-                    </div>
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-primary/10 rounded-lg shrink-0">
+                    <FileText className="h-5 w-5 text-primary" />
                   </div>
-                </AccordionTrigger>
-                <AccordionContent className="px-4 pb-4">
-                  <div className="space-y-4">
-                    <div className="flex justify-end">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDownload(doc.file, doc.title)}
-                      >
-                        <Download className="h-4 w-4 mr-2" />
-                        Télécharger le PDF
-                      </Button>
-                    </div>
-                    <div className="w-full bg-muted rounded-lg overflow-hidden">
-                      <iframe
-                        src={doc.file}
-                        className="w-full h-[600px] md:h-[800px]"
-                        title={doc.title}
-                      />
-                    </div>
+                  <div>
+                    <h3 className="font-semibold text-foreground">{doc.title}</h3>
+                    <p className="text-sm text-muted-foreground">{doc.description}</p>
                   </div>
-                </AccordionContent>
-              </AccordionItem>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleDownload(doc.file, doc.title)}
+                  className="shrink-0"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Télécharger
+                </Button>
+              </div>
             ))}
-          </Accordion>
+          </div>
         </div>
       </main>
 
