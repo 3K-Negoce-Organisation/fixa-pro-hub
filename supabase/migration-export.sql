@@ -1,20 +1,52 @@
--- =====================================================
--- SCRIPT DE MIGRATION COMPLET - VIS-A-BOIS
--- Généré le 2026-01-04
--- =====================================================
+-- ============================================================================
+-- VIS-A-BOIS - COMPLETE SCHEMA EXPORT
+-- ============================================================================
+-- This file contains the complete database schema for migration to external
+-- Supabase projects (Staging/Production).
+--
+-- Usage:
+--   1. Create a new Supabase project
+--   2. Run this script in the SQL Editor
+--   3. Deploy Edge Functions with Supabase CLI
+--   4. Configure secrets in Dashboard > Settings > Edge Functions
+--   5. Create admin user manually
+--
+-- Generated: 2025-01-19
+-- Source: Lovable Cloud Project (dvifxaygfrhhzmnmyiyp)
+-- ============================================================================
 
--- =====================================================
--- 1. TYPES ENUM
--- =====================================================
-CREATE TYPE public.app_role AS ENUM ('admin', 'user');
-CREATE TYPE public.order_status AS ENUM ('pending', 'paid', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled');
+-- ============================================================================
+-- SECTION 1: CUSTOM TYPES (ENUMS)
+-- ============================================================================
 
--- =====================================================
--- 2. TABLES
--- =====================================================
+-- Application roles enum
+DO $$ BEGIN
+    CREATE TYPE public.app_role AS ENUM ('admin', 'user');
+EXCEPTION
+    WHEN duplicate_object THEN NULL;
+END $$;
 
--- Table: products
-CREATE TABLE public.products (
+-- Order status enum
+DO $$ BEGIN
+    CREATE TYPE public.order_status AS ENUM (
+        'pending',
+        'paid',
+        'confirmed',
+        'processing',
+        'shipped',
+        'delivered',
+        'cancelled'
+    );
+EXCEPTION
+    WHEN duplicate_object THEN NULL;
+END $$;
+
+-- ============================================================================
+-- SECTION 2: TABLES
+-- ============================================================================
+
+-- Products table
+CREATE TABLE IF NOT EXISTS public.products (
     id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
     title TEXT NOT NULL,
     description TEXT,
@@ -23,35 +55,39 @@ CREATE TABLE public.products (
     price_ttc NUMERIC NOT NULL,
     images JSONB DEFAULT '[]'::jsonb,
     variants JSONB DEFAULT '[]'::jsonb,
-    specifications JSONB DEFAULT '{}'::jsonb,
     tags TEXT[] DEFAULT '{}'::text[],
     category TEXT,
+    specifications JSONB DEFAULT '{}'::jsonb,
     is_active BOOLEAN DEFAULT true,
-    is_promo BOOLEAN DEFAULT false,
-    promo_price_ht NUMERIC,
-    promo_end_date TIMESTAMP WITH TIME ZONE,
     stock INTEGER DEFAULT 0,
-    code_alsafix TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+    -- Technical specifications
+    code_alsafix TEXT UNIQUE,
     designation_fr TEXT,
     box_quantity INTEGER,
     purchase_price_ht NUMERIC,
     box_weight NUMERIC,
     diameter_mm NUMERIC,
     length_mm NUMERIC,
+    usage TEXT,
     material TEXT,
     drive_type TEXT,
-    usage TEXT,
     thickness_to_fix_mm NUMERIC,
     thread_length_mm NUMERIC,
     head_diameter_mm NUMERIC,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
+    -- Promo fields
+    is_promo BOOLEAN DEFAULT false,
+    promo_price_ht NUMERIC,
+    promo_end_date TIMESTAMP WITH TIME ZONE
 );
 
--- Table: profiles
-CREATE TABLE public.profiles (
+-- Profiles table (user additional information)
+CREATE TABLE IF NOT EXISTS public.profiles (
     id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
     user_id UUID NOT NULL UNIQUE,
+    first_name TEXT,
+    last_name TEXT,
     company_name TEXT,
     siret TEXT,
     phone TEXT,
@@ -70,17 +106,17 @@ CREATE TABLE public.profiles (
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
 
--- Table: user_roles
-CREATE TABLE public.user_roles (
+-- User roles table (for access control)
+CREATE TABLE IF NOT EXISTS public.user_roles (
     id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
     user_id UUID NOT NULL,
     role public.app_role NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-    UNIQUE(user_id, role)
+    UNIQUE (user_id, role)
 );
 
--- Table: orders
-CREATE TABLE public.orders (
+-- Orders table
+CREATE TABLE IF NOT EXISTS public.orders (
     id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
     user_id UUID NOT NULL,
     order_number TEXT NOT NULL UNIQUE,
@@ -102,8 +138,8 @@ CREATE TABLE public.orders (
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
 
--- Table: order_items
-CREATE TABLE public.order_items (
+-- Order items table
+CREATE TABLE IF NOT EXISTS public.order_items (
     id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
     order_id UUID NOT NULL REFERENCES public.orders(id) ON DELETE CASCADE,
     product_id TEXT NOT NULL,
@@ -116,8 +152,8 @@ CREATE TABLE public.order_items (
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
 
--- Table: user_carts
-CREATE TABLE public.user_carts (
+-- User carts table
+CREATE TABLE IF NOT EXISTS public.user_carts (
     id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
     user_id UUID NOT NULL UNIQUE,
     items JSONB NOT NULL DEFAULT '[]'::jsonb,
@@ -125,26 +161,37 @@ CREATE TABLE public.user_carts (
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
 
--- Table: supplier_settings
-CREATE TABLE public.supplier_settings (
+-- Supplier settings table
+CREATE TABLE IF NOT EXISTS public.supplier_settings (
     id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
     name TEXT NOT NULL DEFAULT '',
     email TEXT NOT NULL DEFAULT '',
     status_email TEXT,
-    customer_number TEXT DEFAULT '000001',
     address TEXT,
     postal_code TEXT,
     city TEXT,
     phone TEXT,
+    customer_number TEXT DEFAULT '000001',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
 
--- =====================================================
--- 3. FONCTIONS
--- =====================================================
+-- Site themes table (for theming)
+CREATE TABLE IF NOT EXISTS public.site_themes (
+    id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    name TEXT NOT NULL,
+    is_active BOOLEAN DEFAULT false,
+    colors JSONB DEFAULT '{}'::jsonb,
+    fonts JSONB DEFAULT '{}'::jsonb,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
+);
 
--- Fonction: has_role (pour RLS)
+-- ============================================================================
+-- SECTION 3: FUNCTIONS
+-- ============================================================================
+
+-- Function to check if a user has a specific role (SECURITY DEFINER to avoid RLS recursion)
 CREATE OR REPLACE FUNCTION public.has_role(_user_id UUID, _role public.app_role)
 RETURNS BOOLEAN
 LANGUAGE sql
@@ -160,7 +207,7 @@ AS $$
   )
 $$;
 
--- Fonction: handle_updated_at (trigger)
+-- Function to update the updated_at timestamp automatically
 CREATE OR REPLACE FUNCTION public.handle_updated_at()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -172,7 +219,7 @@ BEGIN
 END;
 $$;
 
--- Fonction: handle_new_user (création profil auto)
+-- Function to create a profile for new users automatically
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -186,49 +233,60 @@ BEGIN
 END;
 $$;
 
--- =====================================================
--- 4. TRIGGERS
--- =====================================================
+-- ============================================================================
+-- SECTION 4: TRIGGERS
+-- ============================================================================
 
--- Trigger: updated_at pour products
+-- Drop existing triggers if they exist (for clean migration)
+DROP TRIGGER IF EXISTS update_products_updated_at ON public.products;
+DROP TRIGGER IF EXISTS update_profiles_updated_at ON public.profiles;
+DROP TRIGGER IF EXISTS update_orders_updated_at ON public.orders;
+DROP TRIGGER IF EXISTS update_user_carts_updated_at ON public.user_carts;
+DROP TRIGGER IF EXISTS update_supplier_settings_updated_at ON public.supplier_settings;
+DROP TRIGGER IF EXISTS supplier_settings_updated_at ON public.supplier_settings;
+DROP TRIGGER IF EXISTS update_site_themes_updated_at ON public.site_themes;
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+
+-- Create updated_at triggers for all tables
 CREATE TRIGGER update_products_updated_at
     BEFORE UPDATE ON public.products
     FOR EACH ROW
     EXECUTE FUNCTION public.handle_updated_at();
 
--- Trigger: updated_at pour profiles
 CREATE TRIGGER update_profiles_updated_at
     BEFORE UPDATE ON public.profiles
     FOR EACH ROW
     EXECUTE FUNCTION public.handle_updated_at();
 
--- Trigger: updated_at pour orders
 CREATE TRIGGER update_orders_updated_at
     BEFORE UPDATE ON public.orders
     FOR EACH ROW
     EXECUTE FUNCTION public.handle_updated_at();
 
--- Trigger: updated_at pour user_carts
 CREATE TRIGGER update_user_carts_updated_at
     BEFORE UPDATE ON public.user_carts
     FOR EACH ROW
     EXECUTE FUNCTION public.handle_updated_at();
 
--- Trigger: updated_at pour supplier_settings
 CREATE TRIGGER update_supplier_settings_updated_at
     BEFORE UPDATE ON public.supplier_settings
     FOR EACH ROW
     EXECUTE FUNCTION public.handle_updated_at();
 
--- Trigger: création profil auto à l'inscription
+CREATE TRIGGER update_site_themes_updated_at
+    BEFORE UPDATE ON public.site_themes
+    FOR EACH ROW
+    EXECUTE FUNCTION public.handle_updated_at();
+
+-- Trigger to create profile for new users
 CREATE TRIGGER on_auth_user_created
     AFTER INSERT ON auth.users
     FOR EACH ROW
     EXECUTE FUNCTION public.handle_new_user();
 
--- =====================================================
--- 5. ROW LEVEL SECURITY (RLS)
--- =====================================================
+-- ============================================================================
+-- SECTION 5: ROW LEVEL SECURITY (RLS)
+-- ============================================================================
 
 -- Enable RLS on all tables
 ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
@@ -238,131 +296,369 @@ ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.order_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_carts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.supplier_settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.site_themes ENABLE ROW LEVEL SECURITY;
 
--- Policies: products
-CREATE POLICY "Anyone can view active products" ON public.products
-    FOR SELECT USING (is_active = true);
+-- ----------------------------------------
+-- PRODUCTS POLICIES
+-- ----------------------------------------
+DROP POLICY IF EXISTS "Anyone can view active products" ON public.products;
+DROP POLICY IF EXISTS "Admins can manage products" ON public.products;
 
-CREATE POLICY "Admins can manage products" ON public.products
-    FOR ALL USING (public.has_role(auth.uid(), 'admin'));
+CREATE POLICY "Anyone can view active products"
+    ON public.products
+    FOR SELECT
+    USING (is_active = true);
 
--- Policies: profiles
-CREATE POLICY "Users can view their own profile" ON public.profiles
-    FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Admins can manage products"
+    ON public.products
+    FOR ALL
+    TO authenticated
+    USING (public.has_role(auth.uid(), 'admin'));
 
-CREATE POLICY "Users can insert their own profile" ON public.profiles
-    FOR INSERT WITH CHECK (auth.uid() = user_id);
+-- ----------------------------------------
+-- PROFILES POLICIES
+-- ----------------------------------------
+DROP POLICY IF EXISTS "Users can view their own profile" ON public.profiles;
+DROP POLICY IF EXISTS "Users can insert their own profile" ON public.profiles;
+DROP POLICY IF EXISTS "Users can update their own profile" ON public.profiles;
 
-CREATE POLICY "Users can update their own profile" ON public.profiles
-    FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "Users can view their own profile"
+    ON public.profiles
+    FOR SELECT
+    TO authenticated
+    USING (auth.uid() = user_id);
 
--- Policies: user_roles
-CREATE POLICY "Users can view their own roles" ON public.user_roles
-    FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can insert their own profile"
+    ON public.profiles
+    FOR INSERT
+    TO authenticated
+    WITH CHECK (auth.uid() = user_id);
 
-CREATE POLICY "Admins can manage all roles" ON public.user_roles
-    FOR ALL USING (public.has_role(auth.uid(), 'admin'));
+CREATE POLICY "Users can update their own profile"
+    ON public.profiles
+    FOR UPDATE
+    TO authenticated
+    USING (auth.uid() = user_id);
 
--- Policies: orders
-CREATE POLICY "Anyone can view orders by order_number" ON public.orders
-    FOR SELECT USING (true);
+-- ----------------------------------------
+-- USER ROLES POLICIES
+-- ----------------------------------------
+DROP POLICY IF EXISTS "Users can view their own roles" ON public.user_roles;
+DROP POLICY IF EXISTS "Admins can manage all roles" ON public.user_roles;
 
-CREATE POLICY "Anyone can insert orders" ON public.orders
-    FOR INSERT WITH CHECK (true);
+CREATE POLICY "Users can view their own roles"
+    ON public.user_roles
+    FOR SELECT
+    TO authenticated
+    USING (auth.uid() = user_id);
 
-CREATE POLICY "Admins can update orders" ON public.orders
-    FOR UPDATE USING (public.has_role(auth.uid(), 'admin'));
+CREATE POLICY "Admins can manage all roles"
+    ON public.user_roles
+    FOR ALL
+    TO authenticated
+    USING (public.has_role(auth.uid(), 'admin'));
 
-CREATE POLICY "Admins can delete orders" ON public.orders
-    FOR DELETE USING (public.has_role(auth.uid(), 'admin'));
+-- ----------------------------------------
+-- ORDERS POLICIES
+-- ----------------------------------------
+DROP POLICY IF EXISTS "Users can view their own orders" ON public.orders;
+DROP POLICY IF EXISTS "Anyone can view orders by order_number" ON public.orders;
+DROP POLICY IF EXISTS "Anyone can insert orders" ON public.orders;
+DROP POLICY IF EXISTS "Admins can update orders" ON public.orders;
+DROP POLICY IF EXISTS "Admins can delete orders" ON public.orders;
 
--- Policies: order_items
-CREATE POLICY "Anyone can view order items for accessible orders" ON public.order_items
-    FOR SELECT USING (true);
+CREATE POLICY "Users can view their own orders"
+    ON public.orders
+    FOR SELECT
+    TO authenticated
+    USING ((auth.uid() = user_id) OR public.has_role(auth.uid(), 'admin'));
 
-CREATE POLICY "Anyone can insert order items" ON public.order_items
-    FOR INSERT WITH CHECK (true);
+CREATE POLICY "Anyone can insert orders"
+    ON public.orders
+    FOR INSERT
+    WITH CHECK (true);
 
--- Policies: user_carts
-CREATE POLICY "Users can view their own cart" ON public.user_carts
-    FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Admins can update orders"
+    ON public.orders
+    FOR UPDATE
+    TO authenticated
+    USING (public.has_role(auth.uid(), 'admin'));
 
-CREATE POLICY "Users can insert their own cart" ON public.user_carts
-    FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Admins can delete orders"
+    ON public.orders
+    FOR DELETE
+    TO authenticated
+    USING (public.has_role(auth.uid(), 'admin'));
 
-CREATE POLICY "Users can update their own cart" ON public.user_carts
-    FOR UPDATE USING (auth.uid() = user_id);
+-- ----------------------------------------
+-- ORDER ITEMS POLICIES
+-- ----------------------------------------
+DROP POLICY IF EXISTS "Anyone can view order items for accessible orders" ON public.order_items;
+DROP POLICY IF EXISTS "Anyone can insert order items" ON public.order_items;
 
-CREATE POLICY "Users can delete their own cart" ON public.user_carts
-    FOR DELETE USING (auth.uid() = user_id);
+CREATE POLICY "Anyone can view order items for accessible orders"
+    ON public.order_items
+    FOR SELECT
+    USING (true);
 
--- Policies: supplier_settings
-CREATE POLICY "Admins can manage supplier settings" ON public.supplier_settings
-    FOR ALL USING (public.has_role(auth.uid(), 'admin'));
+CREATE POLICY "Anyone can insert order items"
+    ON public.order_items
+    FOR INSERT
+    WITH CHECK (true);
 
--- =====================================================
--- 6. STORAGE BUCKETS
--- =====================================================
+-- ----------------------------------------
+-- USER CARTS POLICIES
+-- ----------------------------------------
+DROP POLICY IF EXISTS "Users can view their own cart" ON public.user_carts;
+DROP POLICY IF EXISTS "Users can insert their own cart" ON public.user_carts;
+DROP POLICY IF EXISTS "Users can update their own cart" ON public.user_carts;
+DROP POLICY IF EXISTS "Users can delete their own cart" ON public.user_carts;
 
-INSERT INTO storage.buckets (id, name, public) VALUES ('product-images', 'product-images', true);
-INSERT INTO storage.buckets (id, name, public) VALUES ('order-documents', 'order-documents', false);
+CREATE POLICY "Users can view their own cart"
+    ON public.user_carts
+    FOR SELECT
+    TO authenticated
+    USING (auth.uid() = user_id);
 
--- Storage policies: product-images (public)
-CREATE POLICY "Product images are publicly accessible" ON storage.objects
-    FOR SELECT USING (bucket_id = 'product-images');
+CREATE POLICY "Users can insert their own cart"
+    ON public.user_carts
+    FOR INSERT
+    TO authenticated
+    WITH CHECK (auth.uid() = user_id);
 
-CREATE POLICY "Admins can upload product images" ON storage.objects
-    FOR INSERT WITH CHECK (bucket_id = 'product-images' AND public.has_role(auth.uid(), 'admin'));
+CREATE POLICY "Users can update their own cart"
+    ON public.user_carts
+    FOR UPDATE
+    TO authenticated
+    USING (auth.uid() = user_id);
 
-CREATE POLICY "Admins can update product images" ON storage.objects
-    FOR UPDATE USING (bucket_id = 'product-images' AND public.has_role(auth.uid(), 'admin'));
+CREATE POLICY "Users can delete their own cart"
+    ON public.user_carts
+    FOR DELETE
+    TO authenticated
+    USING (auth.uid() = user_id);
 
-CREATE POLICY "Admins can delete product images" ON storage.objects
-    FOR DELETE USING (bucket_id = 'product-images' AND public.has_role(auth.uid(), 'admin'));
+-- ----------------------------------------
+-- SUPPLIER SETTINGS POLICIES
+-- ----------------------------------------
+DROP POLICY IF EXISTS "Admins can manage supplier settings" ON public.supplier_settings;
 
--- Storage policies: order-documents (private)
-CREATE POLICY "Admins can manage order documents" ON storage.objects
-    FOR ALL USING (bucket_id = 'order-documents' AND public.has_role(auth.uid(), 'admin'));
+CREATE POLICY "Admins can manage supplier settings"
+    ON public.supplier_settings
+    FOR ALL
+    TO authenticated
+    USING (public.has_role(auth.uid(), 'admin'));
 
-CREATE POLICY "Users can view their order documents" ON storage.objects
-    FOR SELECT USING (
-        bucket_id = 'order-documents' 
+-- ----------------------------------------
+-- SITE THEMES POLICIES
+-- ----------------------------------------
+DROP POLICY IF EXISTS "Anyone can view active themes" ON public.site_themes;
+DROP POLICY IF EXISTS "Admins can manage themes" ON public.site_themes;
+
+CREATE POLICY "Anyone can view active themes"
+    ON public.site_themes
+    FOR SELECT
+    USING (is_active = true);
+
+CREATE POLICY "Admins can manage themes"
+    ON public.site_themes
+    FOR ALL
+    TO authenticated
+    USING (public.has_role(auth.uid(), 'admin'));
+
+-- ============================================================================
+-- SECTION 6: STORAGE BUCKETS
+-- ============================================================================
+
+-- Create storage buckets
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES 
+    ('product-images', 'product-images', true, 5242880, ARRAY['image/jpeg', 'image/png', 'image/webp', 'image/gif']),
+    ('order-documents', 'order-documents', false, 10485760, ARRAY['application/pdf', 'image/jpeg', 'image/png'])
+ON CONFLICT (id) DO UPDATE SET
+    public = EXCLUDED.public,
+    file_size_limit = EXCLUDED.file_size_limit,
+    allowed_mime_types = EXCLUDED.allowed_mime_types;
+
+-- ============================================================================
+-- SECTION 7: STORAGE POLICIES
+-- ============================================================================
+
+-- ----------------------------------------
+-- PRODUCT-IMAGES BUCKET POLICIES
+-- ----------------------------------------
+DROP POLICY IF EXISTS "Anyone can view product images" ON storage.objects;
+DROP POLICY IF EXISTS "Product images are publicly accessible" ON storage.objects;
+DROP POLICY IF EXISTS "Admins can upload product images" ON storage.objects;
+DROP POLICY IF EXISTS "Admins can update product images" ON storage.objects;
+DROP POLICY IF EXISTS "Admins can delete product images" ON storage.objects;
+
+CREATE POLICY "Anyone can view product images"
+    ON storage.objects
+    FOR SELECT
+    USING (bucket_id = 'product-images');
+
+CREATE POLICY "Admins can upload product images"
+    ON storage.objects
+    FOR INSERT
+    TO authenticated
+    WITH CHECK (
+        bucket_id = 'product-images' 
+        AND public.has_role(auth.uid(), 'admin')
+    );
+
+CREATE POLICY "Admins can update product images"
+    ON storage.objects
+    FOR UPDATE
+    TO authenticated
+    USING (
+        bucket_id = 'product-images' 
+        AND public.has_role(auth.uid(), 'admin')
+    );
+
+CREATE POLICY "Admins can delete product images"
+    ON storage.objects
+    FOR DELETE
+    TO authenticated
+    USING (
+        bucket_id = 'product-images' 
+        AND public.has_role(auth.uid(), 'admin')
+    );
+
+-- ----------------------------------------
+-- ORDER-DOCUMENTS BUCKET POLICIES
+-- ----------------------------------------
+DROP POLICY IF EXISTS "Users can view their own order documents" ON storage.objects;
+DROP POLICY IF EXISTS "Users can view their order documents" ON storage.objects;
+DROP POLICY IF EXISTS "Service role can upload order documents" ON storage.objects;
+DROP POLICY IF EXISTS "Admins can view all order documents" ON storage.objects;
+DROP POLICY IF EXISTS "Admins can manage order documents" ON storage.objects;
+DROP POLICY IF EXISTS "Service role can update order documents" ON storage.objects;
+
+CREATE POLICY "Users can view their own order documents"
+    ON storage.objects
+    FOR SELECT
+    TO authenticated
+    USING (
+        bucket_id = 'order-documents'
         AND EXISTS (
-            SELECT 1 FROM public.orders 
-            WHERE orders.user_id = auth.uid() 
-            AND (storage.foldername(name))[1] = orders.id::text
+            SELECT 1 FROM public.orders
+            WHERE orders.user_id = auth.uid()
+            AND objects.name ~~ (orders.order_number || '/%')
         )
     );
 
--- =====================================================
--- 7. DONNÉES - SUPPLIER SETTINGS
--- =====================================================
+CREATE POLICY "Admins can view all order documents"
+    ON storage.objects
+    FOR SELECT
+    TO authenticated
+    USING (
+        bucket_id = 'order-documents'
+        AND public.has_role(auth.uid(), 'admin')
+    );
 
-INSERT INTO public.supplier_settings (id, name, email, status_email, customer_number, address, postal_code, city, phone, created_at, updated_at)
-VALUES (
-    'f2d1642f-034c-495a-80df-f8a4624129ea',
-    'Alsafix',
-    'pierre@luceka.com',
-    'pierre@luceka.com',
-    '000001',
-    'adresse adresse adresse',
-    '67000',
-    'HAGUENAU',
-    '0388000000',
-    '2025-12-19 07:47:53.431763+00',
-    '2025-12-23 12:49:18.634583+00'
-);
+CREATE POLICY "Service role can upload order documents"
+    ON storage.objects
+    FOR INSERT
+    WITH CHECK (bucket_id = 'order-documents');
 
--- =====================================================
--- 8. SECRETS REQUIS (à configurer manuellement)
--- =====================================================
--- Les secrets suivants doivent être configurés dans le nouveau projet:
--- - STRIPE_SECRET_KEY
--- - STRIPE_WEBHOOK_SECRET
--- - RESEND_API_KEY
--- - N8N_WEBHOOK_URL
--- - ORDER_UPDATE_API_KEY
+CREATE POLICY "Service role can update order documents"
+    ON storage.objects
+    FOR UPDATE
+    USING (bucket_id = 'order-documents');
 
--- =====================================================
--- FIN DU SCRIPT
--- =====================================================
+-- ============================================================================
+-- SECTION 8: INDEXES (for performance)
+-- ============================================================================
+
+-- Products indexes
+CREATE INDEX IF NOT EXISTS idx_products_handle ON public.products(handle);
+CREATE INDEX IF NOT EXISTS idx_products_category ON public.products(category);
+CREATE INDEX IF NOT EXISTS idx_products_is_active ON public.products(is_active);
+CREATE INDEX IF NOT EXISTS idx_products_is_promo ON public.products(is_promo);
+CREATE INDEX IF NOT EXISTS idx_products_code_alsafix ON public.products(code_alsafix);
+
+-- Orders indexes
+CREATE INDEX IF NOT EXISTS idx_orders_user_id ON public.orders(user_id);
+CREATE INDEX IF NOT EXISTS idx_orders_order_number ON public.orders(order_number);
+CREATE INDEX IF NOT EXISTS idx_orders_status ON public.orders(status);
+CREATE INDEX IF NOT EXISTS idx_orders_created_at ON public.orders(created_at DESC);
+
+-- Order items indexes
+CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON public.order_items(order_id);
+
+-- Profiles indexes
+CREATE INDEX IF NOT EXISTS idx_profiles_user_id ON public.profiles(user_id);
+
+-- User roles indexes
+CREATE INDEX IF NOT EXISTS idx_user_roles_user_id ON public.user_roles(user_id);
+
+-- ============================================================================
+-- SECTION 9: INITIAL DATA
+-- ============================================================================
+
+-- Insert default supplier settings (Alsafix)
+INSERT INTO public.supplier_settings (name, email, customer_number)
+VALUES ('Alsafix', 'commandes@alsafix.fr', '000001')
+ON CONFLICT DO NOTHING;
+
+-- ============================================================================
+-- SECTION 10: REQUIRED SECRETS FOR EDGE FUNCTIONS
+-- ============================================================================
+/*
+Configure these secrets in Supabase Dashboard > Settings > Edge Functions:
+
+Required secrets:
+- STRIPE_SECRET_KEY        : Stripe secret key (sk_live_... or sk_test_...)
+- STRIPE_WEBHOOK_SECRET    : Stripe webhook signing secret (whsec_...)
+- N8N_WEBHOOK_URL          : n8n webhook URL for order fulfillment
+- RESEND_API_KEY           : Resend API key for transactional emails
+- ORDER_UPDATE_API_KEY     : API key for external order status updates
+
+Auto-configured by Supabase:
+- SUPABASE_URL             : Project URL (auto)
+- SUPABASE_ANON_KEY        : Anon key (auto)
+- SUPABASE_SERVICE_ROLE_KEY: Service role key (auto)
+*/
+
+-- ============================================================================
+-- SECTION 11: POST-MIGRATION INSTRUCTIONS
+-- ============================================================================
+/*
+After running this script:
+
+1. DEPLOY EDGE FUNCTIONS
+   cd your-project
+   supabase link --project-ref YOUR_PROJECT_ID
+   supabase functions deploy --no-verify-jwt
+
+2. CONFIGURE STRIPE WEBHOOK
+   - Go to Stripe Dashboard > Webhooks
+   - Add endpoint: https://YOUR_PROJECT_ID.supabase.co/functions/v1/stripe-webhook
+   - Select events: payment_intent.succeeded, checkout.session.completed
+   - Copy signing secret to Edge Function secrets as STRIPE_WEBHOOK_SECRET
+
+3. CREATE ADMIN USER
+   - Go to Supabase Dashboard > Authentication > Users
+   - Create user with "Auto Confirm User" checked
+   - Then in SQL Editor:
+     INSERT INTO public.user_roles (user_id, role)
+     VALUES ('USER_UUID_HERE', 'admin');
+
+4. CONFIGURE EMAIL (Optional)
+   - Add DNS records for Resend:
+     MX: feedback-smtp.eu-west-1.amazonses.com
+     SPF: v=spf1 include:amazonses.com ~all
+
+5. IMPORT DATA (Optional)
+   - Use supabase/data-export.sql for products and orders data
+
+6. TEST THE SETUP
+   - Create a test order
+   - Verify webhook triggers
+   - Check order appears in admin panel
+*/
+
+-- ============================================================================
+-- END OF MIGRATION SCRIPT
+-- ============================================================================

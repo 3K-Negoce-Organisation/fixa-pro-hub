@@ -1,7 +1,8 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
-import * as XLSX from "https://esm.sh/xlsx@0.18.5";
+import { jsPDF } from "https://esm.sh/jspdf@2.5.1";
+import autoTable from "https://esm.sh/jspdf-autotable@3.8.2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -22,77 +23,159 @@ function generateOrderNumber(): string {
   return `VIS-${year}${month}-${random}`;
 }
 
-// Generate Excel order recap file
-function generateOrderExcel(
+// Generate PDF order recap file matching the template format with full styling
+function generateOrderPDF(
   orderNumber: string,
   customerName: string,
   customerEmail: string,
+  customerNumber: string,
   items: any[],
   totalHT: number,
-  shippingAddress: { line1?: string; line2?: string; city?: string; postal_code?: string } | null
+  shippingAddress: { name?: string; line1?: string; line2?: string; city?: string; postal_code?: string } | null
 ): string {
   const date = new Date();
   const dateStr = `${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}/${String(date.getFullYear()).slice(-2)}`;
   
-  // Build worksheet data
-  const wsData: any[][] = [
-    [dateStr, '', '', '', '', '', `clt ${customerName || customerEmail}`],
-    [`commande`, orderNumber, '', '', '', '', ''],
-    ['', '', '', '', '', '', ''],
-    ['code', 'désignation', 'quantité', 'Prix unitaire HT', 'Prix total HT net', '', ''],
-  ];
-
-  // Add items
-  items.forEach(item => {
-    const totalItemHT = (item.priceHT || item.unit_price_ht || item.p || 0) * (item.quantity || item.q || 1);
-    wsData.push([
-      item.id || item.product_id || item.i || '',
-      item.title || item.product_title || '',
-      item.quantity || item.q || 1,
-      `${(item.priceHT || item.unit_price_ht || item.p || 0).toFixed(2)} €`,
-      `${totalItemHT.toFixed(2)} €`,
-      '',
-      ''
-    ]);
+  // Customer name in uppercase
+  const customerNameUpper = (customerName || customerEmail).toUpperCase();
+  
+  // Create PDF document (A4 landscape for better table fit)
+  const doc = new jsPDF({
+    orientation: 'landscape',
+    unit: 'mm',
+    format: 'a4'
   });
 
-  // Add total
-  wsData.push(['', '', '', '', `${totalHT.toFixed(2)} €`, '', '']);
-  wsData.push(['', '', '', '', '', '', '']);
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const margin = 15;
+
+  // Colors (typed as tuples)
+  const headerBlue: [number, number, number] = [30, 58, 95]; // #1E3A5F
+  const totalGreen: [number, number, number] = [212, 237, 218]; // #D4EDDA
+  const infoDarkBlue = [25, 50, 85];
+
+  // Header section - Date and Customer info
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'normal');
+  doc.text(dateStr, margin, 15);
   
-  // Add shipping address
-  wsData.push(['Adresse de livraison', '', '', '', '', '', '']);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(infoDarkBlue[0], infoDarkBlue[1], infoDarkBlue[2]);
+  doc.text(`clt ${customerNameUpper}`, pageWidth - margin, 15, { align: 'right' });
+  
+  doc.setTextColor(0, 0, 0);
+  doc.setFont('helvetica', 'normal');
+  doc.text('commande', margin, 22);
+  doc.setFont('helvetica', 'bold');
+  doc.text(orderNumber, margin + 25, 22);
+  
+  doc.setTextColor(infoDarkBlue[0], infoDarkBlue[1], infoDarkBlue[2]);
+  doc.text(`N° clt ${customerNumber}`, pageWidth - margin, 22, { align: 'right' });
+  doc.setTextColor(0, 0, 0);
+
+  // Prepare table data
+  const tableHeaders = [['Code', 'Désignation', 'Qté', 'Prix au conditionnement', 'Prix total HT net']];
+  
+  const tableData = items.map(item => {
+    const priceHT = item.priceHT || item.unit_price_ht || 0;
+    const qty = item.quantity || item.q || 1;
+    const totalItemHT = priceHT * qty;
+    return [
+      item.code_alsafix || item.id || item.product_id || '',
+      item.title || item.product_title || '',
+      String(qty),
+      `${priceHT.toFixed(2)} €`,
+      `${totalItemHT.toFixed(2)} €`
+    ];
+  });
+
+  // Add table with styling
+  autoTable(doc, {
+    startY: 30,
+    head: tableHeaders,
+    body: tableData,
+    theme: 'grid',
+    styles: {
+      fontSize: 10,
+      cellPadding: 3,
+      lineColor: [0, 0, 0],
+      lineWidth: 0.3,
+    },
+    headStyles: {
+      fillColor: headerBlue,
+      textColor: [255, 255, 255],
+      fontStyle: 'bold',
+      halign: 'center',
+    },
+    columnStyles: {
+      0: { cellWidth: 30 },  // Code
+      1: { cellWidth: 80 },  // Désignation
+      2: { cellWidth: 20, halign: 'center' },  // Qté
+      3: { cellWidth: 45, halign: 'right' },   // Prix unitaire
+      4: { cellWidth: 45, halign: 'right' },   // Prix total
+    },
+    didParseCell: function(data) {
+      // Style for body rows
+      if (data.section === 'body') {
+        data.cell.styles.fillColor = [255, 255, 255];
+      }
+    },
+  });
+
+  // Get Y position after table
+  const finalY = (doc as any).lastAutoTable.finalY || 100;
+
+  // Total row with green background
+  const totalRowY = finalY + 2;
+  doc.setFillColor(totalGreen[0], totalGreen[1], totalGreen[2]);
+  doc.rect(margin, totalRowY, pageWidth - 2 * margin, 10, 'F');
+  doc.setDrawColor(0, 0, 0);
+  doc.setLineWidth(0.3);
+  doc.rect(margin, totalRowY, pageWidth - 2 * margin, 10, 'S');
+  
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'bold');
+  doc.text('TOTAL HT', margin + 130, totalRowY + 7);
+  doc.text(`${totalHT.toFixed(2)} €`, pageWidth - margin - 10, totalRowY + 7, { align: 'right' });
+
+  // Shipping address section
+  const addressY = totalRowY + 20;
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.text('Adresse de livraison', margin, addressY);
+  
+  doc.setFont('helvetica', 'normal');
+  let currentY = addressY + 6;
+  
   if (shippingAddress) {
-    wsData.push(['', customerName || '', '', '', '', '', '']);
-    if (shippingAddress.line1) wsData.push(['', shippingAddress.line1, '', '', '', '', '']);
-    if (shippingAddress.line2) wsData.push(['', shippingAddress.line2, '', '', '', '', '']);
+    // Use shipping name if available, otherwise fall back to customerName
+    const displayShippingName = shippingAddress.name || customerName;
+    if (displayShippingName) {
+      doc.text(displayShippingName, margin + 10, currentY);
+      currentY += 5;
+    }
+    if (shippingAddress.line1) {
+      doc.text(shippingAddress.line1, margin + 10, currentY);
+      currentY += 5;
+    }
+    if (shippingAddress.line2) {
+      doc.text(shippingAddress.line2, margin + 10, currentY);
+      currentY += 5;
+    }
     if (shippingAddress.postal_code || shippingAddress.city) {
-      wsData.push(['', `${shippingAddress.postal_code || ''} ${shippingAddress.city || ''}`.trim(), '', '', '', '', '']);
+      doc.text(`${shippingAddress.postal_code || ''} ${shippingAddress.city || ''}`.trim(), margin + 10, currentY);
+      currentY += 5;
     }
   }
-  wsData.push(['', '', '', '', '', '', '']);
-  wsData.push(['Livraison direct sans BL chiffré', '', '', '', '', '', '']);
 
-  // Create workbook and worksheet
-  const wb = XLSX.utils.book_new();
-  const ws = XLSX.utils.aoa_to_sheet(wsData);
-  
-  // Set column widths
-  ws['!cols'] = [
-    { wch: 15 }, // code
-    { wch: 35 }, // désignation
-    { wch: 10 }, // quantité
-    { wch: 20 }, // Prix unitaire
-    { wch: 18 }, // Prix total
-    { wch: 5 },
-    { wch: 15 },
-  ];
+  // Footer note
+  currentY += 10;
+  doc.setFont('helvetica', 'bold');
+  doc.text('Livraison direct sans BL chiffré', margin, currentY);
 
-  XLSX.utils.book_append_sheet(wb, ws, 'Commande');
-  
   // Generate base64
-  const xlsxBuffer = XLSX.write(wb, { type: 'base64', bookType: 'xlsx' });
-  return xlsxBuffer;
+  const pdfBase64 = doc.output('datauristring').split(',')[1];
+  return pdfBase64;
 }
 
 // Fetch full product details from Supabase
@@ -103,7 +186,7 @@ async function fetchProductDetails(supabaseAdmin: any, productIds: string[]): Pr
   
   const { data: products, error } = await supabaseAdmin
     .from('products')
-    .select('id, title, handle, images')
+    .select('id, title, handle, images, code_alsafix')
     .in('id', productIds);
   
   if (error) {
@@ -166,6 +249,65 @@ serve(async (req) => {
       const paymentIntent = event.data.object as Stripe.PaymentIntent;
       logStep("Processing PaymentIntent succeeded", { paymentIntentId: paymentIntent.id });
 
+      // Check if order already exists with this PaymentIntent ID
+      // (Frontend may have already created the order)
+      const { data: existingOrder } = await supabaseAdmin
+        .from("orders")
+        .select("id, order_number, total_ht, total_ttc, user_email, shipping_address, shipping_city, shipping_postal_code, shipping_name")
+        .ilike("notes", `%${paymentIntent.id}%`)
+        .maybeSingle();
+
+      if (existingOrder) {
+        logStep("Order already exists for this PaymentIntent", { 
+          orderId: existingOrder.id, 
+          orderNumber: existingOrder.order_number 
+        });
+
+        // Get order items for n8n webhook
+        const { data: existingItems } = await supabaseAdmin
+          .from("order_items")
+          .select("*")
+          .eq("order_id", existingOrder.id);
+
+        // Send webhook to n8n for fulfillment (even if order already exists)
+        if (n8nWebhookUrl) {
+          const cartItems = (existingItems || []).map(item => ({
+            id: item.product_id,
+            title: item.product_title,
+            variantTitle: item.variant_title,
+            image: item.product_image,
+            quantity: item.quantity,
+            priceHT: item.unit_price_ht,
+          }));
+
+          await sendToN8n(
+            n8nWebhookUrl,
+            supabaseAdmin,
+            existingOrder.order_number,
+            existingOrder.id,
+            paymentIntent.id,
+            existingOrder.shipping_name,
+            existingOrder.user_email,
+            null, // phone
+            existingOrder.shipping_address ? {
+              line1: existingOrder.shipping_address,
+              city: existingOrder.shipping_city,
+              postal_code: existingOrder.shipping_postal_code,
+            } : null,
+            cartItems,
+            existingOrder.total_ht,
+            existingOrder.total_ttc
+          );
+        }
+
+        logStep("PaymentIntent processing complete (existing order)");
+        return new Response(JSON.stringify({ received: true, existing_order: true }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
+        });
+      }
+
+      // No existing order found - create new one
       const metadata = paymentIntent.metadata || {};
       const userId = metadata.user_id !== "guest" ? metadata.user_id : null;
       const userEmail = metadata.user_email || null;
@@ -202,6 +344,7 @@ serve(async (req) => {
           title: product?.title || `Product ${item.id}`,
           handle: product?.handle || '',
           image: product?.images?.[0]?.url || '',
+          code_alsafix: product?.code_alsafix || item.id,
           variantTitle: 'Default',
         };
       });
@@ -311,6 +454,63 @@ serve(async (req) => {
       const session = event.data.object as Stripe.Checkout.Session;
       logStep("Processing checkout session", { sessionId: session.id });
 
+      // Check if order already exists with this Session ID
+      const { data: existingOrder } = await supabaseAdmin
+        .from("orders")
+        .select("id, order_number, total_ht, total_ttc, user_email, shipping_address, shipping_city, shipping_postal_code, shipping_name")
+        .ilike("notes", `%${session.id}%`)
+        .maybeSingle();
+
+      if (existingOrder) {
+        logStep("Order already exists for this Checkout Session", { 
+          orderId: existingOrder.id, 
+          orderNumber: existingOrder.order_number 
+        });
+
+        // Get order items for n8n webhook
+        const { data: existingItems } = await supabaseAdmin
+          .from("order_items")
+          .select("*")
+          .eq("order_id", existingOrder.id);
+
+        // Send webhook to n8n for fulfillment (even if order already exists)
+        if (n8nWebhookUrl) {
+          const cartItems = (existingItems || []).map(item => ({
+            id: item.product_id,
+            title: item.product_title,
+            variantTitle: item.variant_title,
+            image: item.product_image,
+            quantity: item.quantity,
+            priceHT: item.unit_price_ht,
+          }));
+
+          await sendToN8n(
+            n8nWebhookUrl,
+            supabaseAdmin,
+            existingOrder.order_number,
+            existingOrder.id,
+            session.id,
+            existingOrder.shipping_name,
+            existingOrder.user_email,
+            null, // phone
+            existingOrder.shipping_address ? {
+              line1: existingOrder.shipping_address,
+              city: existingOrder.shipping_city,
+              postal_code: existingOrder.shipping_postal_code,
+            } : null,
+            cartItems,
+            existingOrder.total_ht,
+            existingOrder.total_ttc
+          );
+        }
+
+        logStep("Checkout session processing complete (existing order)");
+        return new Response(JSON.stringify({ received: true, existing_order: true }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
+        });
+      }
+
       // Get session details with line items
       const fullSession = await stripe.checkout.sessions.retrieve(session.id, {
         expand: ['line_items', 'customer_details'],
@@ -331,6 +531,19 @@ serve(async (req) => {
       } catch (e) {
         logStep("Failed to parse items_json", { error: String(e) });
       }
+
+      // Fetch full product details to get code_alsafix
+      const productIds = cartItems.map(item => item.id);
+      const productMap = await fetchProductDetails(supabaseAdmin, productIds);
+      
+      // Enrich cart items with code_alsafix
+      cartItems = cartItems.map(item => {
+        const product = productMap.get(item.id);
+        return {
+          ...item,
+          code_alsafix: product?.code_alsafix || item.id,
+        };
+      });
 
       // Generate order number
       const orderNumber = generateOrderNumber();
@@ -406,6 +619,7 @@ serve(async (req) => {
           customerEmail,
           fullSession.customer_details?.phone || null,
           shippingAddress ? {
+            name: shippingDetails?.name || undefined,
             line1: shippingAddress.line1 || undefined,
             line2: shippingAddress.line2 || undefined,
             city: shippingAddress.city || undefined,
@@ -437,7 +651,7 @@ serve(async (req) => {
   }
 });
 
-// Helper function to send to n8n
+// Helper function to send to n8n and save document
 async function sendToN8n(
   n8nWebhookUrl: string,
   supabaseAdmin: any,
@@ -461,17 +675,94 @@ async function sendToN8n(
 
     logStep("Supplier settings fetched", { hasSettings: !!supplierSettings });
 
-    // Generate Excel recap file
-    const excelBase64 = generateOrderExcel(
+    // Get customer number from supplier settings (default to "000001")
+    const customerNumber = supplierSettings?.customer_number || '000001';
+
+    // Generate PDF recap file (replaces Excel for Deno Edge compatibility)
+    const pdfBase64 = generateOrderPDF(
       orderNumber,
       customerName || '',
       customerEmail || '',
+      customerNumber,
       cartItems,
       totalHT,
-      shippingAddress
+      shippingAddress ? {
+        name: shippingAddress.name || customerName || undefined,
+        line1: shippingAddress.line1 || undefined,
+        line2: shippingAddress.line2 || undefined,
+        city: shippingAddress.city || undefined,
+        postal_code: shippingAddress.postal_code || undefined,
+      } : null
     );
 
-    logStep("Excel file generated", { size: excelBase64.length });
+    logStep("PDF file generated", { size: pdfBase64.length });
+
+    // Upload PDF to Supabase Storage and update order documents
+    const pdfFileName = `commande_${orderNumber}.pdf`;
+    const filePath = `${orderId}/${pdfFileName}`;
+    
+    try {
+      // Decode base64 and upload to storage
+      const binaryString = atob(pdfBase64);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+
+      const { error: uploadError } = await supabaseAdmin.storage
+        .from('order-documents')
+        .upload(filePath, bytes, {
+          contentType: 'application/pdf',
+          upsert: true
+        });
+
+      if (uploadError) {
+        logStep("Error uploading PDF to storage", { error: uploadError.message });
+      } else {
+        logStep("PDF uploaded to storage", { filePath });
+
+        // Create signed URL for the document (valid for 1 year)
+        const { data: signedUrlData, error: signedUrlError } = await supabaseAdmin.storage
+          .from('order-documents')
+          .createSignedUrl(filePath, 60 * 60 * 24 * 365);
+
+        if (signedUrlError) {
+          logStep("Error creating signed URL", { error: signedUrlError.message });
+        } else {
+          // Update order with document reference
+          const newDocument = {
+            name: pdfFileName,
+            type: 'order_confirmation',
+            url: signedUrlData.signedUrl,
+            created_at: new Date().toISOString(),
+            status: 'paid'
+          };
+
+          // Get current documents array
+          const { data: currentOrder } = await supabaseAdmin
+            .from('orders')
+            .select('documents')
+            .eq('id', orderId)
+            .single();
+
+          const existingDocuments = currentOrder?.documents || [];
+          const updatedDocuments = [...existingDocuments, newDocument];
+
+          const { error: updateError } = await supabaseAdmin
+            .from('orders')
+            .update({ documents: updatedDocuments })
+            .eq('id', orderId);
+
+          if (updateError) {
+            logStep("Error updating order with document", { error: updateError.message });
+          } else {
+            logStep("Order updated with document reference", { documentCount: updatedDocuments.length });
+          }
+        }
+      }
+    } catch (storageError) {
+      logStep("Storage operation failed", { error: String(storageError) });
+    }
 
     const n8nPayload = {
       event: "order.paid",
@@ -494,24 +785,25 @@ async function sendToN8n(
         phone: supplierSettings.phone || null,
       } : null,
       items: cartItems.map(item => ({
-        product_id: item.id,
+        product_id: item.id || item.product_id,
+        code_alsafix: item.code_alsafix || item.id,
         variant_id: item.variantId || item.id,
-        title: item.title,
+        title: item.title || item.product_title,
         variant_title: item.variantTitle || 'Default',
-        quantity: item.quantity,
-        unit_price_ht: item.priceHT,
-        unit_price_ttc: item.priceHT * 1.20,
+        quantity: item.quantity || item.q || 1,
+        unit_price_ht: item.priceHT || item.unit_price_ht || 0,
+        unit_price_ttc: (item.priceHT || item.unit_price_ht || 0) * 1.20,
       })),
       totals: {
         ht: totalHT,
         ttc: totalTTC,
         currency: "EUR",
       },
-      // Excel file as base64
-      excel_file: {
-        filename: `commande_${orderNumber}.xlsx`,
-        content_base64: excelBase64,
-        content_type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      // PDF file as base64 (replaces excel_file for Deno Edge compatibility)
+      pdf_file: {
+        filename: pdfFileName,
+        content_base64: pdfBase64,
+        content_type: "application/pdf",
       },
       created_at: new Date().toISOString(),
     };
