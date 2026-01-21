@@ -6,28 +6,28 @@ import { Button } from "@/components/ui/button";
 
 const documents = [
   {
-    id: "vbl",
-    title: "VBL - Vis Bois Longue",
-    description: "Fiche technique des vis bois longues pour charpente et ossature bois",
-    file: "/docs/FT-VBL.pdf",
-  },
-  {
     id: "vbf",
-    title: "VBF - Vis Bois à Filetage partiel",
-    description: "Fiche technique des vis bois à filetage partiel",
+    title: "VIS À BOIS VBF",
+    description: "Vis à bois VBF - tête fraisée - galvanisée. Vis Bois tête Fraisée technique pour la construction bois.",
     file: "/docs/FT-VBF.pdf",
   },
   {
     id: "vbht",
-    title: "VBHT - Vis Bois Haute Ténacité",
-    description: "Fiche technique des vis bois haute ténacité pour applications exigeantes",
+    title: "VIS BOIS TIREFOND VBHT",
+    description: "Vis à bois tirefond - tête hexagonale - version zinguée. Vis de construction pour les assemblages structurels de composants en bois.",
     file: "/docs/FT-VBHT.pdf",
   },
   {
     id: "vrac-qs",
-    title: "VRAC QS - Vis en Vrac Quick Start",
-    description: "Fiche technique des vis en vrac avec démarrage rapide",
+    title: "VIS À BOIS QS",
+    description: "Vis à bois dur sans pré-perçage «QUADRA SPEED» - version INOX C1 et A4. Idéale pour la fixation de terrasses et constructions en bois.",
     file: "/docs/FT-VRAC-QS.pdf",
+  },
+  {
+    id: "vbl",
+    title: "VIS BOIS LONGUE VBL",
+    description: "Fiche technique des vis bois longues pour charpente et ossature bois.",
+    file: "/docs/FT-VBL.pdf",
   },
 ];
 
