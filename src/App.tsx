@@ -28,6 +28,7 @@ import PolitiqueConfidentialitePage from "./pages/PolitiqueConfidentialitePage";
 import CookiesPage from "./pages/CookiesPage";
 import FAQPage from "./pages/FAQPage";
 import ContactPage from "./pages/ContactPage";
+import InformationTechniquePage from "./pages/InformationTechniquePage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -62,6 +63,7 @@ const App = () => (
                   <Route path="/cookies" element={<AuthGuard><CookiesPage /></AuthGuard>} />
                   <Route path="/faq" element={<AuthGuard><FAQPage /></AuthGuard>} />
                   <Route path="/contact" element={<AuthGuard><ContactPage /></AuthGuard>} />
+                  <Route path="/information-technique" element={<AuthGuard><InformationTechniquePage /></AuthGuard>} />
                   {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                   <Route path="*" element={<AuthGuard><NotFound /></AuthGuard>} />
                 </Routes>
