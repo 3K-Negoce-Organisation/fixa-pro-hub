@@ -14,6 +14,44 @@ export type Database = {
   }
   public: {
     Tables: {
+      custom_themes: {
+        Row: {
+          created_at: string
+          id: string
+          is_default: boolean | null
+          name: string
+          site_id: string
+          theme_data: Json
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_default?: boolean | null
+          name: string
+          site_id: string
+          theme_data?: Json
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_default?: boolean | null
+          name?: string
+          site_id?: string
+          theme_data?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "custom_themes_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_items: {
         Row: {
           created_at: string
@@ -295,6 +333,268 @@ export type Database = {
           siret?: string | null
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      site_assets: {
+        Row: {
+          created_at: string
+          id: string
+          is_selected: boolean | null
+          name: string
+          site_id: string
+          type: string
+          updated_at: string
+          url: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_selected?: boolean | null
+          name: string
+          site_id: string
+          type: string
+          updated_at?: string
+          url: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_selected?: boolean | null
+          name?: string
+          site_id?: string
+          type?: string
+          updated_at?: string
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "site_assets_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      site_themes: {
+        Row: {
+          accent_color: string | null
+          background_color: string | null
+          border_color: string | null
+          border_radius: string | null
+          border_width: string | null
+          button_primary_bg: string | null
+          button_primary_text: string | null
+          button_secondary_bg: string | null
+          button_secondary_text: string | null
+          card_bg: string | null
+          card_border: string | null
+          card_shadow: string | null
+          card_text: string | null
+          created_at: string
+          custom_css: string | null
+          error_color: string | null
+          favicon_url: string | null
+          focus_ring_color: string | null
+          font_family: string | null
+          footer_bg: string | null
+          footer_border: string | null
+          footer_link: string | null
+          footer_link_hover: string | null
+          footer_text: string | null
+          header_bg: string | null
+          header_border: string | null
+          header_link: string | null
+          header_link_hover: string | null
+          header_text: string | null
+          heading_font: string | null
+          id: string
+          info_color: string | null
+          input_bg: string | null
+          input_border: string | null
+          input_focus_border: string | null
+          input_placeholder: string | null
+          input_text: string | null
+          is_active: boolean | null
+          link_color: string | null
+          link_hover_color: string | null
+          logo_url: string | null
+          muted_color: string | null
+          name: string | null
+          nav_active_bg: string | null
+          nav_active_text: string | null
+          nav_bg: string | null
+          nav_hover_bg: string | null
+          nav_hover_text: string | null
+          nav_text: string | null
+          primary_color: string | null
+          secondary_color: string | null
+          shadow_lg: string | null
+          shadow_md: string | null
+          shadow_sm: string | null
+          site_id: string | null
+          success_color: string | null
+          text_color: string | null
+          updated_at: string
+          warning_color: string | null
+        }
+        Insert: {
+          accent_color?: string | null
+          background_color?: string | null
+          border_color?: string | null
+          border_radius?: string | null
+          border_width?: string | null
+          button_primary_bg?: string | null
+          button_primary_text?: string | null
+          button_secondary_bg?: string | null
+          button_secondary_text?: string | null
+          card_bg?: string | null
+          card_border?: string | null
+          card_shadow?: string | null
+          card_text?: string | null
+          created_at?: string
+          custom_css?: string | null
+          error_color?: string | null
+          favicon_url?: string | null
+          focus_ring_color?: string | null
+          font_family?: string | null
+          footer_bg?: string | null
+          footer_border?: string | null
+          footer_link?: string | null
+          footer_link_hover?: string | null
+          footer_text?: string | null
+          header_bg?: string | null
+          header_border?: string | null
+          header_link?: string | null
+          header_link_hover?: string | null
+          header_text?: string | null
+          heading_font?: string | null
+          id?: string
+          info_color?: string | null
+          input_bg?: string | null
+          input_border?: string | null
+          input_focus_border?: string | null
+          input_placeholder?: string | null
+          input_text?: string | null
+          is_active?: boolean | null
+          link_color?: string | null
+          link_hover_color?: string | null
+          logo_url?: string | null
+          muted_color?: string | null
+          name?: string | null
+          nav_active_bg?: string | null
+          nav_active_text?: string | null
+          nav_bg?: string | null
+          nav_hover_bg?: string | null
+          nav_hover_text?: string | null
+          nav_text?: string | null
+          primary_color?: string | null
+          secondary_color?: string | null
+          shadow_lg?: string | null
+          shadow_md?: string | null
+          shadow_sm?: string | null
+          site_id?: string | null
+          success_color?: string | null
+          text_color?: string | null
+          updated_at?: string
+          warning_color?: string | null
+        }
+        Update: {
+          accent_color?: string | null
+          background_color?: string | null
+          border_color?: string | null
+          border_radius?: string | null
+          border_width?: string | null
+          button_primary_bg?: string | null
+          button_primary_text?: string | null
+          button_secondary_bg?: string | null
+          button_secondary_text?: string | null
+          card_bg?: string | null
+          card_border?: string | null
+          card_shadow?: string | null
+          card_text?: string | null
+          created_at?: string
+          custom_css?: string | null
+          error_color?: string | null
+          favicon_url?: string | null
+          focus_ring_color?: string | null
+          font_family?: string | null
+          footer_bg?: string | null
+          footer_border?: string | null
+          footer_link?: string | null
+          footer_link_hover?: string | null
+          footer_text?: string | null
+          header_bg?: string | null
+          header_border?: string | null
+          header_link?: string | null
+          header_link_hover?: string | null
+          header_text?: string | null
+          heading_font?: string | null
+          id?: string
+          info_color?: string | null
+          input_bg?: string | null
+          input_border?: string | null
+          input_focus_border?: string | null
+          input_placeholder?: string | null
+          input_text?: string | null
+          is_active?: boolean | null
+          link_color?: string | null
+          link_hover_color?: string | null
+          logo_url?: string | null
+          muted_color?: string | null
+          name?: string | null
+          nav_active_bg?: string | null
+          nav_active_text?: string | null
+          nav_bg?: string | null
+          nav_hover_bg?: string | null
+          nav_hover_text?: string | null
+          nav_text?: string | null
+          primary_color?: string | null
+          secondary_color?: string | null
+          shadow_lg?: string | null
+          shadow_md?: string | null
+          shadow_sm?: string | null
+          site_id?: string | null
+          success_color?: string | null
+          text_color?: string | null
+          updated_at?: string
+          warning_color?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "site_themes_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sites: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean | null
+          name: string
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          name: string
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          slug?: string
+          updated_at?: string
         }
         Relationships: []
       }

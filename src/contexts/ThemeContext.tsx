@@ -2,8 +2,19 @@ import { createContext, useContext, useState, useEffect, ReactNode } from 'react
 import { supabase } from '@/integrations/supabase/client';
 import { SiteTheme, DEFAULT_THEME, hexToHsl } from '@/types/theme';
 
+interface SiteAsset {
+  id: string;
+  site_id: string;
+  type: 'logo' | 'favicon';
+  name: string;
+  url: string;
+  is_selected: boolean;
+}
+
 interface ThemeContextType {
   theme: Partial<SiteTheme>;
+  logoUrl: string | null;
+  faviconUrl: string | null;
   loading: boolean;
   refreshTheme: () => Promise<void>;
 }
@@ -11,8 +22,7 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 /**
- * Applique les variables CSS du thème sur :root
- * Convertit les couleurs HEX en HSL pour compatibilité Tailwind
+ * Applique le favicon dynamique
  */
 function applyFavicon(faviconUrl: string | null | undefined) {
   if (faviconUrl) {
@@ -26,11 +36,12 @@ function applyFavicon(faviconUrl: string | null | undefined) {
   }
 }
 
+/**
+ * Applique les variables CSS du thème sur :root
+ * Convertit les couleurs HEX en HSL pour compatibilité Tailwind
+ */
 function applyThemeToCSS(theme: Partial<SiteTheme>) {
   const root = document.documentElement;
-  
-  // Appliquer le favicon dynamique
-  applyFavicon(theme.favicon_url);
   
   // Mapping des propriétés du thème vers les variables CSS personnalisées
   const themeVariables: Record<string, string | undefined> = {
@@ -48,6 +59,7 @@ function applyThemeToCSS(theme: Partial<SiteTheme>) {
     
     '--theme-border-color': theme.border_color,
     '--theme-border-radius': theme.border_radius,
+    '--theme-border-width': theme.border_width,
     
     '--theme-shadow-sm': theme.shadow_sm,
     '--theme-shadow-md': theme.shadow_md,
@@ -58,10 +70,14 @@ function applyThemeToCSS(theme: Partial<SiteTheme>) {
     
     '--theme-header-bg': theme.header_bg,
     '--theme-header-text': theme.header_text,
+    '--theme-header-border': theme.header_border,
+    '--theme-header-link': theme.header_link,
     '--theme-header-link-hover': theme.header_link_hover,
     
     '--theme-footer-bg': theme.footer_bg,
     '--theme-footer-text': theme.footer_text,
+    '--theme-footer-border': theme.footer_border,
+    '--theme-footer-link': theme.footer_link,
     '--theme-footer-link-hover': theme.footer_link_hover,
     
     '--theme-nav-bg': theme.nav_bg,
@@ -69,10 +85,12 @@ function applyThemeToCSS(theme: Partial<SiteTheme>) {
     '--theme-nav-active-bg': theme.nav_active_bg,
     '--theme-nav-active-text': theme.nav_active_text,
     '--theme-nav-hover-bg': theme.nav_hover_bg,
+    '--theme-nav-hover-text': theme.nav_hover_text,
     
     '--theme-card-bg': theme.card_bg,
     '--theme-card-text': theme.card_text,
     '--theme-card-border': theme.card_border,
+    '--theme-card-shadow': theme.card_shadow,
     
     '--theme-success': theme.success_color,
     '--theme-warning': theme.warning_color,
@@ -80,8 +98,10 @@ function applyThemeToCSS(theme: Partial<SiteTheme>) {
     '--theme-info': theme.info_color,
     
     '--theme-input-bg': theme.input_bg,
+    '--theme-input-text': theme.input_text,
     '--theme-input-border': theme.input_border,
     '--theme-input-focus-border': theme.input_focus_border,
+    '--theme-input-placeholder': theme.input_placeholder,
     
     '--theme-link-color': theme.link_color,
     '--theme-link-hover': theme.link_hover_color,
@@ -141,26 +161,61 @@ function applyThemeToCSS(theme: Partial<SiteTheme>) {
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<Partial<SiteTheme>>(DEFAULT_THEME);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [faviconUrl, setFaviconUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   async function loadTheme() {
     setLoading(true);
     
     try {
-      // Utiliser any pour contourner le typage strict car site_themes n'est pas dans les types générés
-      const response = await supabase
+      // Charger le thème actif depuis site_themes
+      const themeResponse = await supabase
         .from('site_themes' as any)
         .select('*')
         .eq('is_active', true)
         .maybeSingle();
       
-      const data = response.data as unknown as Partial<SiteTheme> | null;
-      const error = response.error;
+      const themeData = themeResponse.data as unknown as Partial<SiteTheme> | null;
+      const themeError = themeResponse.error;
 
-      if (data && !error) {
-        const mergedTheme = { ...DEFAULT_THEME, ...data };
+      if (themeData && !themeError) {
+        const mergedTheme = { ...DEFAULT_THEME, ...themeData };
         setTheme(mergedTheme);
         applyThemeToCSS(mergedTheme);
+        
+        // Si le thème a un site_id, charger les assets sélectionnés
+        if (themeData.site_id) {
+          const assetsResponse = await supabase
+            .from('site_assets' as any)
+            .select('*')
+            .eq('site_id', themeData.site_id)
+            .eq('is_selected', true);
+          
+          const assets = assetsResponse.data as unknown as SiteAsset[] | null;
+          
+          if (assets && assets.length > 0) {
+            const selectedLogo = assets.find(a => a.type === 'logo');
+            const selectedFavicon = assets.find(a => a.type === 'favicon');
+            
+            if (selectedLogo) {
+              setLogoUrl(selectedLogo.url);
+            }
+            if (selectedFavicon) {
+              setFaviconUrl(selectedFavicon.url);
+              applyFavicon(selectedFavicon.url);
+            }
+          }
+        }
+        
+        // Fallback sur les URLs legacy du thème si pas d'assets
+        if (!logoUrl && themeData.logo_url) {
+          setLogoUrl(themeData.logo_url);
+        }
+        if (!faviconUrl && themeData.favicon_url) {
+          setFaviconUrl(themeData.favicon_url);
+          applyFavicon(themeData.favicon_url);
+        }
       } else {
         // Utiliser le thème par défaut si aucun thème actif trouvé
         applyThemeToCSS(DEFAULT_THEME);
@@ -178,7 +233,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <ThemeContext.Provider value={{ theme, loading, refreshTheme: loadTheme }}>
+    <ThemeContext.Provider value={{ theme, logoUrl, faviconUrl, loading, refreshTheme: loadTheme }}>
       {children}
     </ThemeContext.Provider>
   );
