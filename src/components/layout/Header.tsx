@@ -37,7 +37,7 @@ const categoryToSlug = (category: string): string => {
 };
 
 export function Header() {
-  const { theme } = useTheme();
+  const { theme, logoUrl } = useTheme();
   const [searchQuery, setSearchQuery] = useState("");
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [userFirstName, setUserFirstName] = useState<string | null>(null);
@@ -50,8 +50,8 @@ export function Header() {
   const navigate = useNavigate();
   const adminMenuTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
-  // Use dynamic logo from theme or fallback to default
-  const logoSrc = theme.logo_url || logoVisABois;
+  // Use dynamic logo from theme context (site_assets) or legacy theme.logo_url, or fallback to default
+  const logoSrc = logoUrl || theme.logo_url || logoVisABois;
 
   // Fetch categories from database
   const { data: categories = [] } = useQuery({
