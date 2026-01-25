@@ -26,6 +26,9 @@ import PromosPage from "./pages/PromosPage";
 import MentionsLegalesPage from "./pages/MentionsLegalesPage";
 import PolitiqueConfidentialitePage from "./pages/PolitiqueConfidentialitePage";
 import CookiesPage from "./pages/CookiesPage";
+import CGVPage from "./pages/CGVPage";
+import LivraisonPage from "./pages/LivraisonPage";
+import RetoursPage from "./pages/RetoursPage";
 import FAQPage from "./pages/FAQPage";
 import ContactPage from "./pages/ContactPage";
 import InformationTechniquePage from "./pages/InformationTechniquePage";
@@ -61,6 +64,9 @@ const App = () => (
                   <Route path="/mentions-legales" element={<AuthGuard><MentionsLegalesPage /></AuthGuard>} />
                   <Route path="/politique-confidentialite" element={<AuthGuard><PolitiqueConfidentialitePage /></AuthGuard>} />
                   <Route path="/cookies" element={<AuthGuard><CookiesPage /></AuthGuard>} />
+                  <Route path="/cgv" element={<AuthGuard><CGVPage /></AuthGuard>} />
+                  <Route path="/livraison" element={<AuthGuard><LivraisonPage /></AuthGuard>} />
+                  <Route path="/retours" element={<AuthGuard><RetoursPage /></AuthGuard>} />
                   <Route path="/faq" element={<AuthGuard><FAQPage /></AuthGuard>} />
                   <Route path="/contact" element={<AuthGuard><ContactPage /></AuthGuard>} />
                   <Route path="/information-technique" element={<AuthGuard><InformationTechniquePage /></AuthGuard>} />
