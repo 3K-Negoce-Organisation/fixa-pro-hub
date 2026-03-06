@@ -16,7 +16,7 @@ function mapProductToDisplay(product: Product): DisplayProduct {
     priceHT: product.price_ht,
     priceTTC: product.price_ttc,
     image: getProductImage(product),
-    category: product.category || "",
+    category: product.categories?.name || product.category || "",
     diameter_mm: product.diameter_mm,
     length_mm: product.length_mm,
     material: product.material,

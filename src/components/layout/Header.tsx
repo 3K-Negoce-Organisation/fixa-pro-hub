@@ -53,36 +53,25 @@ export function Header() {
   // Use dynamic logo from theme context (site_assets) or legacy theme.logo_url, or fallback to default
   const logoSrc = logoUrl || theme.logo_url || logoVisABois;
 
-  // Fetch categories from database
+  // Fetch categories from categories table
   const { data: categories = [] } = useQuery({
     queryKey: ["product-categories"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("products")
-        .select("category")
+        .from("categories")
+        .select("id, name, slug, sort_order")
         .eq("is_active", true)
-        .not("category", "is", null);
+        .order("sort_order", { ascending: true });
 
       if (error) throw error;
 
-      // Get unique categories and count
-      const categoryMap = new Map<string, number>();
-      data?.forEach((p) => {
-        if (p.category) {
-          categoryMap.set(p.category, (categoryMap.get(p.category) || 0) + 1);
-        }
-      });
-
-      // Convert to array and sort by name
-      return Array.from(categoryMap.entries())
-        .map(([name, count]) => ({
-          name,
-          slug: categoryToSlug(name),
-          count,
-        }))
-        .sort((a, b) => a.name.localeCompare(b.name, "fr"));
+      return (data || []).map((c) => ({
+        name: c.name,
+        slug: c.slug,
+        count: 0,
+      }));
     },
-    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+    staleTime: 5 * 60 * 1000,
   });
 
   const handleAdminMenuEnter = () => {

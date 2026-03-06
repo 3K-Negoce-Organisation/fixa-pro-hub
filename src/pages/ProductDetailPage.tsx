@@ -139,14 +139,14 @@ const ProductDetailPage = () => {
             <Link to="/produits" className="hover:text-foreground shrink-0">
               Produits
             </Link>
-            {product.category && (
+            {product.categories && (
               <>
                 <ChevronRight className="h-3 w-3 sm:h-4 sm:w-4 shrink-0" />
                 <Link
-                  to={`/produits?cat=${product.category.toLowerCase().replace(" ", "-")}`}
+                  to={`/produits?category=${product.categories.slug}`}
                   className="hover:text-foreground shrink-0"
                 >
-                  {product.category}
+                  {product.categories.name}
                 </Link>
               </>
             )}
@@ -199,9 +199,9 @@ const ProductDetailPage = () => {
             <div className="space-y-4">
               {/* Title & Badge */}
               <div>
-                {product.category && (
+                {product.categories && (
                   <Badge variant="secondary" className="mb-1">
-                    {product.category}
+                    {product.categories.name}
                   </Badge>
                 )}
                 <h1 className="text-xl font-bold text-foreground mb-1">

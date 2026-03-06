@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { SlidersHorizontal, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -37,41 +38,37 @@ const ProductsPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState<ItemsPerPage>("25");
 
+  // Fetch categories from categories table
+  const { data: dbCategories = [] } = useQuery({
+    queryKey: ["categories"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("categories")
+        .select("id, name, slug")
+        .eq("is_active", true);
+      if (error) throw error;
+      return data || [];
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
   // Fetch products from Supabase
   const { data: products = [], isLoading } = useQuery({
     queryKey: ["products", query],
     queryFn: () => fetchProducts(query || undefined),
   });
 
-  // Fonction pour convertir slug URL vers nom de catégorie DB
-  const slugToCategory = (slug: string): string | null => {
-    // Chercher une catégorie dont le slug correspond
-    const match = products.find((p: Product) => {
-      if (!p.category) return false;
-      const productSlug = p.category
-        .toLowerCase()
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .replace(/\s+/g, "-")
-        .replace(/[^a-z0-9-]/g, "");
-      return productSlug === slug;
-    });
-    return match?.category || null;
-  };
+  // Match URL slug to category id
+  const activeCategoryId = useMemo(() => {
+    if (!categoryParam) return null;
+    return dbCategories.find((c) => c.slug === categoryParam)?.id || null;
+  }, [categoryParam, dbCategories]);
 
   // Get products filtered by category (base for filter options)
   const categoryFilteredProducts = useMemo(() => {
-    let result = products;
-
-    if (categoryParam) {
-      const dbCategory = slugToCategory(categoryParam);
-      if (dbCategory) {
-        result = result.filter((p: Product) => p.category?.trim() === dbCategory);
-      }
-    }
-    
-    return result;
-  }, [products, categoryParam]);
+    if (!activeCategoryId) return products;
+    return products.filter((p: Product) => p.category_id === activeCategoryId);
+  }, [products, activeCategoryId]);
 
   // Generate filter options from products that match OTHER active filters
   // This ensures we only show filter values that would return results
@@ -153,7 +150,8 @@ const ProductsPage = () => {
         originalPriceHT: isPromo ? product.price_ht : undefined,
         originalPriceTTC: isPromo ? product.price_ttc : undefined,
         image,
-        category: product.category || "general",
+        category: product.categories?.name || product.category || "",
+        category_id: product.category_id,
         diameter_mm: product.diameter_mm,
         length_mm: product.length_mm,
         material: product.material,
@@ -170,20 +168,9 @@ const ProductsPage = () => {
   const filteredProducts = useMemo(() => {
     let result = displayProducts;
 
-    // Map URL category param to database category
-    const categoryMap: Record<string, string> = {
-      terrasse: "Vis terrasse",
-      charpente: "Vis de charpente",
-      menuiserie: "Vis menuiserie",
-      tirefond: "Tirefond",
-    };
-
-    // Filter by category
-    if (categoryParam) {
-      const dbCategory = categoryMap[categoryParam];
-      if (dbCategory) {
-        result = result.filter((p) => p.category?.trim() === dbCategory);
-      }
+    // Filter by category_id
+    if (activeCategoryId) {
+      result = result.filter((p) => p.category_id === activeCategoryId);
     }
 
     // Apply filters
@@ -264,18 +251,11 @@ const ProductsPage = () => {
 
   const getCategoryTitle = () => {
     if (query) return `Résultats pour "${query}"`;
-    switch (categoryParam) {
-      case "terrasse":
-        return "Vis Terrasse";
-      case "charpente":
-        return "Vis Charpente";
-      case "menuiserie":
-        return "Vis Menuiserie";
-      case "tirefond":
-        return "Tirefond";
-      default:
-        return "Tous les produits";
+    if (categoryParam) {
+      const cat = dbCategories.find((c) => c.slug === categoryParam);
+      if (cat) return cat.name;
     }
+    return "Tous les produits";
   };
 
   // Generate page numbers to display

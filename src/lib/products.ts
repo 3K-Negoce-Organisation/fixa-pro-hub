@@ -2,7 +2,15 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
 
-export type Product = Tables<"products">;
+export type CategoryRef = {
+  id: string;
+  name: string;
+  slug: string;
+};
+
+export type Product = Tables<"products"> & {
+  categories: CategoryRef | null;
+};
 
 export interface ProductVariant {
   id: string;
@@ -13,11 +21,11 @@ export interface ProductVariant {
   quantity: number;
 }
 
-// Fetch all active products
+// Fetch all active products (with joined category)
 export async function fetchProducts(searchQuery?: string) {
   let query = supabase
     .from("products")
-    .select("*")
+    .select("*, categories(id, name, slug)")
     .eq("is_active", true)
     .order("title");
 
@@ -32,14 +40,14 @@ export async function fetchProducts(searchQuery?: string) {
     throw error;
   }
 
-  return data || [];
+  return (data || []) as Product[];
 }
 
-// Fetch a single product by handle
+// Fetch a single product by handle (with joined category)
 export async function fetchProductByHandle(handle: string) {
   const { data, error } = await supabase
     .from("products")
-    .select("*")
+    .select("*, categories(id, name, slug)")
     .eq("handle", handle)
     .eq("is_active", true)
     .maybeSingle();
@@ -49,7 +57,7 @@ export async function fetchProductByHandle(handle: string) {
     throw error;
   }
 
-  return data;
+  return data as Product | null;
 }
 
 // Parse variants from JSON field

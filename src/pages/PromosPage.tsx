@@ -54,7 +54,7 @@ const PromosPage = () => {
           originalPriceHT: product.promo_price_ht ? product.price_ht : undefined,
           originalPriceTTC: product.promo_price_ht ? product.price_ttc : undefined,
           image,
-          category: product.category || "general",
+          category: product.categories?.name || product.category || "",
           diameter_mm: product.diameter_mm,
           length_mm: product.length_mm,
           material: product.material,

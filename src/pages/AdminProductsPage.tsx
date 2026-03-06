@@ -8,6 +8,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import {
+  Select as UiSelect,
+  SelectContent as UiSelectContent,
+  SelectItem as UiSelectItem,
+  SelectTrigger as UiSelectTrigger,
+  SelectValue as UiSelectValue,
+} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -69,7 +76,7 @@ interface ProductFormData {
   description: string;
   price_ht: number;
   price_ttc: number;
-  category: string;
+  category_id: string;
   stock: number;
   is_active: boolean;
   is_promo: boolean;
@@ -99,7 +106,7 @@ const emptyFormData: ProductFormData = {
   description: "",
   price_ht: 0,
   price_ttc: 0,
-  category: "",
+  category_id: "",
   stock: 0,
   is_active: true,
   is_promo: false,
@@ -161,26 +168,40 @@ const AdminProductsPage = () => {
     checkAdmin();
   }, []);
 
-  // Fetch all products (including inactive for admin)
+  // Fetch categories for the dropdown
+  const { data: categories = [] } = useQuery({
+    queryKey: ['admin-categories'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('categories')
+        .select('id, name, slug')
+        .eq('is_active', true)
+        .order('name');
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // Fetch all products (including inactive for admin), with joined category
   const { data: products, isLoading, refetch } = useQuery({
     queryKey: ['admin-products'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('products')
-        .select('*')
+        .select('*, categories(id, name, slug)')
         .order('title');
       
       if (error) throw error;
-      return data as Product[];
+      return data as (Product & { categories: { id: string; name: string; slug: string } | null })[];
     },
     enabled: isAdmin === true,
   });
 
   // Filter products by search
-  const filteredProducts = products?.filter(p => 
+  const filteredProducts = products?.filter(p =>
     p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
     p.handle.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    p.category?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (p as any).categories?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     p.code_alsafix?.toLowerCase().includes(searchQuery.toLowerCase())
   ) || [];
 
@@ -195,7 +216,7 @@ const AdminProductsPage = () => {
           description: data.description,
           price_ht: data.price_ht,
           price_ttc: data.price_ttc,
-          category: data.category || null,
+          category_id: data.category_id || null,
           stock: data.stock,
           is_active: data.is_active,
           is_promo: data.is_promo,
@@ -242,7 +263,7 @@ const AdminProductsPage = () => {
           description: data.description,
           price_ht: data.price_ht,
           price_ttc: data.price_ttc,
-          category: data.category || null,
+          category_id: data.category_id || null,
           stock: data.stock,
           is_active: data.is_active,
           is_promo: data.is_promo,
@@ -450,7 +471,7 @@ const AdminProductsPage = () => {
       description: product.description || "",
       price_ht: product.price_ht,
       price_ttc: product.price_ttc,
-      category: product.category || "",
+      category_id: product.category_id || "",
       stock: product.stock || 0,
       is_active: product.is_active ?? true,
       is_promo: product.is_promo ?? false,
@@ -707,9 +728,9 @@ const AdminProductsPage = () => {
                             {product.title}
                           </TableCell>
                           <TableCell className="max-w-[120px]">
-                            {product.category ? (
+                            {(product as any).categories?.name ? (
                               <Badge variant="secondary" className="truncate max-w-full text-xs font-normal">
-                                {product.category}
+                                {(product as any).categories.name}
                               </Badge>
                             ) : (
                               <span className="text-muted-foreground">-</span>
@@ -844,13 +865,22 @@ const AdminProductsPage = () => {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="category">Catégorie</Label>
-                  <Input
-                    id="category"
-                    value={formData.category}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                    placeholder="Vis terrasse"
-                  />
+                  <Label htmlFor="category_id">Catégorie</Label>
+                  <UiSelect
+                    value={formData.category_id || ""}
+                    onValueChange={(val) => setFormData({ ...formData, category_id: val })}
+                  >
+                    <UiSelectTrigger id="category_id">
+                      <UiSelectValue placeholder="Choisir une catégorie" />
+                    </UiSelectTrigger>
+                    <UiSelectContent>
+                      {categories.map((cat) => (
+                        <UiSelectItem key={cat.id} value={cat.id}>
+                          {cat.name}
+                        </UiSelectItem>
+                      ))}
+                    </UiSelectContent>
+                  </UiSelect>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="tags">Tags (séparés par des virgules)</Label>

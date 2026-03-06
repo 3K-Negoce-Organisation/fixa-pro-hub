@@ -22,13 +22,6 @@ preloadImages.forEach((src) => {
   img.src = src;
 });
 
-const categoryConfig = [
-  { id: "terrasse", name: "Vis Terrasse", icon: "deck", dbCategory: "Vis terrasse" },
-  { id: "charpente", name: "Vis Charpente", icon: "frame", dbCategory: "Vis de charpente" },
-  { id: "menuiserie", name: "Vis Menuiserie", icon: "panel", dbCategory: "Vis menuiserie" },
-  { id: "tirefond", name: "Tirefond", icon: "bolt", dbCategory: "Tirefond" },
-];
-
 const Index = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [imagesLoaded, setImagesLoaded] = useState(false);
@@ -61,29 +54,42 @@ const Index = () => {
     return () => clearTimeout(timeout);
   }, []);
 
-  // Fetch product counts by category
+  // Fetch categories from Supabase
+  const { data: dbCategories = [] } = useQuery({
+    queryKey: ["categories"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("categories")
+        .select("id, name, slug, image_url, sort_order, is_active")
+        .eq("is_active", true)
+        .order("sort_order", { ascending: true });
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // Fetch product counts by category_id
   const { data: categoryCounts } = useQuery({
     queryKey: ["category-counts"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("products")
-        .select("category")
+        .select("category_id")
         .eq("is_active", true);
-
       if (error) throw error;
-
       const counts: Record<string, number> = {};
       data?.forEach((product) => {
-        const cat = product.category?.trim() || "";
-        counts[cat] = (counts[cat] || 0) + 1;
+        if (product.category_id) {
+          counts[product.category_id] = (counts[product.category_id] || 0) + 1;
+        }
       });
       return counts;
     },
   });
 
-  const categories = categoryConfig.map((cat) => ({
+  const categories = dbCategories.map((cat) => ({
     ...cat,
-    count: categoryCounts?.[cat.dbCategory] || 0,
+    count: categoryCounts?.[cat.id] || 0,
   }));
 
   const handleSearch = (e: React.FormEvent) => {
@@ -183,7 +189,8 @@ const Index = () => {
                   key={category.id}
                   id={category.id}
                   name={category.name}
-                  icon={category.icon}
+                  slug={category.slug}
+                  imageUrl={category.image_url}
                   count={category.count}
                 />
               ))}

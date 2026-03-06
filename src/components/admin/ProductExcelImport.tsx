@@ -273,9 +273,22 @@ export const ProductExcelImport = ({ onImportComplete }: ProductExcelImportProps
       details: [],
     };
 
+    // Build category name -> id lookup map
+    const { data: categoriesData } = await supabase
+      .from("categories")
+      .select("id, name");
+    const categoryMap: Record<string, string> = {};
+    (categoriesData || []).forEach((c) => {
+      categoryMap[c.name.toLowerCase().trim()] = c.id;
+    });
+
     for (let i = 0; i < parsedProducts.length; i++) {
       const product = parsedProducts[i];
       setImportProgress({ current: i + 1, total: parsedProducts.length });
+
+      const resolvedCategoryId = product.category
+        ? categoryMap[product.category.toLowerCase().trim()] || null
+        : null;
 
       const productData = {
         code_alsafix: product.code_alsafix || null,
@@ -283,6 +296,7 @@ export const ProductExcelImport = ({ onImportComplete }: ProductExcelImportProps
         title: product.title,
         description: product.description || null,
         category: product.category || null,
+        category_id: resolvedCategoryId,
         handle: product.handle,
         price_ht: product.price_ht,
         price_ttc: product.price_ttc,
