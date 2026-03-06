@@ -12,12 +12,12 @@ interface CategoryCardProps {
   id: string;
   name: string;
   slug: string;
-  count: number;
+  count?: number;
   imageUrl?: string | null;
   icon?: string;
 }
 
-export function CategoryCard({ id, name, slug, count, imageUrl, icon }: CategoryCardProps) {
+export function CategoryCard({ id, name, slug, imageUrl, icon }: CategoryCardProps) {
   const Icon = iconMap[icon || ""] || Layers;
 
   return (
@@ -41,9 +41,6 @@ export function CategoryCard({ id, name, slug, count, imageUrl, icon }: Category
         <Icon className="h-8 w-8 text-primary mb-2" />
       )}
       <span className="font-medium text-sm text-center">{name}</span>
-      {count > 0 && (
-        <span className="text-xs text-muted-foreground mt-0.5">{count} produit{count > 1 ? "s" : ""}</span>
-      )}
     </Link>
   );
 }
