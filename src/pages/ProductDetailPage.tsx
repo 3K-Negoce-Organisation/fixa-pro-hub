@@ -19,14 +19,24 @@ import { fetchProductByHandle, getProductImage, parseVariants, formatPriceHT, fo
 import { toast } from "sonner";
 import { useCart } from "@/contexts/CartContext";
 import { useFavorites } from "@/contexts/FavoritesContext";
+import { useTheme } from "@/contexts/ThemeContext";
+import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
+
+type CharacteristicIconRow = {
+  characteristic_key: string;
+  icon_url: string | null;
+  site_id: string | null;
+};
 
 const ProductDetailPage = () => {
   const { handle } = useParams<{ handle: string }>();
   const { addItem } = useCart();
   const { isFavorite, toggleFavorite } = useFavorites();
+  const { theme } = useTheme();
   const [quantity, setQuantity] = useState(1);
   const [selectedVariantId, setSelectedVariantId] = useState<string>("");
+  const siteId = theme.site_id || null;
 
   const { data: product, isLoading, error } = useQuery({
     queryKey: ["product", handle],
@@ -34,10 +44,47 @@ const ProductDetailPage = () => {
     enabled: !!handle,
   });
 
+  const { data: characteristicIcons = [] } = useQuery({
+    queryKey: ["product-characteristic-icons", siteId],
+    queryFn: async () => {
+      let query = supabase
+        .from("product_characteristic_icons" as any)
+        .select("characteristic_key, icon_url, site_id");
+
+      if (siteId) {
+        query = query.eq("site_id", siteId);
+      } else {
+        query = query.is("site_id", null);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+      return (data || []) as CharacteristicIconRow[];
+    },
+  });
+
   // Parse variants from product
   const variants: ProductVariant[] = product ? parseVariants(product) : [];
   const currentVariant = variants.find(v => v.id === selectedVariantId) || variants[0];
   const productImage = product ? getProductImage(product) : "/placeholder.svg";
+  const characteristicIconMap = new Map(
+    characteristicIcons.map((item) => [item.characteristic_key, item.icon_url || ""])
+  );
+
+  const getCharacteristicIcon = (key: string, fallback: React.ReactNode) => {
+    const iconUrl = characteristicIconMap.get(key);
+    if (iconUrl) {
+      return (
+        <img
+          src={iconUrl}
+          alt=""
+          className="h-4 w-4 object-contain"
+          loading="lazy"
+        />
+      );
+    }
+    return fallback;
+  };
 
   if (isLoading) {
     return (
@@ -108,21 +155,21 @@ const ProductDetailPage = () => {
 
   // Build technical specifications with icons
   const technicalSpecs: { icon: React.ReactNode; value: string; label: string }[] = [];
-  if (product.diameter_mm) technicalSpecs.push({ icon: <Circle className="h-4 w-4" />, value: `Ø${product.diameter_mm}`, label: "mm" });
-  if (product.length_mm) technicalSpecs.push({ icon: <Ruler className="h-4 w-4" />, value: `${product.length_mm}`, label: "mm" });
-  if (product.material) technicalSpecs.push({ icon: <Layers className="h-4 w-4" />, value: product.material, label: "" });
+  if (product.diameter_mm) technicalSpecs.push({ icon: getCharacteristicIcon("diameter_mm", <Circle className="h-4 w-4" />), value: `Ø${product.diameter_mm}`, label: "mm" });
+  if (product.length_mm) technicalSpecs.push({ icon: getCharacteristicIcon("length_mm", <Ruler className="h-4 w-4" />), value: `${product.length_mm}`, label: "mm" });
+  if (product.material) technicalSpecs.push({ icon: getCharacteristicIcon("material", <Layers className="h-4 w-4" />), value: product.material, label: "" });
   if (product.drive_type) {
     const isTorx = product.drive_type.toLowerCase().startsWith('tx') || product.drive_type.toLowerCase().includes('torx');
     technicalSpecs.push({ 
-      icon: isTorx ? <TorxIcon className="h-4 w-4" /> : <Settings2 className="h-4 w-4" />, 
+      icon: getCharacteristicIcon("drive_type", isTorx ? <TorxIcon className="h-4 w-4" /> : <Settings2 className="h-4 w-4" />), 
       value: product.drive_type, 
       label: "" 
     });
   }
-  if (product.head_diameter_mm) technicalSpecs.push({ icon: <Target className="h-4 w-4" />, value: `Ø${product.head_diameter_mm}`, label: "tête" });
-  if (product.thread_length_mm) technicalSpecs.push({ icon: <Wrench className="h-4 w-4" />, value: `${product.thread_length_mm}`, label: "filet" });
-  if (product.box_weight) technicalSpecs.push({ icon: <Scale className="h-4 w-4" />, value: `${product.box_weight}`, label: "kg" });
-  if (product.usage) technicalSpecs.push({ icon: <Box className="h-4 w-4" />, value: product.usage, label: "" });
+  if (product.head_diameter_mm) technicalSpecs.push({ icon: getCharacteristicIcon("head_diameter_mm", <Target className="h-4 w-4" />), value: `Ø${product.head_diameter_mm}`, label: "tête" });
+  if (product.thread_length_mm) technicalSpecs.push({ icon: getCharacteristicIcon("thread_length_mm", <Wrench className="h-4 w-4" />), value: `${product.thread_length_mm}`, label: "filet" });
+  if (product.box_weight) technicalSpecs.push({ icon: getCharacteristicIcon("box_weight", <Scale className="h-4 w-4" />), value: `${product.box_weight}`, label: "kg" });
+  if (product.usage) technicalSpecs.push({ icon: getCharacteristicIcon("usage", <Box className="h-4 w-4" />), value: product.usage, label: "" });
 
   return (
     <PageBackground>
