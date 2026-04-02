@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Local migration secrets
+.env.migration
+scripts/migration-3k/.env.migration
