@@ -26,3 +26,5 @@ dist-ssr
 # Local migration secrets
 .env.migration
 scripts/migration-3k/.env.migration
+
+scripts/migration-3k/.railway-dump/

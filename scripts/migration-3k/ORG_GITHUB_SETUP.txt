@@ -1,0 +1,24 @@
+GitHub — pourquoi le push échoue encore après avoir ajouté pimimac à l’organisation
+================================================================================
+
+Être « membre » de 3K-Negoce-Organisation ne donne pas automatiquement :
+- le droit d’écrire sur un dépôt existant (fixa-pro-hub) ;
+- le droit de créer un nouveau dépôt dans l’org (admin-hub-central).
+
+À faire par un owner de l’org ou du dépôt :
+
+1) fixa-pro-hub
+   - Ouvrir : https://github.com/3K-Negoce-Organisation/fixa-pro-hub → Settings → Collaborators and teams
+   - Ajouter le compte « pimimac » avec le rôle « Write » ou « Maintain » (ou via une équipe avec ce droit).
+
+2) admin-hub-central
+   - Soit : Org Settings → Member privileges → autoriser les membres à créer des dépôts, puis relancer :
+       cd admin-hub-central && gh repo create 3K-Negoce-Organisation/admin-hub-central --private --source=. --remote=org --push
+   - Soit : créer à la main le dépôt vide « admin-hub-central » sur l’org, donner l’accès Write à pimimac, puis :
+       git remote add org https://github.com/3K-Negoce-Organisation/admin-hub-central.git
+       git push org main
+
+Ensuite, depuis fixa-pro-hub :
+   git push org main
+
+(Le script github-sync-3k.sh reste utile si vous préférez utiliser un PAT du compte 3K-Negoce au lieu de pimimac.)
