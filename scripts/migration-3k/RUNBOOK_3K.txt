@@ -1,0 +1,48 @@
+Migration 3K-Négoce — enchaînement recommandé
+==============================================
+
+Les jetons compte 3K ne doivent pas être collés dans le chat : exportez-les dans votre terminal.
+
+0) Prérequis locaux
+   - supabase CLI, railway CLI, jq, openssl
+   - Dumps variables Railway déjà possibles : ./dump-luceka-vars.sh (compte perso)
+
+1) Supabase — créer les 3 projets sous l’org 3K
+   - Récupérer l’UUID de l’organisation : dashboard Supabase (compte 3K) → Organization settings / URL.
+   - export SUPABASE_ACCESS_TOKEN_3K='sbp_...'
+   - export SUPABASE_ORG_ID_3K='...'
+   - ./scripts/migration-3k/bootstrap-supabase-3k.sh
+   - Attendre ~1–2 min si link échoue tout de suite.
+
+2) Schéma (migrations)
+   - ./scripts/migration-3k/apply-migrations-3k.sh
+   - Ordre : migrations fixa-pro-hub puis admin-hub-central pour chaque ref.
+   - En cas de conflit SQL entre les deux dépôts, résoudre à la main (migrations rarement dupliquées).
+
+3) Edge functions
+   - ./scripts/migration-3k/deploy-functions-3k.sh
+
+4) Secrets edge
+   - cp scripts/migration-3k/secrets-edge.example.env scripts/migration-3k/.generated/secrets-edge.env
+   - Remplir par environnement si besoin (Stripe test vs live, URLs n8n Railway 3K).
+   - Pour des valeurs différentes par env, modifier apply-edge-secrets-3k.sh ou lancer supabase secrets set manuellement par --project-ref.
+   - ./scripts/migration-3k/apply-edge-secrets-3k.sh
+
+5) Données (hors script)
+   - pg_dump / restore ou outils Supabase pour copier les données des anciens projets vers les nouveaux refs.
+   - Storage : script dédié (API) + MAJ URLs en base si besoin.
+
+6) Railway 3K
+   - railway login sur le compte / workspace 3K OU export RAILWAY_TOKEN_3K
+   - export RAILWAY_WORKSPACE_ID_3K='uuid' (dashboard Railway workspace 3K)
+   - ./scripts/migration-3k/railway-init-3k.sh
+   - Recréer services (vis-a-bois, admin, Postgres, n8n) par environnement ; recopier les variables depuis .railway-dump/ en adaptant VITE_SUPABASE_* et secrets.
+
+7) GitHub
+   - Dépôts org déjà synchronisés : 3K-Negoce-Organisation/fixa-pro-hub et admin-hub-central
+   - Brancher les nouveaux services Railway sur ces dépôts.
+
+8) Post-migration
+   - Stripe produits / webhooks manuels (compte 3K)
+   - n8n : import workflows + credentials à la main
+   - DNS OVH quand prêt

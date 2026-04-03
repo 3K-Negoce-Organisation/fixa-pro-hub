@@ -28,3 +28,4 @@ dist-ssr
 scripts/migration-3k/.env.migration
 
 scripts/migration-3k/.railway-dump/
+scripts/migration-3k/.generated/
