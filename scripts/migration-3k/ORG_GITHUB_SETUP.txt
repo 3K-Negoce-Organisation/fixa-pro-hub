@@ -1,5 +1,14 @@
-GitHub — pourquoi le push échoue encore après avoir ajouté pimimac à l’organisation
-================================================================================
+GitHub — droits org + dépannage push
+====================================
+
+Si le push vers l’org échoue avec « remote unpack failed / did not receive expected object »
+alors que les droits sont OK : le clone local était peut‑être **shallow** (`--depth 1`).
+Corriger avec : `git fetch --unshallow origin` puis `git push org main`.
+
+---
+
+Pourquoi le push pouvait échouer avant la mise à jour des droits
+================================================================
 
 Être « membre » de 3K-Negoce-Organisation ne donne pas automatiquement :
 - le droit d’écrire sur un dépôt existant (fixa-pro-hub) ;
