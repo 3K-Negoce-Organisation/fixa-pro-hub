@@ -44,8 +44,11 @@ Les jetons compte 3K ne doivent pas être collés dans le chat : exportez-les da
    - Anciens refs : LEGACY_SUPABASE_REFS.txt
    - cp scripts/migration-3k/legacy-db.passwords.env.example scripts/migration-3k/.generated/legacy-db.passwords.env
    - Remplir LEGACY_DB_PASSWORD_* (mot de passe DB de chaque ancien projet)
-   - ./scripts/migration-3k/dump-restore-data-3k.sh   (schéma public uniquement ; pas auth.users ni Storage)
-   - Storage : à part (API / dashboard) + MAJ URLs en base si besoin
+   - Pour chaque env : ./scripts/migration-3k/sync-public-columns-from-legacy.sh <develop|staging|production>
+     (aligne les colonnes public.* manquantes avant le dump)
+   - Truncate public (optionnel si base déjà propre) puis :
+     ./scripts/migration-3k/dump-restore-data-3k.sh [--only develop|staging|production]
+   - Schéma public uniquement ; pas auth.users ni Storage — voir STORAGE_BUCKETS_3K.txt
 
 5b) Auth Supabase (manuel)
    - Voir AUTH_REDIRECTS_3K.txt (Site URL + Redirect URLs par projet 3K)

@@ -3,14 +3,16 @@
 
 Fait (Supabase org 3K)
   - 3 projets eu-west-1 (develop / staging / production) — SUPABASE_3K_REFS.txt
-  - Migrations DB (fixa + admin)
+  - Migrations DB (fixa + admin) + correctifs colonnes legacy (fichiers 20260403*.sql)
   - Edge functions déployées
   - Secrets edge applicatifs (Stripe, Resend, n8n, clés API, etc.)
   - Script secrets : generate / apply (SUPABASE_* réservées CLI, gérées plateforme)
+  - Données public : sync-public-columns-from-legacy.sh puis dump-restore-data-3k.sh (avec --only si besoin)
+  - Branches preview persist. develop/staging sous projet prod — voir SUPABASE_BRANCHING_3K.txt
 
-À faire côté données
-  - Créer .generated/legacy-db.passwords.env (voir legacy-db.passwords.env.example)
-  - ./dump-restore-data-3k.sh  (schema public uniquement ; pas auth.users ni Storage)
+À faire côté données (suite)
+  - auth.users : migration séparée ou réinscription
+  - Storage : buckets product-images / order-documents si fichiers à conserver
 
 À faire côté Auth
   - Pour chaque projet 3K : URL Configuration — voir AUTH_REDIRECTS_3K.txt

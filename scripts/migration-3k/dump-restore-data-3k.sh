@@ -4,7 +4,7 @@
 #
 # 1) cp scripts/migration-3k/legacy-db.passwords.env.example scripts/migration-3k/.generated/legacy-db.passwords.env
 # 2) Remplir LEGACY_DB_PASSWORD_* (Dashboard ancien projet → Database password)
-# 3) ./scripts/migration-3k/dump-restore-data-3k.sh [--dry-run]
+# 3) ./scripts/migration-3k/dump-restore-data-3k.sh [--dry-run] [--only develop|staging|production]
 #
 # auth.users : non inclus. Les comptes existants ne seront pas recréés (à migrer séparément ou réinscription).
 # Storage : non inclus (buckets / objects à traiter à part).
@@ -19,7 +19,24 @@ LEGACY_STAGING="giguuzfnjkkqdeteujwc"
 LEGACY_PRODUCTION="aueuxlqtueoqjxsdemeu"
 
 DRY_RUN=false
-[[ "${1:-}" == "--dry-run" ]] && DRY_RUN=true
+ONLY=""
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --dry-run) DRY_RUN=true; shift ;;
+    --only)
+      ONLY="${2:?--only requiert develop|staging|production}"
+      shift 2
+      ;;
+    --only=*)
+      ONLY="${1#--only=}"
+      shift
+      ;;
+    *)
+      echo "Argument inconnu : $1" >&2
+      exit 1
+      ;;
+  esac
+done
 
 if [[ ! -f "$REFS_ENV" ]]; then
   echo "Manquant : $REFS_ENV" >&2
@@ -40,7 +57,7 @@ fi
 set +a
 
 if $DRY_RUN; then
-  echo "Paires prévues (data-only, schema public) :"
+  echo "Paires prévues (data-only, schema public)${ONLY:+ — filtre : $ONLY} :"
   echo "  develop    $LEGACY_DEVELOP  →  $SUPABASE_REF_DEVELOP"
   echo "  staging    $LEGACY_STAGING  →  $SUPABASE_REF_STAGING"
   echo "  production $LEGACY_PRODUCTION  →  $SUPABASE_REF_PRODUCTION"
@@ -88,8 +105,20 @@ run_pair() {
   echo "OK $label"
 }
 
-run_pair "develop" "$LEGACY_DEVELOP" "$SUPABASE_REF_DEVELOP" "LEGACY_DB_PASSWORD_DEVELOP"
-run_pair "staging" "$LEGACY_STAGING" "$SUPABASE_REF_STAGING" "LEGACY_DB_PASSWORD_STAGING"
-run_pair "production" "$LEGACY_PRODUCTION" "$SUPABASE_REF_PRODUCTION" "LEGACY_DB_PASSWORD_PRODUCTION"
+if [[ -n "$ONLY" && "$ONLY" != "develop" && "$ONLY" != "staging" && "$ONLY" != "production" ]]; then
+  echo "--only doit être develop, staging ou production" >&2
+  exit 1
+fi
+
+run_if() {
+  local label="$1"
+  [[ -z "$ONLY" || "$ONLY" == "$label" ]] || return 0
+  shift
+  run_pair "$label" "$@"
+}
+
+run_if "develop" "$LEGACY_DEVELOP" "$SUPABASE_REF_DEVELOP" "LEGACY_DB_PASSWORD_DEVELOP"
+run_if "staging" "$LEGACY_STAGING" "$SUPABASE_REF_STAGING" "LEGACY_DB_PASSWORD_STAGING"
+run_if "production" "$LEGACY_PRODUCTION" "$SUPABASE_REF_PRODUCTION" "LEGACY_DB_PASSWORD_PRODUCTION"
 
 echo "Terminé."

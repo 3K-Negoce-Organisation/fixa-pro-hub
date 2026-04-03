@@ -1,0 +1,21 @@
+Branches Supabase « preview » (persistantes) sur le projet production 3K
+============================================================================
+
+Parent : vis-a-bois-production-3k — ref lqsbsinycyewdvdtbruy (ligne « main » dans la liste des branches).
+
+Branches créées (CLI : supabase branches create … --persistent --region eu-west-1) :
+  develop  → ref wyoxdfshaonlaoqnohzm
+  staging  → ref lhrwjnieojuempxjbgql
+
+Attention : tu as AUSSI trois projets Supabase **indépendants** (storefront / déploiement actuel) :
+  develop    xgqwnpibxakvhbzirfxb
+  staging    gcyxfuxywratoyjnxurf
+  production lqsbsinycyewdvdtbruy
+
+Les données migrées (dump legacy) sont sur ces **trois refs projet**, pas sur les refs des preview branches.
+
+Choix à trancher :
+  A) Garder Railway + secrets sur xgqwnp / gcyxf / lqsbs → tu peux supprimer les preview branches
+     (Dashboard ou supabase branches delete) pour éviter la confusion, si tu n’en as pas besoin.
+  B) Adopter le modèle « un parent + branches » → il faudrait redéployer / recopier schéma + données
+     vers wyoxdf… et lhrwjnie… et mettre à jour VITE / secrets en conséquence.
