@@ -1,0 +1,8 @@
+Anciens projets Supabase (compte perso / Lovable) — dump données / copie secrets.
+
+  develop    ojtrsrdcaugyzvtqtupf
+  staging    giguuzfnjkkqdeteujwc
+  production aueuxlqtueoqjxsdemeu
+
+Mot de passe DB : Dashboard → Project Settings → Database (chaque projet peut être différent).
+Pour dump-restore-data-3k.sh : voir legacy-db.passwords.env.example

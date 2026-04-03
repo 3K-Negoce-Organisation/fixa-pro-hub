@@ -28,14 +28,21 @@ Les jetons compte 3K ne doivent pas être collés dans le chat : exportez-les da
    - ./scripts/migration-3k/deploy-functions-3k.sh
 
 4) Secrets edge
-   - cp scripts/migration-3k/secrets-edge.example.env scripts/migration-3k/.generated/secrets-edge.env
-   - Remplir par environnement si besoin (Stripe test vs live, URLs n8n Railway 3K).
-   - Pour des valeurs différentes par env, modifier apply-edge-secrets-3k.sh ou lancer supabase secrets set manuellement par --project-ref.
+   - ./scripts/migration-3k/generate-edge-secrets-3k.sh
+     (SUPABASE_* + STRIPE_SECRET_KEY / VAB_API_KEY depuis .railway-dump/ si présent)
+   - cp scripts/migration-3k/secrets-edge.manual.example.env scripts/migration-3k/.generated/secrets-edge.manual.env
+   - Remplir RESEND, ORDER_UPDATE, STRIPE_WEBHOOK_SECRET, N8N_WEBHOOK_URL (copie depuis anciens projets
+     Supabase → Edge secrets, compte ayant accès aux refs LEGACY_SUPABASE_REFS.txt).
+   - Optionnel : .generated/secrets-edge.manual.production.env pour surcharges (ex. webhook Stripe live).
    - ./scripts/migration-3k/apply-edge-secrets-3k.sh
+     (export APPLY_EDGE_SECRETS_FORCE=1 pour ignorer la validation des clés manuelles)
 
-5) Données (hors script)
-   - pg_dump / restore ou outils Supabase pour copier les données des anciens projets vers les nouveaux refs.
-   - Storage : script dédié (API) + MAJ URLs en base si besoin.
+5) Données
+   - Anciens refs : LEGACY_SUPABASE_REFS.txt
+   - cp scripts/migration-3k/legacy-db.passwords.env.example scripts/migration-3k/.generated/legacy-db.passwords.env
+   - Remplir LEGACY_DB_PASSWORD_* (mot de passe DB de chaque ancien projet)
+   - ./scripts/migration-3k/dump-restore-data-3k.sh   (schéma public uniquement ; pas auth.users ni Storage)
+   - Storage : à part (API / dashboard) + MAJ URLs en base si besoin
 
 6) Railway 3K
    - railway login sur le compte / workspace 3K OU export RAILWAY_TOKEN_3K
