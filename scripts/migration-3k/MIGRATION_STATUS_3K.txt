@@ -19,8 +19,9 @@ Fait (Supabase org 3K)
 
 À faire côté Railway 3K
   - RAILWAY_SETUP_3K.txt + RAILWAY_DUMP_MAPPING_3K.txt
+  - create-railway-services-3k.sh (services storefront / admin / n8n / postgres par env)
   - resolve-railway-workspace-3k.sh (token) ; supprimer projet test luceka-3k-api-* si présent
-  - railway link ou railway-init-3k.sh ; environnements + services par env
+  - railway link ou railway-init-3k.sh ; environnements puis script services ou canvas manuel
   - Variables VITE : generate-railway-vite-env-3k.sh → .generated/railway-vite-env.txt
 
 Vérification

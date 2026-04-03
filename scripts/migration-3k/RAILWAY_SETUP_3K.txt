@@ -17,8 +17,13 @@ Railway workspace 3K-Négoce — vérification et suite
    Le script ne peut pas tout automatiser : Dashboard → projet → Environments → dupliquer ou créer,
    sur le modèle de l’ancien projet luceka (voir .railway-dump/).
 
-5) Recréer les services par environnement (vis-a-bois storefront, admin-hub-central, Postgres, n8n, etc.)
-   comme sur l’ancien stack, puis variables — voir RAILWAY_DUMP_MAPPING_3K.txt.
+5) Recréer les services par environnement (storefront GitHub, admin GitHub, n8n Docker, Postgres Docker) :
+   export RAILWAY_TOKEN_3K='…'
+   export RAILWAY_PROJECT_ID_3K='…'   # sortie de resolve-railway-workspace-3k.sh si besoin
+   ./scripts/migration-3k/create-railway-services-3k.sh --dry-run    # aperçu
+   ./scripts/migration-3k/create-railway-services-3k.sh
+   (exiger l’accès GitHub Railway aux dépôts 3K-Negoce-Organisation.)
+   Puis variables — voir RAILWAY_DUMP_MAPPING_3K.txt.
 
 6) Nouveau projet vide (si besoin, en plus de 3k-Negoce_project) :
    export RAILWAY_WORKSPACE_ID_3K='…'   # sortie du resolve

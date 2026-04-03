@@ -61,7 +61,8 @@ Les jetons compte 3K ne doivent pas être collés dans le chat : exportez-les da
    - ./scripts/migration-3k/resolve-railway-workspace-3k.sh
    - ./scripts/migration-3k/generate-railway-vite-env-3k.sh → .generated/railway-vite-env.txt
    - railway link -p … sur 3k-Negoce_project ou ./scripts/migration-3k/railway-init-3k.sh pour un projet neuf
-   - Recréer environnements + services (vis-a-bois, admin, Postgres, n8n) ; variables hors VITE depuis .railway-dump/
+   - Services vides → ./scripts/migration-3k/create-railway-services-3k.sh (API GraphQL ; voir RAILWAY_SETUP_3K.txt)
+   - Variables hors VITE depuis .railway-dump/ (RAILWAY_DUMP_MAPPING_3K.txt)
 
 7) GitHub
    - Dépôts org déjà synchronisés : 3K-Negoce-Organisation/fixa-pro-hub et admin-hub-central
