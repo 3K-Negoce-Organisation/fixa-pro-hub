@@ -54,8 +54,8 @@ Les jetons compte 3K ne doivent pas être collés dans le chat : exportez-les da
    - Voir AUTH_REDIRECTS_3K.txt (Site URL + Redirect URLs par projet 3K)
 
 6) Railway 3K
-   - railway login sur le compte / workspace 3K OU export RAILWAY_TOKEN_3K
-   - export RAILWAY_WORKSPACE_ID_3K='uuid' (dashboard Railway workspace 3K)
+   - export RAILWAY_TOKEN_3K (voir scripts/migration-3k/railway-3k.env.example)
+   - export RAILWAY_WORKSPACE_ID_3K : ./scripts/migration-3k/resolve-railway-workspace-3k.sh
    - ./scripts/migration-3k/generate-railway-vite-env-3k.sh → .generated/railway-vite-env.txt
    - ./scripts/migration-3k/railway-init-3k.sh
    - Recréer services (vis-a-bois, admin, Postgres, n8n) par environnement ; recopier les variables depuis .railway-dump/ en adaptant VITE_SUPABASE_* et secrets.
