@@ -1,0 +1,9 @@
+Projets Supabase org « 3k-Negoce's Org » (jwemraxfeoaatbfympaj), région eu-west-1.
+
+  develop    xgqwnpibxakvhbzirfxb   vis-a-bois-develop-3k
+  staging    gcyxfuxywratoyjnxurf   vis-a-bois-staging-3k
+  production lqsbsinycyewdvdtbruy   vis-a-bois-production-3k
+
+Mot de passe DB : scripts/migration-3k/.generated/supabase-refs.env (local, gitignored).
+
+Après utilisation des access tokens dans un chat, les régénérer sur supabase.com/dashboard/account/tokens.

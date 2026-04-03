@@ -19,19 +19,32 @@ set -a
 source "$REFS_ENV"
 set +a
 
-PROFILE="${SUPABASE_PROFILE:-3k-negoce}"
+# Connexion : token 3K (profil CLI « 3k-negoce » cassé sur certaines versions → login défaut)
 if [[ -n "${SUPABASE_ACCESS_TOKEN_3K:-}" ]]; then
-  supabase login --token "$SUPABASE_ACCESS_TOKEN_3K" --profile "$PROFILE"
+  export SUPABASE_ACCESS_TOKEN="$SUPABASE_ACCESS_TOKEN_3K"
+  supabase login --token "$SUPABASE_ACCESS_TOKEN_3K"
 fi
-
 push_repo() {
   local root="$1"
   local ref="$2"
   local label="$3"
   echo "=== $label → $ref ($(basename "$root")) ==="
   cd "$root"
-  supabase link --project-ref "$ref" -p "$SUPABASE_DB_PASSWORD" --profile "$PROFILE" --yes
-  supabase db push --profile "$PROFILE" --yes
+  if [[ -n "${SUPABASE_PROFILE:-}" ]]; then
+    supabase link --project-ref "$ref" -p "$SUPABASE_DB_PASSWORD" --yes --profile "$SUPABASE_PROFILE"
+    if [[ "$(basename "$root")" == "admin-hub-central" ]]; then
+      supabase db push --yes --include-all --profile "$SUPABASE_PROFILE"
+    else
+      supabase db push --yes --profile "$SUPABASE_PROFILE"
+    fi
+  else
+    supabase link --project-ref "$ref" -p "$SUPABASE_DB_PASSWORD" --yes
+    if [[ "$(basename "$root")" == "admin-hub-central" ]]; then
+      supabase db push --yes --include-all
+    else
+      supabase db push --yes
+    fi
+  fi
 }
 
 for label in develop staging production; do

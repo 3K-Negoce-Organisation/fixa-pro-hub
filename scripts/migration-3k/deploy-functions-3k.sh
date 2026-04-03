@@ -17,9 +17,9 @@ set -a
 source "$REFS_ENV"
 set +a
 
-PROFILE="${SUPABASE_PROFILE:-3k-negoce}"
 if [[ -n "${SUPABASE_ACCESS_TOKEN_3K:-}" ]]; then
-  supabase login --token "$SUPABASE_ACCESS_TOKEN_3K" --profile "$PROFILE"
+  export SUPABASE_ACCESS_TOKEN="$SUPABASE_ACCESS_TOKEN_3K"
+  supabase login --token "$SUPABASE_ACCESS_TOKEN_3K"
 fi
 
 deploy_all_in_repo() {
@@ -33,11 +33,11 @@ deploy_all_in_repo() {
     [[ "$name" == "_shared" ]] && continue
     [[ -f "$d/index.ts" ]] || continue
     echo "  → functions deploy $name"
-    supabase functions deploy "$name" \
-      --project-ref "$ref" \
-      --profile "$PROFILE" \
-      --use-api \
-      --yes
+    if [[ -n "${SUPABASE_PROFILE:-}" ]]; then
+      supabase functions deploy "$name" --project-ref "$ref" --profile "$SUPABASE_PROFILE" --use-api --yes
+    else
+      supabase functions deploy "$name" --project-ref "$ref" --use-api --yes
+    fi
   done
 }
 

@@ -1,6 +1,11 @@
 Migration 3K-Négoce — enchaînement recommandé
 ==============================================
 
+Références projets Supabase 3K : voir SUPABASE_3K_REFS.txt (mots de passe uniquement dans .generated/).
+
+Sécurité : ne jamais coller les sbp_… dans un chat public ; régénérer les tokens après migration.
+
+
 Les jetons compte 3K ne doivent pas être collés dans le chat : exportez-les dans votre terminal.
 
 0) Prérequis locaux

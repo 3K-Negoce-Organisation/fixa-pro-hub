@@ -21,16 +21,20 @@ set -a
 # shellcheck source=/dev/null
 source "$REFS_ENV"
 set +a
-PROFILE="${SUPABASE_PROFILE:-3k-negoce}"
 if [[ -n "${SUPABASE_ACCESS_TOKEN_3K:-}" ]]; then
-  supabase login --token "$SUPABASE_ACCESS_TOKEN_3K" --profile "$PROFILE"
+  export SUPABASE_ACCESS_TOKEN="$SUPABASE_ACCESS_TOKEN_3K"
+  supabase login --token "$SUPABASE_ACCESS_TOKEN_3K"
 fi
 
 apply() {
   local ref="$1"
   local name="$2"
   echo "=== secrets set : $name ==="
-  supabase secrets set --env-file "$SECRETS_FILE" --project-ref "$ref" --profile "$PROFILE" --yes
+  if [[ -n "${SUPABASE_PROFILE:-}" ]]; then
+    supabase secrets set --env-file "$SECRETS_FILE" --project-ref "$ref" --profile "$SUPABASE_PROFILE" --yes
+  else
+    supabase secrets set --env-file "$SECRETS_FILE" --project-ref "$ref" --yes
+  fi
 }
 
 apply "$SUPABASE_REF_DEVELOP" "develop"
