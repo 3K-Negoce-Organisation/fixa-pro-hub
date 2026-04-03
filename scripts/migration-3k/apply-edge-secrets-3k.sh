@@ -72,12 +72,17 @@ apply() {
       exit 1
     }
   fi
-  echo "=== secrets set : $name ($file) ==="
+  # La CLI refuse les noms SUPABASE_* via --env-file (injectés / réservés côté plateforme).
+  local filtered
+  filtered="$(mktemp)"
+  grep -v '^[[:space:]]*#' "$file" | grep -v '^[[:space:]]*$' | grep -viE '^SUPABASE_' >"$filtered" || true
+  echo "=== secrets set : $name ($file, sans lignes SUPABASE_*) ==="
   if [[ -n "${SUPABASE_PROFILE:-}" ]]; then
-    supabase secrets set --env-file "$file" --project-ref "$ref" --profile "$SUPABASE_PROFILE" --yes
+    supabase secrets set --env-file "$filtered" --project-ref "$ref" --profile "$SUPABASE_PROFILE" --yes
   else
-    supabase secrets set --env-file "$file" --project-ref "$ref" --yes
+    supabase secrets set --env-file "$filtered" --project-ref "$ref" --yes
   fi
+  rm -f "$filtered"
 }
 
 apply "$SUPABASE_REF_DEVELOP" "develop"

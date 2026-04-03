@@ -36,6 +36,8 @@ Les jetons compte 3K ne doivent pas être collés dans le chat : exportez-les da
    - Optionnel : .generated/secrets-edge.manual.production.env pour surcharges (ex. webhook Stripe live).
    - ./scripts/migration-3k/apply-edge-secrets-3k.sh
      (export APPLY_EDGE_SECRETS_FORCE=1 pour ignorer la validation des clés manuelles)
+   - Les clés SUPABASE_* dans les fichiers générés sont ignorées par la CLI au moment du set
+     (réservées / gérées par la plateforme) ; elles apparaissent quand même dans Dashboard → Secrets.
 
 5) Données
    - Anciens refs : LEGACY_SUPABASE_REFS.txt
