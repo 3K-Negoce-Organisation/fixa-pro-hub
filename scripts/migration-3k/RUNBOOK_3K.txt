@@ -1,5 +1,6 @@
 Migration 3K-Négoce — enchaînement recommandé
 ==============================================
+Synthèse « fait / reste » : MIGRATION_STATUS_3K.txt
 
 Références projets Supabase 3K : voir SUPABASE_3K_REFS.txt (mots de passe uniquement dans .generated/).
 
@@ -46,9 +47,13 @@ Les jetons compte 3K ne doivent pas être collés dans le chat : exportez-les da
    - ./scripts/migration-3k/dump-restore-data-3k.sh   (schéma public uniquement ; pas auth.users ni Storage)
    - Storage : à part (API / dashboard) + MAJ URLs en base si besoin
 
+5b) Auth Supabase (manuel)
+   - Voir AUTH_REDIRECTS_3K.txt (Site URL + Redirect URLs par projet 3K)
+
 6) Railway 3K
    - railway login sur le compte / workspace 3K OU export RAILWAY_TOKEN_3K
    - export RAILWAY_WORKSPACE_ID_3K='uuid' (dashboard Railway workspace 3K)
+   - ./scripts/migration-3k/generate-railway-vite-env-3k.sh → .generated/railway-vite-env.txt
    - ./scripts/migration-3k/railway-init-3k.sh
    - Recréer services (vis-a-bois, admin, Postgres, n8n) par environnement ; recopier les variables depuis .railway-dump/ en adaptant VITE_SUPABASE_* et secrets.
 

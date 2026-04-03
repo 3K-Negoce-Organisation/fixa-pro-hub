@@ -1,0 +1,11 @@
+Storage Supabase — buckets utilisés par le code (à synchroniser depuis les anciens projets si tu as des fichiers en prod).
+
+Buckets (créés par les migrations sur les projets 3K) :
+  - product-images   (public, images produits admin)
+  - order-documents  (PDF / pièces jointes commandes)
+
+Migration des fichiers :
+  - Télécharger depuis l’ancien projet (Dashboard → Storage ou script supabase storage / API S3 compatible)
+  - Ré-uploader vers le même bucket sur le nouveau ref, en conservant les chemins si des URLs sont stockées en base.
+
+Sans copie des objets : les enregistrements DB restaurés peuvent pointer vers d’anciennes URLs Supabase ; prévoir MAJ ou re-upload.

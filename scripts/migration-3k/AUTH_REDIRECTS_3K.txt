@@ -1,0 +1,45 @@
+Supabase Auth — URLs à configurer sur CHAQUE projet 3K (Dashboard → Authentication → URL Configuration).
+
+Réfs : SUPABASE_3K_REFS.txt (develop / staging / production).
+
+Pour chaque projet, ajuster « Site URL » et « Redirect URLs » selon où l’app est servie après migration Railway 3K.
+Les domaines ci‑dessous reprennent l’existant projet luceka ; remplace par tes nouvelles URLs Railway si elles changent.
+
+------------------------------------------------------------------------------
+DEVELOP (ref xgqwnpibxakvhbzirfxb)
+------------------------------------------------------------------------------
+Site URL (exemple) :
+  https://vis-a-boiscomdevelop-develop.up.railway.app
+
+Redirect URLs (exemples, une par ligne) :
+  http://localhost:5173/**
+  http://127.0.0.1:5173/**
+  https://vis-a-boiscomdevelop-develop.up.railway.app/**
+  https://admin-hubdevelop-develop.up.railway.app/**
+
+------------------------------------------------------------------------------
+STAGING (ref gcyxfuxywratoyjnxurf)
+------------------------------------------------------------------------------
+Site URL :
+  https://vis-a-boiscomstaging-staging.up.railway.app
+  (ou https://staging.vis-a-bois.com si tu pointes le DNS ainsi)
+
+Redirect URLs :
+  https://vis-a-boiscomstaging-staging.up.railway.app/**
+  https://admin-hubstaging-staging.up.railway.app/**
+  https://staging.vis-a-bois.com/**
+
+------------------------------------------------------------------------------
+PRODUCTION (ref lqsbsinycyewdvdtbruy)
+------------------------------------------------------------------------------
+Site URL :
+  https://www.vis-a-bois.com
+  (ou https://vis-a-bois.com selon ta convention)
+
+Redirect URLs :
+  https://www.vis-a-bois.com/**
+  https://vis-a-bois.com/**
+  https://admin-hub-production.up.railway.app/**
+
+------------------------------------------------------------------------------
+Après changement d’URL : retester connexion / magic link / OAuth si utilisé.

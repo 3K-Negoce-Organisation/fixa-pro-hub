@@ -1,0 +1,30 @@
+État migration 3K-Négoce (mis à jour au fil de l’eau)
+======================================================
+
+Fait (Supabase org 3K)
+  - 3 projets eu-west-1 (develop / staging / production) — SUPABASE_3K_REFS.txt
+  - Migrations DB (fixa + admin)
+  - Edge functions déployées
+  - Secrets edge applicatifs (Stripe, Resend, n8n, clés API, etc.)
+  - Script secrets : generate / apply (SUPABASE_* réservées CLI, gérées plateforme)
+
+À faire côté données
+  - Créer .generated/legacy-db.passwords.env (voir legacy-db.passwords.env.example)
+  - ./dump-restore-data-3k.sh  (schema public uniquement ; pas auth.users ni Storage)
+
+À faire côté Auth
+  - Pour chaque projet 3K : URL Configuration — voir AUTH_REDIRECTS_3K.txt
+
+À faire côté Railway 3K
+  - Workspace ID + token compte 3K : RAILWAY_WORKSPACE_ID_3K, RAILWAY_TOKEN_3K (optionnel)
+  - railway-init-3k.sh puis recréer services (storefront, admin, Postgres, n8n)
+  - Variables VITE : ./generate-railway-vite-env-3k.sh → .generated/railway-vite-env.txt
+
+À faire côté Storage
+  - Voir STORAGE_BUCKETS_3K.txt (product-images, order-documents)
+
+Post-cutover
+  - Stripe webhooks / produits compte 3K si changement de compte
+  - n8n : workflows + credentials sur nouvelle instance
+  - DNS OVH → Railway prod 3K
+  - Révoquer jetons / secrets exposés pendant la migration
