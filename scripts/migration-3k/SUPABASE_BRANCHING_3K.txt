@@ -7,6 +7,9 @@ Branches créées (CLI : supabase branches create … --persistent --region eu-w
   develop  → ref wyoxdfshaonlaoqnohzm
   staging  → ref lhrwjnieojuempxjbgql
 
+Vérifier en local : ./scripts/migration-3k/verify-migration-3k-state.sh
+  (ou : supabase branches list --project-ref lqsbsinycyewdvdtbruy)
+
 Attention : tu as AUSSI trois projets Supabase **indépendants** (storefront / déploiement actuel) :
   develop    xgqwnpibxakvhbzirfxb
   staging    gcyxfuxywratoyjnxurf

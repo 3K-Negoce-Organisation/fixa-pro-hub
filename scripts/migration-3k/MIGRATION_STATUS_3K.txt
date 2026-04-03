@@ -18,9 +18,13 @@ Fait (Supabase org 3K)
   - Pour chaque projet 3K : URL Configuration — voir AUTH_REDIRECTS_3K.txt
 
 À faire côté Railway 3K
-  - Workspace ID + token compte 3K : RAILWAY_WORKSPACE_ID_3K, RAILWAY_TOKEN_3K (optionnel)
-  - railway-init-3k.sh puis recréer services (storefront, admin, Postgres, n8n)
-  - Variables VITE : ./generate-railway-vite-env-3k.sh → .generated/railway-vite-env.txt
+  - RAILWAY_SETUP_3K.txt + RAILWAY_DUMP_MAPPING_3K.txt
+  - resolve-railway-workspace-3k.sh (token) ; supprimer projet test luceka-3k-api-* si présent
+  - railway link ou railway-init-3k.sh ; environnements + services par env
+  - Variables VITE : generate-railway-vite-env-3k.sh → .generated/railway-vite-env.txt
+
+Vérification
+  - ./scripts/migration-3k/verify-migration-3k-state.sh
 
 À faire côté Storage
   - Voir STORAGE_BUCKETS_3K.txt (product-images, order-documents)

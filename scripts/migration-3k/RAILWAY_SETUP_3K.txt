@@ -1,0 +1,27 @@
+Railway workspace 3K-Négoce — vérification et suite
+=====================================================
+
+1) Lister les projets et obtenir workspace + project ID
+   export RAILWAY_TOKEN_3K='…'
+   ./scripts/migration-3k/resolve-railway-workspace-3k.sh
+
+2) Projet de référence attendu : 3k-Negoce_project
+   Si un projet de test du type « luceka-3k-api-… » apparaît : le supprimer dans le dashboard
+   Railway (économie / clarté), sauf besoin explicite.
+
+3) Lier un dépôt local au projet (storefront ou admin) :
+   cd /chemin/vers/fixa-pro-hub   # ou admin-hub-central
+   railway link -p <PROJECT_ID>
+
+4) Créer les environnements develop / staging / production
+   Le script ne peut pas tout automatiser : Dashboard → projet → Environments → dupliquer ou créer,
+   sur le modèle de l’ancien projet luceka (voir .railway-dump/).
+
+5) Recréer les services par environnement (vis-a-bois storefront, admin-hub-central, Postgres, n8n, etc.)
+   comme sur l’ancien stack, puis variables — voir RAILWAY_DUMP_MAPPING_3K.txt.
+
+6) Nouveau projet vide (si besoin, en plus de 3k-Negoce_project) :
+   export RAILWAY_WORKSPACE_ID_3K='…'   # sortie du resolve
+   ./scripts/migration-3k/railway-init-3k.sh
+
+Voir aussi : railway-3k.env.example, RUNBOOK_3K.txt étape 6.

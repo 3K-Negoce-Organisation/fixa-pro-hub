@@ -1,0 +1,35 @@
+Variables Railway 3K — mapping dumps → environnements
+======================================================
+
+Générer d’abord les clés Supabase 3K pour le front :
+  ./scripts/migration-3k/generate-railway-vite-env-3k.sh
+→ copier le bloc correspondant depuis .generated/railway-vite-env.txt
+  (develop / staging / production) dans chaque service storefront (et admin si même stack).
+
+Les autres variables : reprendre depuis scripts/migration-3k/.railway-dump/ (gitignored si absent du clone)
+  en adaptant les URLs / secrets. Fichiers types par environnement :
+
+  develop
+    develop__vis-a-bois_com_develop.json          → service storefront develop
+    develop__admin-hub-central_develop.json       → admin develop
+    develop__n8n_production.json                  → n8n develop
+    develop__Postgres.json                        → Postgres develop
+
+  staging
+    staging__vis-a-bois_com_staging.json
+    staging__admin-hub-central_staging.json
+    staging__n8n_production.json
+    staging__Postgres.json
+
+  production
+    production www.vis-a-bois.com__vis-a-bois_com_prod.json
+    production www.vis-a-bois.com__admin-hub-central_prod.json
+    production www.vis-a-bois.com__n8n_production.json
+    production www.vis-a-bois.com__Postgres.json
+
+À remplacer systématiquement sur les nouveaux projets Supabase 3K :
+  VITE_SUPABASE_URL
+  VITE_SUPABASE_PROJECT_ID
+  VITE_SUPABASE_PUBLISHABLE_KEY
+
+Ne pas recopier tel quel les anciens refs (ojtrs…, giguu…, aueux…).
