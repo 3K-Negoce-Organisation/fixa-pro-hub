@@ -220,13 +220,13 @@
   }
 
   .category-card {
-    @apply flex flex-col items-center gap-2 p-4 rounded-lg transition-colors cursor-pointer border border-transparent hover:border-primary/20;
+    @apply overflow-hidden rounded-lg border border-border/60 shadow-sm transition-[border-color,box-shadow] cursor-pointer;
     background-color: var(--theme-card-bg);
     color: var(--theme-card-text);
   }
-  
+
   .category-card:hover {
-    background-color: hsl(var(--primary) / 0.08);
+    @apply border-primary/35 shadow-md;
   }
 
   .product-card {
