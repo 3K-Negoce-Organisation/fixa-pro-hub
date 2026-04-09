@@ -26,6 +26,7 @@ export function CategoryCard({ name, slug, imageUrl, icon }: CategoryCardProps) 
   return (
     <Link
       to={`/produits?category=${slug}`}
+      aria-label={`Voir les produits — ${name}`}
       className="category-card group block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
     >
       <div className="relative w-full aspect-[4/5] sm:aspect-square overflow-hidden bg-muted">
