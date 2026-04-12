@@ -54,6 +54,8 @@ Configurer dans **Settings → Secrets and variables → Actions** :
 
 ## Configuration Supabase
 
+**Refs canoniques 3K (develop / staging / production) :** voir [`AI-WORKSPACE-CONTEXT.md`](../AI-WORKSPACE-CONTEXT.md) à la racine du workspace. Staging = branche DB **`staging`**, ref projet **`lhrwjnieojuempxjbgql`** (ne pas utiliser l’ancien ref **`gcyxfuxywratoyjnxurf`**).
+
 ### Créer les projets
 
 1. **Staging** : `vis-a-bois-staging`
@@ -63,7 +65,7 @@ Configurer dans **Settings → Secrets and variables → Actions** :
 
 ```bash
 # Se connecter au projet staging
-supabase link --project-ref <staging-project-id>
+supabase link --project-ref lhrwjnieojuempxjbgql
 supabase db push
 
 # Se connecter au projet production
@@ -100,6 +102,29 @@ Configurer dans chaque projet Supabase (Dashboard → Settings → Edge Function
 | `NODE_ENV` | `staging` | `production` |
 | `VITE_SUPABASE_URL` | URL staging | URL prod |
 | `VITE_SUPABASE_PUBLISHABLE_KEY` | Clé staging | Clé prod |
+| `VITE_SUPABASE_PROJECT_ID` | `lhrwjnieojuempxjbgql` | `lqsbsinycyewdvdtbruy` |
+
+### Dépannage : toast « Failed to fetch » sur `/auth`
+
+Souvent le **front a été buildé avec une mauvaise `VITE_SUPABASE_URL`** (valeurs injectées au **build** Vite, pas au runtime). Vérifier le JS déployé :
+
+```bash
+# Remplacer par le nom réel du fichier JS (voir le HTML de la page d’accueil).
+curl -sS "https://<ton-url-railway>/assets/index-XXXXX.js" | grep -oE 'https://[a-z0-9]+\.supabase\.co' | sort -u
+```
+
+- **Staging 3K** doit afficher uniquement **`https://lhrwjnieojuempxjbgql.supabase.co`**.
+- Si tu vois **`gcyxfuxywratoyjnxurf`** (ou autre ancien ref), le domaine peut être **injoignable** → erreur réseau côté navigateur.
+
+**Correctif :** dans Railway, service **vis-a-bois-staging** (ou équivalent), définir puis **redéployer** :
+
+| Variable | Valeur staging |
+|----------|----------------|
+| `VITE_SUPABASE_URL` | `https://lhrwjnieojuempxjbgql.supabase.co` |
+| `VITE_SUPABASE_PROJECT_ID` | `lhrwjnieojuempxjbgql` |
+| `VITE_SUPABASE_PUBLISHABLE_KEY` | clé **publishable** du projet staging (dashboard Supabase → API Keys) |
+
+Les `VITE_*` sont lues au **`npm run build`** : après modification, il faut **un nouveau build** (pas seulement restart).
 
 ---
 

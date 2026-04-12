@@ -83,6 +83,7 @@ const CheckoutForm = ({ totalTTC, userEmail, isGuest, onSuccess, onCancel, items
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [phone, setPhone] = useState(userProfile?.phone || "");
   const [email, setEmail] = useState(userEmail);
+  const guestEmailFromGate = isGuest && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((userEmail || "").trim());
   const [paymentReady, setPaymentReady] = useState(false);
   const [addressReady, setAddressReady] = useState(false);
   const [elementsTimedOut, setElementsTimedOut] = useState(false);
@@ -99,6 +100,10 @@ const CheckoutForm = ({ totalTTC, userEmail, isGuest, onSuccess, onCancel, items
       setPhone(userProfile.phone);
     }
   }, [userProfile]);
+
+  useEffect(() => {
+    if (guestEmailFromGate) setEmail(userEmail.trim());
+  }, [guestEmailFromGate, userEmail]);
 
   // Log Stripe Elements status
   useEffect(() => {
@@ -194,13 +199,13 @@ const CheckoutForm = ({ totalTTC, userEmail, isGuest, onSuccess, onCancel, items
       return;
     }
 
-    if (isGuest && !email.trim()) {
+    const resolvedGuestEmail = guestEmailFromGate ? userEmail.trim() : email.trim();
+    if (isGuest && !resolvedGuestEmail) {
       setErrorMessage("Veuillez saisir votre adresse email");
       return;
     }
 
-    // Basic email validation for guests
-    if (isGuest && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    if (isGuest && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(resolvedGuestEmail)) {
       setErrorMessage("Veuillez saisir une adresse email valide");
       return;
     }
@@ -208,9 +213,8 @@ const CheckoutForm = ({ totalTTC, userEmail, isGuest, onSuccess, onCancel, items
     setIsProcessing(true);
     setErrorMessage(null);
 
-    // Update parent email state for guest
-    if (isGuest) {
-      setUserEmail(email);
+    if (isGuest && !guestEmailFromGate) {
+      setUserEmail(resolvedGuestEmail);
     }
 
     // Get shipping address from AddressElement before confirming payment
@@ -230,7 +234,7 @@ const CheckoutForm = ({ totalTTC, userEmail, isGuest, onSuccess, onCancel, items
       }
     }
 
-    const finalEmail = isGuest ? email : userEmail;
+    const finalEmail = isGuest ? resolvedGuestEmail : userEmail;
 
     const { error, paymentIntent } = await stripe.confirmPayment({
       elements,
@@ -322,18 +326,34 @@ const CheckoutForm = ({ totalTTC, userEmail, isGuest, onSuccess, onCancel, items
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      {/* Email - editable for guests, read-only for logged in users */}
+      {/* Email : une seule saisie (étape invité avant le formulaire) ; ici affichage seulement */}
       <div className="space-y-2">
         <Label htmlFor="email">Email *</Label>
         {isGuest ? (
-          <Input
-            id="email"
-            type="email"
-            placeholder="votre@email.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
+          guestEmailFromGate ? (
+            <>
+              <Input
+                id="email"
+                type="email"
+                value={userEmail}
+                disabled
+                className="bg-muted"
+                readOnly
+              />
+              <p className="text-xs text-muted-foreground">
+                Adresse utilisée pour la confirmation de commande.
+              </p>
+            </>
+          ) : (
+            <Input
+              id="email"
+              type="email"
+              placeholder="votre@email.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+          )
         ) : (
           <Input
             id="email"
@@ -456,6 +476,10 @@ const CheckoutForm = ({ totalTTC, userEmail, isGuest, onSuccess, onCancel, items
           <PaymentElement
             options={{
               layout: "tabs",
+              wallets: {
+                applePay: "auto",
+                googlePay: "auto",
+              },
             }}
             onReady={handlePaymentReady}
             onChange={handlePaymentChange}
@@ -521,8 +545,11 @@ export const StripePaymentForm = ({ items, totalTTC, onSuccess, onCancel }: Stri
   const totalHT = items.reduce((sum, item) => sum + (item.priceHT * item.quantity), 0);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string>("");
+  const [guestGateEmail, setGuestGateEmail] = useState("");
   const [isGuest, setIsGuest] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [sessionResolved, setSessionResolved] = useState(false);
+  const [guestGatePassed, setGuestGatePassed] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [stripeLoaded, setStripeLoaded] = useState<boolean | null>(null);
   const [retryCount, setRetryCount] = useState(0);
@@ -531,14 +558,20 @@ export const StripePaymentForm = ({ items, totalTTC, onSuccess, onCancel }: Stri
   const { toast } = useToast();
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  const pastGuestGate = !isGuest || guestGatePassed;
+
   // Fallback to Stripe Checkout hosted page
   const handleFallbackToCheckout = async () => {
     console.log("[STRIPE] Fallback to Stripe Checkout...");
     setFallbackLoading(true);
-    
+
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const guestEmailBody =
+        user?.email ?? (isGuest ? userEmail : undefined);
+
       const { data, error: invokeError } = await supabase.functions.invoke("create-stripe-checkout", {
-        body: { items },
+        body: { items, guestEmail: guestEmailBody },
       });
 
       if (invokeError || data?.error) {
@@ -563,51 +596,26 @@ export const StripePaymentForm = ({ items, totalTTC, onSuccess, onCancel }: Stri
     }
   };
 
-  // Check if Stripe loaded
+  // Auth / guest — independent of Stripe.js
   useEffect(() => {
-    console.log("[STRIPE] Checking Stripe.js load status...");
-    getStripePromise().then((stripe) => {
-      const loaded = stripe !== null;
-      console.log("[STRIPE] Stripe.js loaded:", loaded);
-      setStripeLoaded(loaded);
-      if (!loaded) {
-        setError("Stripe n'a pas pu être chargé. Vérifiez votre connexion internet ou désactivez votre bloqueur de publicités.");
-        setIsLoading(false);
-      }
-    });
-  }, []);
-
-  // Create payment intent
-  const createPaymentIntent = async () => {
-    console.log("[STRIPE] Creating payment intent... (attempt:", retryCount + 1, ")");
-    setIsLoading(true);
-    setError(null);
-
-    // Set timeout for loading
-    timeoutRef.current = setTimeout(() => {
-      console.error("[STRIPE] Payment intent creation timed out");
-      setError("Le chargement prend trop de temps. Vérifiez votre connexion internet.");
-      setIsLoading(false);
-    }, LOADING_TIMEOUT_MS);
-
-    try {
-      // Check if user is logged in
+    let cancelled = false;
+    (async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      console.log("[STRIPE] User check complete - logged in:", !!user?.email);
-      
+      if (cancelled) return;
+
       if (user?.email) {
         setUserEmail(user.email);
         setIsGuest(false);
-        
-        // Fetch user profile for pre-filling
+        setGuestGatePassed(true);
+
         const { data: profile } = await supabase
-          .from('profiles')
-          .select('phone, shipping_address, shipping_city, shipping_postal_code')
-          .eq('user_id', user.id)
+          .from("profiles")
+          .select("phone, shipping_address, shipping_city, shipping_postal_code")
+          .eq("user_id", user.id)
           .maybeSingle();
-        
+
+        if (cancelled) return;
         if (profile) {
-          console.log("[STRIPE] User profile loaded for pre-fill");
           setUserProfile({
             phone: profile.phone,
             shipping_name: user.user_metadata?.full_name || null,
@@ -618,86 +626,201 @@ export const StripePaymentForm = ({ items, totalTTC, onSuccess, onCancel }: Stri
         }
       } else {
         setIsGuest(true);
+        setGuestGatePassed(false);
       }
-
-      // Create payment intent - works for both guests and logged in users
-      console.log("[STRIPE] Calling create-payment-intent edge function...");
-      const { data, error: invokeError } = await supabase.functions.invoke("create-payment-intent", {
-        body: { items, guestEmail: user?.email ?? userEmail ?? undefined },
-      });
-
-      // Clear timeout on success
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-        timeoutRef.current = null;
-      }
-
-      console.log("[STRIPE] Edge function response:", { 
-        hasData: !!data, 
-        hasClientSecret: !!data?.clientSecret,
-        error: invokeError?.message || data?.error 
-      });
-
-      if (invokeError || data?.error) {
-        const details = invokeError && "details" in invokeError ? (invokeError as any).details : undefined;
-        const hint = invokeError && "hint" in invokeError ? (invokeError as any).hint : undefined;
-        const composed = data?.error || [invokeError?.message, details, hint].filter(Boolean).join(" - ") || "Erreur lors de la création du paiement";
-        throw new Error(composed);
-      }
-
-      setClientSecret(data.clientSecret);
-      console.log("[STRIPE] Payment intent created successfully");
-    } catch (err) {
-      // Clear timeout on error
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-        timeoutRef.current = null;
-      }
-
-      const message = err instanceof Error ? err.message : "Erreur inconnue";
-      console.error("[STRIPE] Error creating payment intent:", message);
-      setError(message);
-      toast({
-        title: "Erreur",
-        description: message,
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    // Only create payment intent if Stripe is loaded
-    if (stripeLoaded === true) {
-      createPaymentIntent();
-    }
-    
+      setSessionResolved(true);
+    })();
     return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
+      cancelled = true;
+    };
+  }, []);
+
+  // Check if Stripe loaded
+  useEffect(() => {
+    console.log("[STRIPE] Checking Stripe.js load status...");
+    getStripePromise().then((stripe) => {
+      const loaded = stripe !== null;
+      console.log("[STRIPE] Stripe.js loaded:", loaded);
+      setStripeLoaded(loaded);
+      if (!loaded) {
+        setError("Stripe n'a pas pu être chargé. Vérifiez votre connexion internet ou désactivez votre bloqueur de publicités.");
+      }
+    });
+  }, []);
+
+  // Create payment intent once Stripe + session + (guest email if applicable) are ready
+  useEffect(() => {
+    if (stripeLoaded !== true || !sessionResolved || !pastGuestGate) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const createPaymentIntent = async () => {
+      console.log("[STRIPE] Creating payment intent... (attempt:", retryCount + 1, ")");
+      setIsLoading(true);
+      setError(null);
+
+      timeoutRef.current = setTimeout(() => {
+        console.error("[STRIPE] Payment intent creation timed out");
+        setError("Le chargement prend trop de temps. Vérifiez votre connexion internet.");
+        setIsLoading(false);
+      }, LOADING_TIMEOUT_MS);
+
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (cancelled) return;
+
+        const guestEmailPayload = user?.email ?? (isGuest ? userEmail : undefined);
+
+        console.log("[STRIPE] Calling create-payment-intent edge function...");
+        const { data, error: invokeError } = await supabase.functions.invoke("create-payment-intent", {
+          body: { items, guestEmail: guestEmailPayload },
+        });
+
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current);
+          timeoutRef.current = null;
+        }
+
+        if (cancelled) return;
+
+        console.log("[STRIPE] Edge function response:", {
+          hasData: !!data,
+          hasClientSecret: !!data?.clientSecret,
+          error: invokeError?.message || data?.error,
+        });
+
+        if (invokeError || data?.error) {
+          const details = invokeError && "details" in invokeError ? (invokeError as { details?: string }).details : undefined;
+          const hint = invokeError && "hint" in invokeError ? (invokeError as { hint?: string }).hint : undefined;
+          const composed =
+            data?.error ||
+            [invokeError?.message, details, hint].filter(Boolean).join(" - ") ||
+            "Erreur lors de la création du paiement";
+          throw new Error(composed);
+        }
+
+        setClientSecret(data.clientSecret);
+        console.log("[STRIPE] Payment intent created successfully");
+      } catch (err) {
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current);
+          timeoutRef.current = null;
+        }
+        if (cancelled) return;
+
+        const message = err instanceof Error ? err.message : "Erreur inconnue";
+        console.error("[STRIPE] Error creating payment intent:", message);
+        setError(message);
+        toast({
+          title: "Erreur",
+          description: message,
+          variant: "destructive",
+        });
+      } finally {
+        if (!cancelled) setIsLoading(false);
       }
     };
-  }, [stripeLoaded, retryCount]);
 
-  // Auto-trigger fallback when Stripe Elements fails to load
-  const shouldFallback = !isLoading && (error || !clientSecret || stripeLoaded === false);
+    createPaymentIntent();
+
+    return () => {
+      cancelled = true;
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+    };
+  }, [stripeLoaded, sessionResolved, pastGuestGate, isGuest, userEmail, retryCount]);
+
+  const submitGuestEmailGate = (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = guestGateEmail.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+      toast({
+        title: "Email invalide",
+        description: "Indiquez une adresse email valide pour continuer vers le paiement.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setUserEmail(trimmed);
+    setGuestGatePassed(true);
+  };
+
+  // Auto-trigger fallback when Stripe Elements fails to load (only after we attempted PI flow)
+  const shouldFallback =
+    sessionResolved &&
+    pastGuestGate &&
+    !isLoading &&
+    (Boolean(error) || !clientSecret || stripeLoaded === false);
+
   useEffect(() => {
     if (shouldFallback && !fallbackLoading) {
       console.log("[STRIPE] Stripe Elements failed, auto-triggering Checkout fallback in 1.5s...");
       const autoFallbackTimer = setTimeout(() => {
         handleFallbackToCheckout();
-      }, 1500); // Give 1.5s for user to see the message before redirect
+      }, 1500);
       return () => clearTimeout(autoFallbackTimer);
     }
   }, [shouldFallback, fallbackLoading]);
 
   const handleRetry = () => {
     console.log("[STRIPE] User clicked retry button");
-    setRetryCount(prev => prev + 1);
+    setError(null);
+    setClientSecret(null);
+    setRetryCount((prev) => prev + 1);
   };
 
-  // Loading state
+  if (!sessionResolved) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 space-y-4">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="text-muted-foreground">Vérification de la session…</p>
+      </div>
+    );
+  }
+
+  if (isGuest && !guestGatePassed) {
+    return (
+      <form onSubmit={submitGuestEmailGate} className="space-y-4 py-4">
+        <p className="text-sm text-muted-foreground">
+          Pour un paiement sans compte, indiquez l&apos;email qui recevra la confirmation de commande.
+        </p>
+        <div className="space-y-2">
+          <Label htmlFor="guest-gate-email">Email *</Label>
+          <Input
+            id="guest-gate-email"
+            type="email"
+            autoComplete="email"
+            placeholder="vous@exemple.fr"
+            value={guestGateEmail}
+            onChange={(e) => setGuestGateEmail(e.target.value)}
+            required
+          />
+        </div>
+        <div className="flex gap-3">
+          <Button type="button" variant="outline" onClick={onCancel} className="flex-1">
+            Retour au panier
+          </Button>
+          <Button type="submit" className="flex-1 btn-cart">
+            Continuer vers le paiement
+          </Button>
+        </div>
+      </form>
+    );
+  }
+
+  if (stripeLoaded !== true && !error) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 space-y-4">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="text-muted-foreground">Chargement du module de paiement…</p>
+      </div>
+    );
+  }
+
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center py-12 space-y-4">

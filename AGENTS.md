@@ -21,7 +21,7 @@ The environment secrets `TEST_LOGIN_USERNAME` and `TEST_LOGIN_PASSWORD` contain 
 
 ### Key caveats
 
-- **Authentication required**: All pages are behind an AuthGuard; the app redirects to `/auth` immediately. Use the `TEST_LOGIN_USERNAME` / `TEST_LOGIN_PASSWORD` env vars to log in.
+- **Accès vitrine** : `StorefrontAccessGuard` — si `sites.storefront_public` est faux pour le slug du site, seuls les utilisateurs connectés voient le catalogue ; sinon navigation et paiement invité possibles. `/compte` et l’admin restent derrière `AuthGuard` / `AdminGuard`.
 - **Signups disabled**: New user registration is disabled at the Supabase project level. Additionally, the app has a hardcoded email allowlist in `src/pages/AuthPage.tsx`. You cannot create new accounts; use the provided test credentials.
 - **No local Supabase**: There is no Docker/docker-compose or local Supabase CLI setup. The dev environment connects to a remote hosted Supabase project (credentials in `.env`).
 - **No automated tests**: The project has no test framework or test files configured.

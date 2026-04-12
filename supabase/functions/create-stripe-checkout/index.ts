@@ -53,8 +53,12 @@ serve(async (req) => {
     }
 
     // Parse request body
-    const { items } = await req.json() as { items: CartItem[] };
-    logStep("Received cart items", { itemCount: items.length });
+    const { items, guestEmail: rawGuestEmail } = await req.json() as {
+      items: CartItem[];
+      guestEmail?: string;
+    };
+    const guestEmail = (rawGuestEmail ?? "").trim().toLowerCase();
+    logStep("Received cart items", { itemCount: items.length, hasGuestEmail: !!guestEmail });
 
     if (!items || items.length === 0) {
       throw new Error("Cart is empty");
@@ -93,10 +97,12 @@ serve(async (req) => {
     // Initialize Stripe
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
 
+    const emailForCheckout = userEmail || (guestEmail && guestEmail.includes("@") ? guestEmail : undefined);
+
     // Check if customer exists
     let customerId: string | undefined;
-    if (userEmail) {
-      const customers = await stripe.customers.list({ email: userEmail, limit: 1 });
+    if (emailForCheckout) {
+      const customers = await stripe.customers.list({ email: emailForCheckout, limit: 1 });
       if (customers.data.length > 0) {
         customerId = customers.data[0].id;
         logStep("Found existing Stripe customer", { customerId });
@@ -129,7 +135,7 @@ serve(async (req) => {
     const origin = req.headers.get("origin") || "https://vis-a-bois.fr";
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
-      customer_email: customerId ? undefined : userEmail,
+      customer_email: customerId ? undefined : emailForCheckout,
       line_items: lineItems,
       mode: "payment",
       success_url: `${origin}/confirmation?session_id={CHECKOUT_SESSION_ID}`,

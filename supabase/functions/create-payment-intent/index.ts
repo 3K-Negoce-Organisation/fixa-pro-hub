@@ -95,6 +95,13 @@ serve(async (req) => {
           { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
         );
       }
+      const ge = (guestEmail ?? "").trim().toLowerCase();
+      if (!ge || !ge.includes("@") || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ge)) {
+        return new Response(
+          JSON.stringify({ error: "Email requis pour la commande invité." }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
     }
 
     // Calculate totals
