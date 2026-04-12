@@ -19,6 +19,7 @@ import { EmailChangeForm } from "@/components/account/EmailChangeForm";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAdminError } from "@/contexts/AdminErrorContext";
+import { cn } from "@/lib/utils";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
 import type { Tables } from "@/integrations/supabase/types";
 
@@ -37,6 +38,12 @@ const profileSchema = z.object({
   same_as_billing: z.boolean().default(true)
 });
 type ProfileFormValues = z.infer<typeof profileSchema>;
+
+/** Mise en évidence légère des champs profil non renseignés */
+const EMPTY_FIELD_INPUT_CLASS =
+  "border-red-400/45 bg-red-50/35 focus-visible:border-red-500/50 dark:border-red-800/45 dark:bg-red-950/25";
+
+const isBlank = (value: string | undefined | null) => !String(value ?? "").trim();
 
 const statusLabels: Record<string, string> = {
   pending: "En attente",
@@ -265,18 +272,18 @@ const AccountPage = () => {
                       <FormField control={form.control} name="first_name" render={({
                       field
                     }) => <FormItem>
-                            <FormLabel>Prénom</FormLabel>
+                            <FormLabel className={cn(isBlank(field.value) && "text-red-700/80 dark:text-red-400/90")}>Prénom</FormLabel>
                             <FormControl>
-                              <Input placeholder="Jean" {...field} />
+                              <Input placeholder="Jean" className={cn(isBlank(field.value) && EMPTY_FIELD_INPUT_CLASS)} {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>} />
                       <FormField control={form.control} name="last_name" render={({
                       field
                     }) => <FormItem>
-                            <FormLabel>Nom</FormLabel>
+                            <FormLabel className={cn(isBlank(field.value) && "text-red-700/80 dark:text-red-400/90")}>Nom</FormLabel>
                             <FormControl>
-                              <Input placeholder="Dupont" {...field} />
+                              <Input placeholder="Dupont" className={cn(isBlank(field.value) && EMPTY_FIELD_INPUT_CLASS)} {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>} />
@@ -285,13 +292,13 @@ const AccountPage = () => {
                       <FormField control={form.control} name="phone" render={({
                       field
                     }) => <FormItem>
-                            <FormLabel>Téléphone</FormLabel>
+                            <FormLabel className={cn(isBlank(field.value) && "text-red-700/80 dark:text-red-400/90")}>Téléphone</FormLabel>
                             <FormControl>
                                 <div className="relative">
                                   <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                                   <Input 
                                     placeholder="06 12 34 56 78" 
-                                    className="pl-10" 
+                                    className={cn("pl-10", isBlank(field.value) && EMPTY_FIELD_INPUT_CLASS)} 
                                     {...field}
                                     onChange={(e) => {
                                       // Remove all non-digits
@@ -322,27 +329,27 @@ const AccountPage = () => {
                         <FormField control={form.control} name="billing_address" render={({
                         field
                       }) => <FormItem className="md:col-span-3">
-                              <FormLabel>Adresse</FormLabel>
+                              <FormLabel className={cn(isBlank(field.value) && "text-red-700/80 dark:text-red-400/90")}>Adresse</FormLabel>
                               <FormControl>
-                                <Input placeholder="123 rue de l'Industrie" {...field} />
+                                <Input placeholder="123 rue de l'Industrie" className={cn(isBlank(field.value) && EMPTY_FIELD_INPUT_CLASS)} {...field} />
                               </FormControl>
                               <FormMessage />
                             </FormItem>} />
                         <FormField control={form.control} name="billing_postal_code" render={({
                         field
                       }) => <FormItem>
-                              <FormLabel>Code postal</FormLabel>
+                              <FormLabel className={cn(isBlank(field.value) && "text-red-700/80 dark:text-red-400/90")}>Code postal</FormLabel>
                               <FormControl>
-                                <Input placeholder="69000" maxLength={5} {...field} />
+                                <Input placeholder="69000" maxLength={5} className={cn(isBlank(field.value) && EMPTY_FIELD_INPUT_CLASS)} {...field} />
                               </FormControl>
                               <FormMessage />
                             </FormItem>} />
                         <FormField control={form.control} name="billing_city" render={({
                         field
                       }) => <FormItem className="md:col-span-2">
-                              <FormLabel>Ville</FormLabel>
+                              <FormLabel className={cn(isBlank(field.value) && "text-red-700/80 dark:text-red-400/90")}>Ville</FormLabel>
                               <FormControl>
-                                <Input placeholder="Lyon" {...field} />
+                                <Input placeholder="Lyon" className={cn(isBlank(field.value) && EMPTY_FIELD_INPUT_CLASS)} {...field} />
                               </FormControl>
                               <FormMessage />
                             </FormItem>} />
@@ -372,27 +379,27 @@ const AccountPage = () => {
                           <FormField control={form.control} name="shipping_address" render={({
                         field
                       }) => <FormItem className="md:col-span-3">
-                                <FormLabel>Adresse</FormLabel>
+                                <FormLabel className={cn(isBlank(field.value) && "text-red-700/80 dark:text-red-400/90")}>Adresse</FormLabel>
                                 <FormControl>
-                                  <Input placeholder="123 rue de l'Industrie" {...field} />
+                                  <Input placeholder="123 rue de l'Industrie" className={cn(isBlank(field.value) && EMPTY_FIELD_INPUT_CLASS)} {...field} />
                                 </FormControl>
                                 <FormMessage />
                               </FormItem>} />
                           <FormField control={form.control} name="shipping_postal_code" render={({
                         field
                       }) => <FormItem>
-                                <FormLabel>Code postal</FormLabel>
+                                <FormLabel className={cn(isBlank(field.value) && "text-red-700/80 dark:text-red-400/90")}>Code postal</FormLabel>
                                 <FormControl>
-                                  <Input placeholder="69000" maxLength={5} {...field} />
+                                  <Input placeholder="69000" maxLength={5} className={cn(isBlank(field.value) && EMPTY_FIELD_INPUT_CLASS)} {...field} />
                                 </FormControl>
                                 <FormMessage />
                               </FormItem>} />
                           <FormField control={form.control} name="shipping_city" render={({
                         field
                       }) => <FormItem className="md:col-span-2">
-                                <FormLabel>Ville</FormLabel>
+                                <FormLabel className={cn(isBlank(field.value) && "text-red-700/80 dark:text-red-400/90")}>Ville</FormLabel>
                                 <FormControl>
-                                  <Input placeholder="Lyon" {...field} />
+                                  <Input placeholder="Lyon" className={cn(isBlank(field.value) && EMPTY_FIELD_INPUT_CLASS)} {...field} />
                                 </FormControl>
                                 <FormMessage />
                               </FormItem>} />
