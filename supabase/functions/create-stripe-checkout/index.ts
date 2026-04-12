@@ -60,6 +60,30 @@ serve(async (req) => {
       throw new Error("Cart is empty");
     }
 
+    if (!userId) {
+      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+      if (!serviceKey) {
+        throw new Error("SUPABASE_SERVICE_ROLE_KEY is not configured");
+      }
+      const admin = createClient(Deno.env.get("SUPABASE_URL") ?? "", serviceKey);
+      const siteSlug = Deno.env.get("STOREFRONT_SITE_SLUG") || "vis-a-bois";
+      const { data: site, error: siteErr } = await admin
+        .from("sites")
+        .select("storefront_public")
+        .eq("slug", siteSlug)
+        .eq("is_active", true)
+        .maybeSingle();
+      if (siteErr) throw siteErr;
+      if (!site?.storefront_public) {
+        return new Response(
+          JSON.stringify({
+            error: "La boutique n'est pas ouverte au public. Connectez-vous pour commander.",
+          }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+    }
+
     // Calculate totals
     const TVA_RATE = 0.20;
     const totalHT = items.reduce((sum, item) => sum + (item.priceHT * item.quantity), 0);

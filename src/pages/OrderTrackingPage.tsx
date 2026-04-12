@@ -6,6 +6,7 @@ import { Footer } from "@/components/layout/Footer";
 import { PageBackground } from "@/components/layout/PageBackground";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -124,11 +125,26 @@ const OrderTrackingPage = () => {
   
   const [orderNumber, setOrderNumber] = useState(orderFromUrl || "");
   const [searchTerm, setSearchTerm] = useState(orderFromUrl || "");
+  const [guestEmail, setGuestEmail] = useState("");
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(!!orderFromUrl);
   const [error, setError] = useState<string | null>(null);
+  const [sessionUserId, setSessionUserId] = useState<string | null>(null);
+  const [orderFromGuestLookup, setOrderFromGuestLookup] = useState(false);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSessionUserId(session?.user?.id ?? null);
+    });
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSessionUserId(session?.user?.id ?? null);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
 
   // Fetch user's orders
   const { data: userOrders, isLoading: loadingUserOrders, refetch: refetchOrders } = useQuery({
@@ -156,22 +172,22 @@ const OrderTrackingPage = () => {
     },
     staleTime: 0, // Always refetch on mount
     refetchOnMount: true,
+    enabled: !!sessionUserId,
   });
 
   // Auto-search when order number is in URL or select most recent order
   useEffect(() => {
-    if (orderFromUrl) {
+    if (orderFromUrl && sessionUserId) {
       searchOrder(orderFromUrl);
-    } else if (userOrders && userOrders.length > 0 && !order && !searched) {
-      // Auto-select most recent order if no search has been made
+    } else if (sessionUserId && userOrders && userOrders.length > 0 && !order && !searched) {
       const mostRecentOrder = userOrders[0];
       handleSelectOrder(mostRecentOrder.order_number);
     }
-  }, [orderFromUrl, userOrders]);
+  }, [orderFromUrl, userOrders, sessionUserId]);
 
-  // Subscribe to realtime updates when order is loaded
+  // Subscribe to realtime updates when order is loaded (not for guest email lookup — RLS blocks anon channel)
   useEffect(() => {
-    if (!order?.order_number) {
+    if (!order?.order_number || orderFromGuestLookup) {
       // Cleanup previous channel if order is cleared
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current);
@@ -234,7 +250,7 @@ const OrderTrackingPage = () => {
       supabase.removeChannel(channel);
       channelRef.current = null;
     };
-  }, [order?.order_number]);
+  }, [order?.order_number, orderFromGuestLookup]);
 
   const searchOrder = async (term: string) => {
     if (!term.trim()) return;
@@ -242,6 +258,7 @@ const OrderTrackingPage = () => {
     setLoading(true);
     setError(null);
     setSearched(true);
+    setOrderFromGuestLookup(false);
 
     const searchTermUpper = term.trim().toUpperCase();
 
@@ -289,10 +306,71 @@ const OrderTrackingPage = () => {
     setLoading(false);
   };
 
+  const searchGuestOrder = async (term: string, email: string) => {
+    if (!term.trim()) return;
+
+    setLoading(true);
+    setError(null);
+    setSearched(true);
+    setOrderFromGuestLookup(false);
+
+    const searchTermUpper = term.trim().toUpperCase();
+
+    const { data, error: fnError } = await supabase.functions.invoke("lookup-order-by-email", {
+      body: {
+        order_number: searchTermUpper,
+        email: email.trim().toLowerCase(),
+      },
+    });
+
+    if (fnError || (data && typeof data === "object" && "error" in data && data.error)) {
+      const msg =
+        (data && typeof data === "object" && "error" in data && String((data as { error: string }).error)) ||
+        fnError?.message ||
+        "Commande introuvable.";
+      setError(msg);
+      setOrder(null);
+      setLoading(false);
+      return;
+    }
+
+    const payload = data as { order?: Record<string, unknown>; order_items?: Record<string, unknown>[] };
+    if (!payload?.order) {
+      setError("Commande introuvable.");
+      setOrder(null);
+      setLoading(false);
+      return;
+    }
+
+    const orderData = payload.order;
+    const itemsData = payload.order_items || [];
+
+    const documents: OrderDocument[] = Array.isArray(orderData.documents)
+      ? (orderData.documents as unknown as OrderDocument[])
+      : [];
+
+    setOrder({
+      ...(orderData as unknown as Order),
+      status: orderData.status as OrderStatus,
+      order_items: (itemsData || []) as unknown as OrderItem[],
+      documents,
+    });
+    setOrderFromGuestLookup(true);
+    setLoading(false);
+  };
+
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     setSearchTerm(orderNumber);
-    await searchOrder(orderNumber);
+    if (sessionUserId) {
+      await searchOrder(orderNumber);
+    } else {
+      if (!guestEmail.trim() || !guestEmail.includes("@")) {
+        toast.error("Indiquez l'email utilisé lors de la commande.");
+        return;
+      }
+      await searchGuestOrder(orderNumber, guestEmail);
+    }
   };
 
   const handleSelectOrder = async (selectedOrderNumber: string) => {
@@ -517,6 +595,22 @@ const OrderTrackingPage = () => {
                     value={orderNumber}
                     onChange={(e) => setOrderNumber(e.target.value)}
                   />
+                  {!sessionUserId ? (
+                    <div className="space-y-2">
+                      <Label htmlFor="guest-email">Email utilisé pour la commande</Label>
+                      <Input
+                        id="guest-email"
+                        type="email"
+                        autoComplete="email"
+                        placeholder="vous@exemple.fr"
+                        value={guestEmail}
+                        onChange={(e) => setGuestEmail(e.target.value)}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Sans compte, le numéro de commande et l&apos;email doivent correspondre à la commande.
+                      </p>
+                    </div>
+                  ) : null}
                   <Button type="submit" disabled={loading}>
                     <Search className="h-4 w-4 mr-2" />
                     {loading ? "Recherche..." : "Rechercher"}
@@ -534,7 +628,11 @@ const OrderTrackingPage = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {loadingUserOrders ? (
+                {!sessionUserId ? (
+                  <p className="text-muted-foreground text-sm text-center py-4">
+                    Connectez-vous pour voir la liste de vos commandes.
+                  </p>
+                ) : loadingUserOrders ? (
                   <div className="flex items-center justify-center py-8">
                     <Loader2 className="h-6 w-6 animate-spin text-primary" />
                   </div>
