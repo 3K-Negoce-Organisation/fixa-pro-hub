@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Search, User, Menu, Package, LogOut, Settings, ChevronDown, Database, Palette } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
@@ -15,16 +15,10 @@ import { ENVIRONMENT, getEnvironmentLabel, getEnvironmentColor } from "@/lib/env
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 
 // Fonction pour générer un slug URL à partir du nom de catégorie
 const categoryToSlug = (category: string): string => {
@@ -42,14 +36,14 @@ export function Header() {
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [userFirstName, setUserFirstName] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  /** Panneau admin en modale (clic), réservé à pierre.kabore@gmail.com */
   const [adminMenuOpen, setAdminMenuOpen] = useState(false);
   const [supplierDialogOpen, setSupplierDialogOpen] = useState(false);
   const [themeDialogOpen, setThemeDialogOpen] = useState(false);
   const [dbInfoDialogOpen, setDbInfoDialogOpen] = useState(false);
   const [dbStats, setDbStats] = useState<{ table: string; count: number }[]>([]);
   const navigate = useNavigate();
-  const adminMenuTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  
+
   // Use dynamic logo from theme context (site_assets) or legacy theme.logo_url, or fallback to default
   const logoSrc = logoUrl || theme.logo_url || logoVisABois;
 
@@ -73,28 +67,6 @@ export function Header() {
     },
     staleTime: 5 * 60 * 1000,
   });
-
-  const handleAdminMenuEnter = () => {
-    if (adminMenuTimeoutRef.current) {
-      clearTimeout(adminMenuTimeoutRef.current);
-      adminMenuTimeoutRef.current = null;
-    }
-    setAdminMenuOpen(true);
-  };
-
-  const handleAdminMenuLeave = () => {
-    adminMenuTimeoutRef.current = setTimeout(() => {
-      setAdminMenuOpen(false);
-    }, 2000);
-  };
-
-  useEffect(() => {
-    return () => {
-      if (adminMenuTimeoutRef.current) {
-        clearTimeout(adminMenuTimeoutRef.current);
-      }
-    };
-  }, []);
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -217,59 +189,87 @@ export function Header() {
               <span className="hidden md:inline">{getDisplayName()}</span>
             </Link>
 
-            {/* Admin dropdown visible only for pierre.kabore@gmail.com on all environments */}
+            {/* Admin : modale au clic, uniquement pierre.kabore@gmail.com */}
             {userEmail === "pierre.kabore@gmail.com" && (
-              <div 
-                className="relative"
-                onMouseEnter={handleAdminMenuEnter}
-                onMouseLeave={handleAdminMenuLeave}
-              >
-                <button className="flex items-center gap-1.5 px-2 py-1 text-sm text-primary-foreground hover:underline">
+              <>
+                <button
+                  type="button"
+                  onClick={() => setAdminMenuOpen(true)}
+                  className="flex items-center gap-1.5 px-2 py-1 text-sm text-primary-foreground hover:underline"
+                  aria-haspopup="dialog"
+                  aria-expanded={adminMenuOpen}
+                >
                   <Settings className="h-4 w-4" />
                   <span className="hidden md:inline">Admin</span>
                   <span className={`hidden md:inline text-xs px-1.5 py-0.5 rounded ${getEnvironmentColor()} bg-primary-foreground/20`}>
                     {getEnvironmentLabel()}
                   </span>
-                  <ChevronDown className="h-3 w-3" />
+                  <ChevronDown className="h-3 w-3 opacity-80" aria-hidden />
                 </button>
-                {adminMenuOpen && (
-                  <div className="absolute right-0 top-full mt-1 w-56 bg-background border border-border rounded-md shadow-lg z-50">
-                    <Link 
-                      to="/admin/commandes" 
-                      className="block px-4 py-2 text-sm text-foreground hover:bg-primary/10 transition-colors"
-                    >
-                      Gestion des commandes
-                    </Link>
-                    <Link 
-                      to="/admin/produits" 
-                      className="block px-4 py-2 text-sm text-foreground hover:bg-primary/10 transition-colors"
-                    >
-                      Gestion des produits
-                    </Link>
-                    <button
-                      onClick={() => setSupplierDialogOpen(true)}
-                      className="block w-full text-left px-4 py-2 text-sm text-foreground hover:bg-primary/10 transition-colors"
-                    >
-                      Paramètres fournisseur
-                    </button>
-                    <button
-                      onClick={() => setThemeDialogOpen(true)}
-                      className="flex items-center gap-2 w-full text-left px-4 py-2 text-sm text-foreground hover:bg-primary/10 transition-colors"
-                    >
-                      <Palette className="h-4 w-4" />
-                      Personnalisation thème
-                    </button>
-                    <div className="border-t border-border" />
-                    <button
-                      onClick={openDbInfoDialog}
-                      className="flex items-center gap-2 w-full text-left px-4 py-2 text-sm text-foreground hover:bg-primary/10 transition-colors"
-                    >
-                      <Database className="h-4 w-4" />
-                      Infos Base de Données
-                    </button>
-                  </div>
-                )}
-              </div>
+
+                <Dialog open={adminMenuOpen} onOpenChange={setAdminMenuOpen}>
+                  <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                      <DialogTitle className="flex items-center gap-2">
+                        <Settings className="h-5 w-5" />
+                        Administration
+                      </DialogTitle>
+                      <DialogDescription className="sr-only">
+                        Raccourcis vers la gestion du site et les paramètres techniques.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <nav className="flex flex-col gap-0.5 py-1" aria-label="Menu administration">
+                      <Link
+                        to="/admin/commandes"
+                        className="block rounded-md px-3 py-2.5 text-sm text-foreground hover:bg-primary/10 transition-colors"
+                        onClick={() => setAdminMenuOpen(false)}
+                      >
+                        Gestion des commandes
+                      </Link>
+                      <Link
+                        to="/admin/produits"
+                        className="block rounded-md px-3 py-2.5 text-sm text-foreground hover:bg-primary/10 transition-colors"
+                        onClick={() => setAdminMenuOpen(false)}
+                      >
+                        Gestion des produits
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAdminMenuOpen(false);
+                          setSupplierDialogOpen(true);
+                        }}
+                        className="block w-full rounded-md text-left px-3 py-2.5 text-sm text-foreground hover:bg-primary/10 transition-colors"
+                      >
+                        Paramètres fournisseur
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAdminMenuOpen(false);
+                          setThemeDialogOpen(true);
+                        }}
+                        className="flex items-center gap-2 w-full rounded-md text-left px-3 py-2.5 text-sm text-foreground hover:bg-primary/10 transition-colors"
+                      >
+                        <Palette className="h-4 w-4 shrink-0" />
+                        Personnalisation thème
+                      </button>
+                      <div className="my-1 border-t border-border" />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAdminMenuOpen(false);
+                          openDbInfoDialog();
+                        }}
+                        className="flex items-center gap-2 w-full rounded-md text-left px-3 py-2.5 text-sm text-foreground hover:bg-primary/10 transition-colors"
+                      >
+                        <Database className="h-4 w-4 shrink-0" />
+                        Infos Base de Données
+                      </button>
+                    </nav>
+                  </DialogContent>
+                </Dialog>
+              </>
             )}
             
             <SupplierSettingsDialog 
