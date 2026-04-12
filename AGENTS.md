@@ -17,7 +17,7 @@ vis-a-bois is a B2B e-commerce React SPA (Vite + TypeScript + Tailwind + shadcn/
 
 ### Test login
 
-The environment secrets `TEST_LOGIN_USERNAME` and `TEST_LOGIN_PASSWORD` contain credentials for a pre-existing Supabase account. Use them to log in at `/auth`. This account has admin privileges (the "Admin" badge appears in the nav bar).
+The environment secrets `TEST_LOGIN_USERNAME` and `TEST_LOGIN_PASSWORD` contain credentials for a pre-existing Supabase account. Use them to log in at `/auth`. After a successful login, the app navigates to the **home page** (`/`), not `/compte`. This account has admin privileges (the "Admin" badge appears in the nav bar).
 
 ### Key caveats
 

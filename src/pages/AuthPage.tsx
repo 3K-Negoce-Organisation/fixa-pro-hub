@@ -62,14 +62,14 @@ const AuthPage = () => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         if (session?.user) {
-          navigate("/compte");
+          navigate("/");
         }
       }
     );
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
-        navigate("/compte");
+        navigate("/");
       }
     });
 
@@ -108,7 +108,7 @@ const AuthPage = () => {
     }
 
     toast.success("Connexion réussie");
-    navigate("/compte");
+    navigate("/");
     setIsLoading(false);
   };
 
@@ -153,7 +153,7 @@ const AuthPage = () => {
         });
       } else if (data.session) {
         toast.success("Compte créé avec succès !");
-        navigate("/compte");
+        navigate("/");
       }
     } else {
       toast.success("Compte créé avec succès ! Vous êtes maintenant connecté.");
