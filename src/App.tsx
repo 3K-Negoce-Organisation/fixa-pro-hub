@@ -9,6 +9,7 @@ import { AdminErrorProvider } from "@/contexts/AdminErrorContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 
 import AuthGuard from "@/components/auth/AuthGuard";
+import StorefrontAccessGuard from "@/components/auth/StorefrontAccessGuard";
 import AdminGuard from "@/components/auth/AdminGuard";
 import { CookieConsent } from "@/components/CookieConsent";
 import Index from "./pages/Index";
@@ -50,28 +51,28 @@ const App = () => (
                 
                 <Routes>
                   <Route path="/auth" element={<AuthPage />} />
-                  <Route path="/suivi" element={<AuthGuard><OrderTrackingPage /></AuthGuard>} />
-                  <Route path="/confirmation" element={<AuthGuard><OrderConfirmationPage /></AuthGuard>} />
-                  <Route path="/paiement-annule" element={<AuthGuard><PaymentCancelPage /></AuthGuard>} />
-                  <Route path="/" element={<AuthGuard><Index /></AuthGuard>} />
-                  <Route path="/produits" element={<AuthGuard><ProductsPage /></AuthGuard>} />
-                  <Route path="/promos" element={<AuthGuard><PromosPage /></AuthGuard>} />
-                  <Route path="/produit/:handle" element={<AuthGuard><ProductDetailPage /></AuthGuard>} />
-                  <Route path="/panier" element={<AuthGuard><CartPage /></AuthGuard>} />
+                  <Route path="/suivi" element={<StorefrontAccessGuard><OrderTrackingPage /></StorefrontAccessGuard>} />
+                  <Route path="/confirmation" element={<StorefrontAccessGuard><OrderConfirmationPage /></StorefrontAccessGuard>} />
+                  <Route path="/paiement-annule" element={<StorefrontAccessGuard><PaymentCancelPage /></StorefrontAccessGuard>} />
+                  <Route path="/" element={<StorefrontAccessGuard><Index /></StorefrontAccessGuard>} />
+                  <Route path="/produits" element={<StorefrontAccessGuard><ProductsPage /></StorefrontAccessGuard>} />
+                  <Route path="/promos" element={<StorefrontAccessGuard><PromosPage /></StorefrontAccessGuard>} />
+                  <Route path="/produit/:handle" element={<StorefrontAccessGuard><ProductDetailPage /></StorefrontAccessGuard>} />
+                  <Route path="/panier" element={<StorefrontAccessGuard><CartPage /></StorefrontAccessGuard>} />
                   <Route path="/compte" element={<AuthGuard><AccountPage /></AuthGuard>} />
                   <Route path="/admin/commandes" element={<AdminGuard><AdminOrdersPage /></AdminGuard>} />
                   <Route path="/admin/produits" element={<AdminGuard><AdminProductsPage /></AdminGuard>} />
-                  <Route path="/mentions-legales" element={<AuthGuard><MentionsLegalesPage /></AuthGuard>} />
-                  <Route path="/politique-confidentialite" element={<AuthGuard><PolitiqueConfidentialitePage /></AuthGuard>} />
-                  <Route path="/cookies" element={<AuthGuard><CookiesPage /></AuthGuard>} />
-                  <Route path="/cgv" element={<AuthGuard><CGVPage /></AuthGuard>} />
-                  <Route path="/livraison" element={<AuthGuard><LivraisonPage /></AuthGuard>} />
-                  <Route path="/retours" element={<AuthGuard><RetoursPage /></AuthGuard>} />
-                  <Route path="/faq" element={<AuthGuard><FAQPage /></AuthGuard>} />
-                  <Route path="/contact" element={<AuthGuard><ContactPage /></AuthGuard>} />
-                  <Route path="/information-technique" element={<AuthGuard><InformationTechniquePage /></AuthGuard>} />
+                  <Route path="/mentions-legales" element={<StorefrontAccessGuard><MentionsLegalesPage /></StorefrontAccessGuard>} />
+                  <Route path="/politique-confidentialite" element={<StorefrontAccessGuard><PolitiqueConfidentialitePage /></StorefrontAccessGuard>} />
+                  <Route path="/cookies" element={<StorefrontAccessGuard><CookiesPage /></StorefrontAccessGuard>} />
+                  <Route path="/cgv" element={<StorefrontAccessGuard><CGVPage /></StorefrontAccessGuard>} />
+                  <Route path="/livraison" element={<StorefrontAccessGuard><LivraisonPage /></StorefrontAccessGuard>} />
+                  <Route path="/retours" element={<StorefrontAccessGuard><RetoursPage /></StorefrontAccessGuard>} />
+                  <Route path="/faq" element={<StorefrontAccessGuard><FAQPage /></StorefrontAccessGuard>} />
+                  <Route path="/contact" element={<StorefrontAccessGuard><ContactPage /></StorefrontAccessGuard>} />
+                  <Route path="/information-technique" element={<StorefrontAccessGuard><InformationTechniquePage /></StorefrontAccessGuard>} />
                   {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-                  <Route path="*" element={<AuthGuard><NotFound /></AuthGuard>} />
+                  <Route path="*" element={<StorefrontAccessGuard><NotFound /></StorefrontAccessGuard>} />
                 </Routes>
               </BrowserRouter>
             </AdminErrorProvider>

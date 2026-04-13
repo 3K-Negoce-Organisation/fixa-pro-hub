@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -19,6 +19,9 @@ import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useStorefrontPublic } from "@/hooks/useStorefrontPublic";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Info } from "lucide-react";
 
 const loginSchema = z.object({
   email: z.string().email("Email invalide"),
@@ -39,6 +42,9 @@ type SignupFormValues = z.infer<typeof signupSchema>;
 
 const AuthPage = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const { data: storefrontPublic } = useStorefrontPublic();
+  const signupOpen = storefrontPublic === true;
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("login");
 
@@ -56,19 +62,25 @@ const AuthPage = () => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         if (session?.user) {
-          navigate("/compte");
+          navigate("/");
         }
       }
     );
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
-        navigate("/compte");
+        navigate("/");
       }
     });
 
     return () => subscription.unsubscribe();
   }, [navigate]);
+
+  useEffect(() => {
+    if (!signupOpen && activeTab === "signup") {
+      setActiveTab("login");
+    }
+  }, [signupOpen, activeTab]);
 
   const handleLogin = async (values: LoginFormValues) => {
     setIsLoading(true);
@@ -96,7 +108,7 @@ const AuthPage = () => {
     }
 
     toast.success("Connexion réussie");
-    navigate("/compte");
+    navigate("/");
     setIsLoading(false);
   };
 
@@ -108,17 +120,18 @@ const AuthPage = () => {
 
   const handleSignup = async (values: SignupFormValues) => {
     setIsLoading(true);
-    
-    // Check if email is allowed
-    if (!ALLOWED_EMAILS.includes(values.email.toLowerCase())) {
-      toast.error("L'inscription est réservée aux utilisateurs autorisés.");
-      setIsLoading(false);
-      return;
+
+    if (!signupOpen) {
+      if (!ALLOWED_EMAILS.includes(values.email.toLowerCase())) {
+        toast.error("L'inscription est réservée aux utilisateurs autorisés.");
+        setIsLoading(false);
+        return;
+      }
     }
-    
+
     const redirectUrl = `${window.location.origin}/`;
-    
-    const { error } = await supabase.auth.signUp({
+
+    const { data, error } = await supabase.auth.signUp({
       email: values.email,
       password: values.password,
       options: {
@@ -131,6 +144,16 @@ const AuthPage = () => {
         toast.error("Un compte existe déjà avec cet email");
       } else {
         toast.error(error.message);
+      }
+    } else if (signupOpen) {
+      if (data.user && !data.session) {
+        toast.success("Vérifiez votre boîte mail", {
+          description:
+            "Un lien de confirmation vous a été envoyé. Cliquez dessus pour activer votre compte, puis reconnectez-vous.",
+        });
+      } else if (data.session) {
+        toast.success("Compte créé avec succès !");
+        navigate("/");
       }
     } else {
       toast.success("Compte créé avec succès ! Vous êtes maintenant connecté.");
@@ -150,11 +173,21 @@ const AuthPage = () => {
             </p>
           </div>
 
+          {searchParams.get("reason") === "private" && (
+            <Alert className="mb-6">
+              <Info className="h-4 w-4" />
+              <AlertTitle>Boutique réservée</AlertTitle>
+              <AlertDescription>
+                La boutique n&apos;est pas ouverte au public. Connectez-vous avec un compte autorisé pour continuer.
+              </AlertDescription>
+            </Alert>
+          )}
+
           <div className="bg-card border border-border rounded-lg p-6">
             <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="grid w-full grid-cols-2 mb-6">
+              <TabsList className={`grid w-full mb-6 ${signupOpen ? "grid-cols-2" : "grid-cols-1"}`}>
                 <TabsTrigger value="login">Connexion</TabsTrigger>
-                <TabsTrigger value="signup">Inscription</TabsTrigger>
+                {signupOpen ? <TabsTrigger value="signup">Inscription</TabsTrigger> : null}
               </TabsList>
 
               <TabsContent value="login">
@@ -213,6 +246,11 @@ const AuthPage = () => {
               </TabsContent>
 
               <TabsContent value="signup">
+                {signupOpen ? (
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Après inscription, vous recevez un email de confirmation : votre compte n&apos;est actif qu&apos;après validation du lien.
+                  </p>
+                ) : null}
                 <Form {...signupForm}>
                   <form onSubmit={signupForm.handleSubmit(handleSignup)} className="space-y-4">
                     <FormField

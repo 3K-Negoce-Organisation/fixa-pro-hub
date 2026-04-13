@@ -10,16 +10,20 @@ import { useCart } from "@/contexts/CartContext";
 const OrderConfirmationPage = () => {
   const [searchParams] = useSearchParams();
   const sessionId = searchParams.get("session_id");
+  const orderNumber = searchParams.get("order_number");
   const { clearCart } = useCart();
   const clearedRef = useRef(false);
 
-  // Clear cart on successful payment - only once
   useEffect(() => {
-    if (sessionId && !clearedRef.current) {
+    if ((sessionId || orderNumber) && !clearedRef.current) {
       clearedRef.current = true;
       clearCart();
     }
-  }, [sessionId]);
+  }, [sessionId, orderNumber, clearCart]);
+
+  const suiviHref = orderNumber
+    ? `/suivi?order=${encodeURIComponent(orderNumber)}`
+    : "/suivi";
 
   return (
     <PageBackground>
@@ -37,9 +41,17 @@ const OrderConfirmationPage = () => {
             Merci pour votre commande. Vous recevrez un email de confirmation avec les détails de votre achat.
           </p>
 
+          {orderNumber && (
+            <p className="text-sm text-muted-foreground">
+              Numéro de commande :{" "}
+              <code className="bg-muted px-2 py-1 rounded font-mono">{orderNumber}</code>
+            </p>
+          )}
+
           {sessionId && (
             <p className="text-sm text-muted-foreground">
-              Référence de paiement : <code className="bg-muted px-2 py-1 rounded">{sessionId.slice(0, 20)}...</code>
+              Référence de paiement :{" "}
+              <code className="bg-muted px-2 py-1 rounded">{sessionId.slice(0, 20)}…</code>
             </p>
           )}
 
@@ -50,23 +62,20 @@ const OrderConfirmationPage = () => {
             </div>
 
             <p className="text-sm text-muted-foreground">
-              Livraison estimée : 24-48h. Vous recevrez un email avec le numéro de suivi dès l'expédition.
+              Livraison estimée : 24-48h. Vous recevrez un email avec le numéro de suivi dès l&apos;expédition.
             </p>
           </div>
 
-
           <div className="flex flex-col sm:flex-row gap-3 justify-center pt-4">
             <Button asChild>
-              <Link to="/suivi">
+              <Link to={suiviHref}>
                 Suivre ma commande
                 <ArrowRight className="h-4 w-4 ml-2" />
               </Link>
             </Button>
 
             <Button variant="outline" asChild>
-              <Link to="/produits">
-                Continuer mes achats
-              </Link>
+              <Link to="/produits">Continuer mes achats</Link>
             </Button>
           </div>
         </div>

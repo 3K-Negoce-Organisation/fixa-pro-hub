@@ -1,10 +1,13 @@
 import { useState, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { Save, Building2, Mail, MapPin, Phone, Hash } from "lucide-react";
+import { Save, Building2, Mail, MapPin, Phone, Hash, Store } from "lucide-react";
+import { SITE_SLUG } from "@/lib/siteSlug";
 import {
   Dialog,
   DialogContent,
@@ -31,9 +34,12 @@ interface SupplierSettingsDialogProps {
 }
 
 export function SupplierSettingsDialog({ open, onOpenChange }: SupplierSettingsDialogProps) {
+  const queryClient = useQueryClient();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [settings, setSettings] = useState<SupplierSettings | null>(null);
+  const [siteId, setSiteId] = useState<string | null>(null);
+  const [storefrontPublic, setStorefrontPublic] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -42,15 +48,33 @@ export function SupplierSettingsDialog({ open, onOpenChange }: SupplierSettingsD
   }, [open]);
 
   const fetchSettings = async () => {
+    setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from("supplier_settings")
-        .select("*")
-        .maybeSingle();
+      const [supplierRes, siteRes] = await Promise.all([
+        supabase.from("supplier_settings").select("*").maybeSingle(),
+        supabase
+          .from("sites")
+          .select("id, storefront_public")
+          .eq("slug", SITE_SLUG)
+          .eq("is_active", true)
+          .maybeSingle(),
+      ]);
 
-      if (error) throw error;
-      setSettings(data);
-    } catch (error: any) {
+      if (supplierRes.error) throw supplierRes.error;
+      setSettings(supplierRes.data);
+
+      if (siteRes.error) {
+        console.error("Error fetching site:", siteRes.error);
+        setSiteId(null);
+        setStorefrontPublic(false);
+      } else if (siteRes.data) {
+        setSiteId(siteRes.data.id);
+        setStorefrontPublic(Boolean(siteRes.data.storefront_public));
+      } else {
+        setSiteId(null);
+        setStorefrontPublic(false);
+      }
+    } catch (error: unknown) {
       console.error("Error fetching supplier settings:", error);
       toast.error("Erreur lors du chargement des paramètres");
     } finally {
@@ -78,6 +102,16 @@ export function SupplierSettingsDialog({ open, onOpenChange }: SupplierSettingsD
         .eq("id", settings.id);
 
       if (error) throw error;
+
+      if (siteId) {
+        const { error: siteErr } = await supabase
+          .from("sites")
+          .update({ storefront_public: storefrontPublic })
+          .eq("id", siteId);
+        if (siteErr) throw siteErr;
+        await queryClient.invalidateQueries({ queryKey: ["storefront-public", SITE_SLUG] });
+      }
+
       toast.success("Paramètres enregistrés");
       onOpenChange(false);
     } catch (error: any) {
@@ -112,6 +146,28 @@ export function SupplierSettingsDialog({ open, onOpenChange }: SupplierSettingsD
           </div>
         ) : settings ? (
           <div className="space-y-6 py-4">
+            {siteId && (
+              <div className="space-y-3 rounded-lg border border-border p-4 bg-muted/30">
+                <h3 className="text-sm font-medium flex items-center gap-2">
+                  <Store className="h-4 w-4" />
+                  Boutique en ligne
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  Si désactivé, seuls les comptes connectés peuvent voir le catalogue et commander. Si activé, tout le monde peut acheter sans compte ; l&apos;inscription publique (avec validation par email) est proposée sur la page de connexion.
+                </p>
+                <div className="flex items-center justify-between gap-4">
+                  <Label htmlFor="storefront-public" className="cursor-pointer">
+                    Ouverture au public (navigation + commande invité)
+                  </Label>
+                  <Switch
+                    id="storefront-public"
+                    checked={storefrontPublic}
+                    onCheckedChange={setStorefrontPublic}
+                  />
+                </div>
+              </div>
+            )}
+
             {/* Informations générales */}
             <div className="space-y-4">
               <h3 className="text-sm font-medium flex items-center gap-2">

@@ -189,6 +189,7 @@ export type Database = {
           promo_end_date: string | null
           promo_price_ht: number | null
           purchase_price_ht: number | null
+          site_id: string | null
           specifications: Json | null
           stock: number | null
           tags: string[] | null
@@ -222,6 +223,7 @@ export type Database = {
           promo_end_date?: string | null
           promo_price_ht?: number | null
           purchase_price_ht?: number | null
+          site_id?: string | null
           specifications?: Json | null
           stock?: number | null
           tags?: string[] | null
@@ -255,6 +257,7 @@ export type Database = {
           promo_end_date?: string | null
           promo_price_ht?: number | null
           purchase_price_ht?: number | null
+          site_id?: string | null
           specifications?: Json | null
           stock?: number | null
           tags?: string[] | null
@@ -578,6 +581,7 @@ export type Database = {
           is_active: boolean | null
           name: string
           slug: string
+          storefront_public: boolean
           updated_at: string
         }
         Insert: {
@@ -586,6 +590,7 @@ export type Database = {
           is_active?: boolean | null
           name: string
           slug: string
+          storefront_public?: boolean
           updated_at?: string
         }
         Update: {
@@ -594,6 +599,7 @@ export type Database = {
           is_active?: boolean | null
           name?: string
           slug?: string
+          storefront_public?: boolean
           updated_at?: string
         }
         Relationships: []
