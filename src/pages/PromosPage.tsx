@@ -21,7 +21,35 @@ const PromosPage = () => {
         .order("title");
 
       if (error) throw error;
-      return data as Product[];
+      const promoRows = (data || []) as Product[];
+      const giftIds = Array.from(
+        new Set(
+          promoRows
+            .map((p) => (p as any).promo_gift_product_id as string | null)
+            .filter((id): id is string => !!id),
+        ),
+      );
+      let giftMap: Record<string, { title: string; handle: string; image: string }> = {};
+      if (giftIds.length > 0) {
+        const { data: giftRows } = await supabase
+          .from("products")
+          .select("id, title, handle, images")
+          .in("id", giftIds);
+        giftMap = Object.fromEntries(
+          ((giftRows || []) as any[]).map((g) => [
+            g.id,
+            {
+              title: g.title,
+              handle: g.handle,
+              image:
+                Array.isArray(g.images) && g.images.length > 0
+                  ? (typeof g.images[0] === "string" ? g.images[0] : g.images[0]?.url || "/placeholder.svg")
+                  : "/placeholder.svg",
+            },
+          ]),
+        );
+      }
+      return promoRows.map((row) => ({ ...row, _giftMeta: giftMap[(row as any).promo_gift_product_id] }));
     },
   });
 
@@ -33,15 +61,20 @@ const PromosPage = () => {
         const promoEndDate = (product as any).promo_end_date ? new Date((product as any).promo_end_date) : null;
         return !promoEndDate || promoEndDate >= now;
       })
-      .map((product: Product) => {
+      .map((product: Product & { _giftMeta?: { title: string; handle: string; image: string } }) => {
         const variants = parseVariants(product);
         const firstVariant = variants[0];
         const image = getProductImage(product);
+        const promoDiscountPercent = (product as any).promo_discount_percent as number | null;
+        const computedPromoPriceHT =
+          promoDiscountPercent && promoDiscountPercent > 0
+            ? Math.round(product.price_ht * (1 - promoDiscountPercent / 100) * 100) / 100
+            : null;
 
         // Use promo price if available
-        const displayPriceHT = product.promo_price_ht ?? product.price_ht;
-        const displayPriceTTC = product.promo_price_ht 
-          ? Math.round(product.promo_price_ht * 1.2 * 100) / 100 
+        const displayPriceHT = computedPromoPriceHT ?? product.promo_price_ht ?? product.price_ht;
+        const displayPriceTTC = (computedPromoPriceHT ?? product.promo_price_ht)
+          ? Math.round(displayPriceHT * 1.2 * 100) / 100
           : product.price_ttc;
 
         return {
@@ -62,6 +95,13 @@ const PromosPage = () => {
           stock: product.stock ?? 0,
           inStock: (product.stock ?? 0) > 0,
           isPromo: true,
+          promoDiscountPercent: promoDiscountPercent ?? null,
+          promoGiftProductId: (product as any).promo_gift_product_id ?? null,
+          promoGiftQuantity: (product as any).promo_gift_quantity ?? null,
+          promoLabel: (product as any).promo_label ?? null,
+          promoGiftTitle: product._giftMeta?.title ?? null,
+          promoGiftHandle: product._giftMeta?.handle ?? null,
+          promoGiftImage: product._giftMeta?.image ?? null,
         };
       });
   }, [products]);

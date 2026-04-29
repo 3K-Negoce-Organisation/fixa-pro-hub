@@ -186,7 +186,11 @@ export type Database = {
           material: string | null
           price_ht: number
           price_ttc: number
+          promo_discount_percent: number | null
           promo_end_date: string | null
+          promo_gift_product_id: string | null
+          promo_gift_quantity: number | null
+          promo_label: string | null
           promo_price_ht: number | null
           purchase_price_ht: number | null
           site_id: string | null
@@ -220,7 +224,11 @@ export type Database = {
           material?: string | null
           price_ht: number
           price_ttc: number
+          promo_discount_percent?: number | null
           promo_end_date?: string | null
+          promo_gift_product_id?: string | null
+          promo_gift_quantity?: number | null
+          promo_label?: string | null
           promo_price_ht?: number | null
           purchase_price_ht?: number | null
           site_id?: string | null
@@ -254,7 +262,11 @@ export type Database = {
           material?: string | null
           price_ht?: number
           price_ttc?: number
+          promo_discount_percent?: number | null
           promo_end_date?: string | null
+          promo_gift_product_id?: string | null
+          promo_gift_quantity?: number | null
+          promo_label?: string | null
           promo_price_ht?: number | null
           purchase_price_ht?: number | null
           site_id?: string | null

@@ -107,6 +107,9 @@ const CartPage = () => {
                           >
                             {item.title}
                           </Link>
+                          {item.isGift && (
+                            <p className="text-xs text-emerald-600">Article offert</p>
+                          )}
                           <p className="text-xs sm:text-sm text-muted-foreground truncate">
                             {item.variantTitle}
                           </p>
@@ -126,6 +129,7 @@ const CartPage = () => {
                             onClick={() =>
                               updateQuantity(item.variantId, item.quantity - 1)
                             }
+                            disabled={item.isGift}
                           >
                             <Minus className="h-3 w-3" />
                           </Button>
@@ -140,6 +144,7 @@ const CartPage = () => {
                               )
                             }
                             className="w-12 sm:w-14 h-7 sm:h-8 text-center text-sm"
+                            disabled={item.isGift}
                           />
                           <Button
                             variant="outline"
@@ -148,6 +153,7 @@ const CartPage = () => {
                             onClick={() =>
                               updateQuantity(item.variantId, item.quantity + 1)
                             }
+                            disabled={item.isGift}
                           >
                             <Plus className="h-3 w-3" />
                           </Button>
@@ -162,6 +168,7 @@ const CartPage = () => {
                             size="sm"
                             onClick={() => removeItem(item.variantId)}
                             className="text-destructive hover:text-destructive h-7 w-7 sm:h-8 sm:w-8 p-0"
+                            disabled={item.isGift}
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>

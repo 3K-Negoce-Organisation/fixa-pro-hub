@@ -80,8 +80,12 @@ interface ProductFormData {
   stock: number;
   is_active: boolean;
   is_promo: boolean;
+  promo_discount_percent: number;
   promo_price_ht: number;
   promo_end_date: string;
+  promo_gift_product_id: string;
+  promo_gift_quantity: number;
+  promo_label: string;
   tags: string;
   images: ProductImage[];
   // New fields from Excel
@@ -110,8 +114,12 @@ const emptyFormData: ProductFormData = {
   stock: 0,
   is_active: true,
   is_promo: false,
+  promo_discount_percent: 0,
   promo_price_ht: 0,
   promo_end_date: "",
+  promo_gift_product_id: "",
+  promo_gift_quantity: 1,
+  promo_label: "",
   tags: "",
   images: [],
   code_alsafix: "",
@@ -205,9 +213,19 @@ const AdminProductsPage = () => {
     p.code_alsafix?.toLowerCase().includes(searchQuery.toLowerCase())
   ) || [];
 
+  const computePromoPriceHT = (data: ProductFormData): number | null => {
+    if (!data.is_promo) return null;
+    if (data.promo_discount_percent > 0 && data.price_ht > 0) {
+      return Math.round(data.price_ht * (1 - data.promo_discount_percent / 100) * 100) / 100;
+    }
+    if (data.promo_price_ht > 0) return data.promo_price_ht;
+    return null;
+  };
+
   // Create product mutation
   const createMutation = useMutation({
     mutationFn: async (data: ProductFormData) => {
+      const computedPromoPriceHT = computePromoPriceHT(data);
       const { error } = await supabase
         .from('products')
         .insert({
@@ -220,8 +238,12 @@ const AdminProductsPage = () => {
           stock: data.stock,
           is_active: data.is_active,
           is_promo: data.is_promo,
-          promo_price_ht: data.is_promo && data.promo_price_ht > 0 ? data.promo_price_ht : null,
+          promo_discount_percent: data.is_promo && data.promo_discount_percent > 0 ? data.promo_discount_percent : null,
+          promo_price_ht: computedPromoPriceHT,
           promo_end_date: data.is_promo && data.promo_end_date ? new Date(data.promo_end_date).toISOString() : null,
+          promo_gift_product_id: data.is_promo && data.promo_gift_product_id ? data.promo_gift_product_id : null,
+          promo_gift_quantity: data.is_promo && data.promo_gift_product_id ? Math.max(1, data.promo_gift_quantity || 1) : null,
+          promo_label: data.is_promo && data.promo_label.trim() ? data.promo_label.trim() : null,
           tags: data.tags ? data.tags.split(',').map(t => t.trim()) : [],
           images: JSON.parse(JSON.stringify(data.images)),
           code_alsafix: data.code_alsafix || null,
@@ -255,6 +277,7 @@ const AdminProductsPage = () => {
   // Update product mutation
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: ProductFormData }) => {
+      const computedPromoPriceHT = computePromoPriceHT(data);
       const { error } = await supabase
         .from('products')
         .update({
@@ -267,8 +290,12 @@ const AdminProductsPage = () => {
           stock: data.stock,
           is_active: data.is_active,
           is_promo: data.is_promo,
-          promo_price_ht: data.is_promo && data.promo_price_ht > 0 ? data.promo_price_ht : null,
+          promo_discount_percent: data.is_promo && data.promo_discount_percent > 0 ? data.promo_discount_percent : null,
+          promo_price_ht: computedPromoPriceHT,
           promo_end_date: data.is_promo && data.promo_end_date ? new Date(data.promo_end_date).toISOString() : null,
+          promo_gift_product_id: data.is_promo && data.promo_gift_product_id ? data.promo_gift_product_id : null,
+          promo_gift_quantity: data.is_promo && data.promo_gift_product_id ? Math.max(1, data.promo_gift_quantity || 1) : null,
+          promo_label: data.is_promo && data.promo_label.trim() ? data.promo_label.trim() : null,
           tags: data.tags ? data.tags.split(',').map(t => t.trim()) : [],
           images: JSON.parse(JSON.stringify(data.images)),
           code_alsafix: data.code_alsafix || null,
@@ -382,6 +409,7 @@ const AdminProductsPage = () => {
           .from('products')
           .update({ 
             is_promo: true, 
+            promo_discount_percent: discount,
             promo_price_ht: promoPrice 
           })
           .eq('id', product.id);
@@ -475,8 +503,12 @@ const AdminProductsPage = () => {
       stock: product.stock || 0,
       is_active: product.is_active ?? true,
       is_promo: product.is_promo ?? false,
+      promo_discount_percent: (product as any).promo_discount_percent || 0,
       promo_price_ht: product.promo_price_ht || 0,
       promo_end_date: (product as any).promo_end_date ? new Date((product as any).promo_end_date).toISOString().slice(0, 16) : "",
+      promo_gift_product_id: (product as any).promo_gift_product_id || "",
+      promo_gift_quantity: (product as any).promo_gift_quantity || 1,
+      promo_label: (product as any).promo_label || "",
       tags: product.tags?.join(', ') || "",
       images: productImages,
       code_alsafix: product.code_alsafix || "",
@@ -746,10 +778,25 @@ const AdminProductsPage = () => {
                           </TableCell>
                           <TableCell>
                             {product.is_promo ? (
-                              <Badge className="bg-destructive text-destructive-foreground">
-                                <Percent className="h-3 w-3 mr-1" />
-                                {product.promo_price_ht ? formatPrice(product.promo_price_ht) : 'Oui'}
-                              </Badge>
+                              <div className="space-y-1">
+                                {(product as any).promo_discount_percent ? (
+                                  <Badge className="bg-destructive text-destructive-foreground">
+                                    <Percent className="h-3 w-3 mr-1" />-{Math.round((product as any).promo_discount_percent)}%
+                                  </Badge>
+                                ) : product.promo_price_ht ? (
+                                  <Badge className="bg-destructive text-destructive-foreground">
+                                    <Percent className="h-3 w-3 mr-1" />
+                                    {formatPrice(product.promo_price_ht)}
+                                  </Badge>
+                                ) : (
+                                  <Badge className="bg-destructive text-destructive-foreground">Promo</Badge>
+                                )}
+                                {(product as any).promo_gift_product_id && (
+                                  <p className="text-xs text-muted-foreground">
+                                    + {(product as any).promo_gift_quantity || 1} offert
+                                  </p>
+                                )}
+                              </div>
                             ) : (
                               <span className="text-muted-foreground">-</span>
                             )}
@@ -993,9 +1040,21 @@ const AdminProductsPage = () => {
               </div>
               {formData.is_promo && (
                 <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-3 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="promo_price_ht">Prix promo HT (€)</Label>
+                      <Label htmlFor="promo_discount_percent">Réduction (%)</Label>
+                      <Input
+                        id="promo_discount_percent"
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={formData.promo_discount_percent}
+                        onChange={(e) => setFormData({ ...formData, promo_discount_percent: Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)) })}
+                        placeholder="Ex: 15"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="promo_price_ht">Prix promo HT (€) (fallback)</Label>
                       <Input
                         id="promo_price_ht"
                         type="number"
@@ -1003,28 +1062,36 @@ const AdminProductsPage = () => {
                         min="0"
                         value={formData.promo_price_ht}
                         onChange={(e) => setFormData({ ...formData, promo_price_ht: parseFloat(e.target.value) || 0 })}
-                        placeholder="Prix réduit HT"
+                        placeholder="Utilisé si % = 0"
                       />
-                      <p className="text-xs text-muted-foreground">
-                        Prix normal: {formatPrice(formData.price_ht)} HT
-                        {formData.promo_price_ht > 0 && formData.price_ht > 0 && (
-                          <span className="ml-2 text-destructive font-medium">
-                            (-{Math.round(((formData.price_ht - formData.promo_price_ht) / formData.price_ht) * 100)}%)
-                          </span>
-                        )}
-                      </p>
                     </div>
                     <div className="space-y-2">
                       <Label>Prix promo TTC (calculé)</Label>
                       <Input
                         type="text"
-                        value={formatPrice(Math.round(formData.promo_price_ht * 1.2 * 100) / 100)}
+                        value={formatPrice(
+                          Math.round(
+                            ((formData.promo_discount_percent > 0
+                              ? formData.price_ht * (1 - formData.promo_discount_percent / 100)
+                              : formData.promo_price_ht) * 1.2) * 100
+                          ) / 100
+                        )}
                         disabled
                         className="bg-muted"
                       />
                     </div>
                   </div>
+
                   <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="promo_label">Libellé promo</Label>
+                      <Input
+                        id="promo_label"
+                        value={formData.promo_label}
+                        onChange={(e) => setFormData({ ...formData, promo_label: e.target.value })}
+                        placeholder="Ex: Offre printemps"
+                      />
+                    </div>
                     <div className="space-y-2">
                       <Label htmlFor="promo_end_date">Date de fin de promotion</Label>
                       <Input
@@ -1038,6 +1105,53 @@ const AdminProductsPage = () => {
                       </p>
                     </div>
                   </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Article offert (optionnel)</Label>
+                      <UiSelect
+                        value={formData.promo_gift_product_id || "__none__"}
+                        onValueChange={(value) => setFormData({ ...formData, promo_gift_product_id: value === "__none__" ? "" : value })}
+                      >
+                        <UiSelectTrigger>
+                          <UiSelectValue placeholder="Aucun article offert" />
+                        </UiSelectTrigger>
+                        <UiSelectContent>
+                          <UiSelectItem value="__none__">Aucun</UiSelectItem>
+                          {products?.filter((p) => p.id !== editingProduct?.id).map((p) => (
+                            <UiSelectItem key={p.id} value={p.id}>
+                              {p.title}
+                            </UiSelectItem>
+                          ))}
+                        </UiSelectContent>
+                      </UiSelect>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="promo_gift_quantity">Quantité offerte</Label>
+                      <Input
+                        id="promo_gift_quantity"
+                        type="number"
+                        min="1"
+                        value={formData.promo_gift_quantity}
+                        onChange={(e) => setFormData({ ...formData, promo_gift_quantity: Math.max(1, parseInt(e.target.value) || 1) })}
+                        disabled={!formData.promo_gift_product_id}
+                      />
+                    </div>
+                  </div>
+
+                  <p className="text-xs text-muted-foreground">
+                    Prix normal: {formatPrice(formData.price_ht)} HT
+                    {formData.promo_discount_percent > 0 && (
+                      <span className="ml-2 text-destructive font-medium">
+                        (-{Math.round(formData.promo_discount_percent)}%)
+                      </span>
+                    )}
+                    {formData.promo_gift_product_id && (
+                      <span className="ml-2">
+                        + {formData.promo_gift_quantity || 1} article(s) offert(s)
+                      </span>
+                    )}
+                  </p>
                 </div>
               )}
             </div>

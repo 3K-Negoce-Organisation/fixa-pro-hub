@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { ShoppingCart, Heart, ChevronRight, Truck, Shield, RotateCcw, Loader2, Circle, Ruler, Wrench, Scale, Layers, Target, Settings2, Box } from "lucide-react";
+import { ShoppingCart, Heart, ChevronRight, Truck, Shield, RotateCcw, Loader2, Circle, Ruler, Wrench, Scale, Layers, Target, Settings2, Box, SlidersHorizontal } from "lucide-react";
 import TorxIcon from "@/components/icons/TorxIcon";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -127,6 +127,8 @@ const ProductDetailPage = () => {
         variantTitle: currentVariant.title,
         priceHT: currentVariant.price_ht,
         image: productImage,
+        promoGiftProductId: (product as any).promo_gift_product_id || undefined,
+        promoGiftQuantity: (product as any).promo_gift_quantity || undefined,
       },
       quantity
     );
@@ -153,23 +155,30 @@ const ProductDetailPage = () => {
 
   const tags = product.tags || [];
 
-  // Build technical specifications with icons
+  // Ordre aligné avec l’admin (CHARACTERISTIC_DEFINITIONS) : pictos sous l’image
   const technicalSpecs: { icon: React.ReactNode; value: string; label: string }[] = [];
+  if (product.box_weight)
+    technicalSpecs.push({ icon: getCharacteristicIcon("box_weight", <Scale className="h-4 w-4" />), value: `${product.box_weight}`, label: "kg" });
   if (product.diameter_mm) technicalSpecs.push({ icon: getCharacteristicIcon("diameter_mm", <Circle className="h-4 w-4" />), value: `Ø${product.diameter_mm}`, label: "mm" });
   if (product.length_mm) technicalSpecs.push({ icon: getCharacteristicIcon("length_mm", <Ruler className="h-4 w-4" />), value: `${product.length_mm}`, label: "mm" });
+  if (product.usage) technicalSpecs.push({ icon: getCharacteristicIcon("usage", <Box className="h-4 w-4" />), value: product.usage, label: "" });
   if (product.material) technicalSpecs.push({ icon: getCharacteristicIcon("material", <Layers className="h-4 w-4" />), value: product.material, label: "" });
   if (product.drive_type) {
     const isTorx = product.drive_type.toLowerCase().startsWith('tx') || product.drive_type.toLowerCase().includes('torx');
-    technicalSpecs.push({ 
-      icon: getCharacteristicIcon("drive_type", isTorx ? <TorxIcon className="h-4 w-4" /> : <Settings2 className="h-4 w-4" />), 
-      value: product.drive_type, 
-      label: "" 
+    technicalSpecs.push({
+      icon: getCharacteristicIcon("drive_type", isTorx ? <TorxIcon className="h-4 w-4" /> : <Settings2 className="h-4 w-4" />),
+      value: product.drive_type,
+      label: "",
     });
   }
-  if (product.head_diameter_mm) technicalSpecs.push({ icon: getCharacteristicIcon("head_diameter_mm", <Target className="h-4 w-4" />), value: `Ø${product.head_diameter_mm}`, label: "tête" });
+  if (product.thickness_to_fix_mm)
+    technicalSpecs.push({
+      icon: getCharacteristicIcon("thickness_to_fix_mm", <SlidersHorizontal className="h-4 w-4" />),
+      value: `${product.thickness_to_fix_mm}`,
+      label: "mm",
+    });
   if (product.thread_length_mm) technicalSpecs.push({ icon: getCharacteristicIcon("thread_length_mm", <Wrench className="h-4 w-4" />), value: `${product.thread_length_mm}`, label: "filet" });
-  if (product.box_weight) technicalSpecs.push({ icon: getCharacteristicIcon("box_weight", <Scale className="h-4 w-4" />), value: `${product.box_weight}`, label: "kg" });
-  if (product.usage) technicalSpecs.push({ icon: getCharacteristicIcon("usage", <Box className="h-4 w-4" />), value: product.usage, label: "" });
+  if (product.head_diameter_mm) technicalSpecs.push({ icon: getCharacteristicIcon("head_diameter_mm", <Target className="h-4 w-4" />), value: `Ø${product.head_diameter_mm}`, label: "tête" });
 
   return (
     <PageBackground>
