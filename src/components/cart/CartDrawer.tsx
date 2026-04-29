@@ -83,13 +83,16 @@ export function CartDrawer() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <h4 className="text-sm font-medium truncate">{item.title}</h4>
+                      {item.isGift && (
+                        <p className="text-[11px] text-emerald-600">Article offert</p>
+                      )}
                       {item.variantTitle && (
                         <p className="text-xs text-muted-foreground truncate">
                           {item.variantTitle}
                         </p>
                       )}
                       <p className="text-sm font-semibold text-primary mt-1">
-                        {item.priceHT.toFixed(2)} € HT
+                        {item.isGift ? "Offert" : `${item.priceHT.toFixed(2)} € HT`}
                       </p>
                       
                       {/* Quantity controls */}
@@ -98,6 +101,7 @@ export function CartDrawer() {
                           onClick={() => removeItem(item.variantId)}
                           className="p-1 text-muted-foreground hover:text-destructive transition-colors"
                           title="Supprimer"
+                          disabled={item.isGift}
                         >
                           <Trash2 className="h-4 w-4" />
                         </button>
@@ -105,6 +109,7 @@ export function CartDrawer() {
                           <button
                             onClick={() => updateQuantity(item.variantId, item.quantity - 1)}
                             className="p-1 hover:bg-muted transition-colors"
+                            disabled={item.isGift}
                           >
                             <Minus className="h-3 w-3" />
                           </button>
@@ -114,6 +119,7 @@ export function CartDrawer() {
                           <button
                             onClick={() => updateQuantity(item.variantId, item.quantity + 1)}
                             className="p-1 hover:bg-muted transition-colors"
+                            disabled={item.isGift}
                           >
                             <Plus className="h-3 w-3" />
                           </button>

@@ -21,6 +21,8 @@ export function ProductGrid({ products, isLoading }: ProductGridProps) {
         variantTitle: "Default",
         priceHT: product.priceHT,
         image: product.image,
+        promoGiftProductId: product.promoGiftProductId || undefined,
+        promoGiftQuantity: product.promoGiftQuantity || undefined,
       });
       toast.success("Produit ajouté au panier", {
         description: product.title,

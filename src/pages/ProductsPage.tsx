@@ -132,12 +132,19 @@ const ProductsPage = () => {
       // Check if promo is valid (not expired)
       const promoEndDate = (product as any).promo_end_date ? new Date((product as any).promo_end_date) : null;
       const isPromoExpired = promoEndDate ? promoEndDate < now : false;
+      const promoDiscountPercent = (product as any).promo_discount_percent as number | null;
+      const computedPromoPriceHT =
+        promoDiscountPercent && promoDiscountPercent > 0
+          ? Math.round(product.price_ht * (1 - promoDiscountPercent / 100) * 100) / 100
+          : null;
       
       // Use promo price if available and not expired
-      const isPromo = !!(product.is_promo && product.promo_price_ht && !isPromoExpired);
-      const displayPriceHT = isPromo ? product.promo_price_ht! : product.price_ht;
+      const hasPromoPrice = !!(computedPromoPriceHT || product.promo_price_ht);
+      const hasPromoGift = !!(product as any).promo_gift_product_id;
+      const isPromo = !!(product.is_promo && (hasPromoPrice || hasPromoGift) && !isPromoExpired);
+      const displayPriceHT = isPromo ? (computedPromoPriceHT ?? product.promo_price_ht ?? product.price_ht) : product.price_ht;
       const displayPriceTTC = isPromo 
-        ? Math.round(product.promo_price_ht! * 1.2 * 100) / 100 
+        ? Math.round(displayPriceHT * 1.2 * 100) / 100
         : product.price_ttc;
 
       return {
@@ -160,6 +167,10 @@ const ProductsPage = () => {
         inStock: (product.stock ?? 0) > 0,
         isPromo: isPromo,
         promoEndDate: isPromo && promoEndDate ? promoEndDate.toISOString() : null,
+        promoDiscountPercent: isPromo ? (promoDiscountPercent ?? null) : null,
+        promoGiftProductId: isPromo ? ((product as any).promo_gift_product_id ?? null) : null,
+        promoGiftQuantity: isPromo ? ((product as any).promo_gift_quantity ?? null) : null,
+        promoLabel: isPromo ? ((product as any).promo_label ?? null) : null,
       };
     });
   }, [products]);

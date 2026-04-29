@@ -11,6 +11,10 @@ export interface CartItem {
   priceHT: number;
   image: string;
   quantity: number;
+  isGift?: boolean;
+  giftFromProductId?: string | null;
+  promoGiftProductId?: string;
+  promoGiftQuantity?: number;
 }
 
 interface CartContextType {
@@ -53,6 +57,62 @@ export function CartProvider({ children }: { children: ReactNode }) {
       items: stored ? JSON.parse(stored) : [],
       removedItems: storedRemoved ? JSON.parse(storedRemoved) : [],
     };
+  }, []);
+
+  const adjustGiftQuantity = useCallback((giftProductId: string, deltaQty: number) => {
+    if (!giftProductId || deltaQty === 0) return;
+    setItems((prev) => {
+      const existingGift = prev.find((i) => i.isGift && i.id === giftProductId);
+      if (!existingGift) return prev;
+      const nextQty = existingGift.quantity + deltaQty;
+      if (nextQty <= 0) {
+        return prev.filter((i) => !(i.isGift && i.id === giftProductId));
+      }
+      return prev.map((i) =>
+        i.isGift && i.id === giftProductId ? { ...i, quantity: nextQty } : i,
+      );
+    });
+  }, []);
+
+  const ensureGiftItem = useCallback(async (giftProductId: string, quantity: number) => {
+    if (!giftProductId || quantity <= 0) return;
+    const { data, error } = await supabase
+      .from("products")
+      .select("id, handle, title, images")
+      .eq("id", giftProductId)
+      .maybeSingle();
+    if (error || !data) return;
+
+    const firstImage =
+      Array.isArray(data.images) && data.images.length > 0
+        ? typeof data.images[0] === "string"
+          ? data.images[0]
+          : (data.images[0] as { url?: string }).url || "/placeholder.svg"
+        : "/placeholder.svg";
+
+    setItems((prev) => {
+      const existingGift = prev.find((i) => i.isGift && i.id === giftProductId);
+      if (existingGift) {
+        return prev.map((i) =>
+          i.isGift && i.id === giftProductId ? { ...i, quantity: i.quantity + quantity } : i,
+        );
+      }
+      return [
+        ...prev,
+        {
+          id: giftProductId,
+          variantId: `gift:${giftProductId}`,
+          handle: data.handle,
+          title: data.title,
+          variantTitle: "Article offert",
+          priceHT: 0,
+          image: firstImage,
+          quantity,
+          isGift: true,
+          giftFromProductId: null,
+        },
+      ];
+    });
   }, []);
 
   // Save cart to Supabase for authenticated users
@@ -276,10 +336,23 @@ export function CartProvider({ children }: { children: ReactNode }) {
       }
       return [...prev, { ...item, quantity }];
     });
+
+    if (!item.isGift && item.promoGiftProductId && item.promoGiftQuantity) {
+      const giftDelta = Math.max(1, item.promoGiftQuantity) * quantity;
+      const hasGiftAlready = items.some((i) => i.isGift && i.id === item.promoGiftProductId);
+      if (hasGiftAlready) {
+        adjustGiftQuantity(item.promoGiftProductId, giftDelta);
+      } else {
+        void ensureGiftItem(item.promoGiftProductId, giftDelta);
+      }
+    }
   };
 
   const removeItem = (variantId: string) => {
     const itemToRemove = items.find((i) => i.variantId === variantId);
+    if (itemToRemove?.isGift) {
+      return;
+    }
     if (itemToRemove) {
       setRemovedItems((prev) => {
         // Don't add duplicates
@@ -288,6 +361,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
         }
         return [...prev, itemToRemove];
       });
+      if (itemToRemove.promoGiftProductId && itemToRemove.promoGiftQuantity) {
+        adjustGiftQuantity(
+          itemToRemove.promoGiftProductId,
+          -Math.max(1, itemToRemove.promoGiftQuantity) * itemToRemove.quantity,
+        );
+      }
     }
     setItems((prev) => prev.filter((i) => i.variantId !== variantId));
   };
@@ -306,9 +385,20 @@ export function CartProvider({ children }: { children: ReactNode }) {
   };
 
   const updateQuantity = (variantId: string, quantity: number) => {
+    const currentItem = items.find((i) => i.variantId === variantId);
+    if (currentItem?.isGift) return;
     if (quantity <= 0) {
       removeItem(variantId);
       return;
+    }
+    if (currentItem?.promoGiftProductId && currentItem.promoGiftQuantity) {
+      const delta = quantity - currentItem.quantity;
+      if (delta !== 0) {
+        adjustGiftQuantity(
+          currentItem.promoGiftProductId,
+          delta * Math.max(1, currentItem.promoGiftQuantity),
+        );
+      }
     }
     setItems((prev) =>
       prev.map((i) => (i.variantId === variantId ? { ...i, quantity } : i))

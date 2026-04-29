@@ -23,6 +23,13 @@ export interface DisplayProduct {
   inStock: boolean;
   isPromo?: boolean;
   promoEndDate?: string | null;
+  promoDiscountPercent?: number | null;
+  promoGiftProductId?: string | null;
+  promoGiftQuantity?: number | null;
+  promoLabel?: string | null;
+  promoGiftTitle?: string | null;
+  promoGiftHandle?: string | null;
+  promoGiftImage?: string | null;
 }
 
 // Helper to calculate discount percentage
@@ -42,7 +49,9 @@ export function ProductCard({ product, onAddToCart }: ProductCardProps) {
     onAddToCart?.(product.id);
   };
 
-  const discountPercent = product.isPromo && product.originalPriceTTC 
+  const discountPercent = product.promoDiscountPercent
+    ? Math.round(product.promoDiscountPercent)
+    : product.isPromo && product.originalPriceTTC
     ? calculateDiscountPercent(product.originalPriceTTC, product.priceTTC)
     : 0;
 
@@ -50,10 +59,19 @@ export function ProductCard({ product, onAddToCart }: ProductCardProps) {
     <div className="product-card group flex flex-col h-full">
       {/* Image */}
       <div className="relative block w-32 h-32 mx-auto bg-white p-2 rounded-lg">
-        {product.isPromo && discountPercent > 0 && (
-          <Badge className="absolute top-1 right-1 z-10 bg-destructive text-destructive-foreground text-[10px]">
-            -{discountPercent}%
-          </Badge>
+        {product.isPromo && (
+          <div className="absolute top-1 right-1 z-10 flex flex-col items-end gap-1">
+            {discountPercent > 0 && (
+              <Badge className="bg-destructive text-destructive-foreground text-[10px]">
+                -{discountPercent}%
+              </Badge>
+            )}
+            {product.promoGiftProductId && (
+              <Badge variant="secondary" className="text-[10px]">
+                +{product.promoGiftQuantity || 1} offert
+              </Badge>
+            )}
+          </div>
         )}
         <Link to={`/produit/${product.handle}`}>
           <img
@@ -140,6 +158,14 @@ export function ProductCard({ product, onAddToCart }: ProductCardProps) {
               <span className="ml-1 line-through">{formatPriceHT(product.originalPriceHT)}</span>
             )}
           </p>
+          {product.promoGiftProductId && (
+            <p className="text-xs text-emerald-600 mt-1">
+              + {product.promoGiftQuantity || 1} offert{product.promoGiftTitle ? `: ${product.promoGiftTitle}` : ""}
+            </p>
+          )}
+          {product.promoLabel && (
+            <p className="text-xs text-muted-foreground mt-1">{product.promoLabel}</p>
+          )}
         </div>
 
         {/* Add to cart */}
