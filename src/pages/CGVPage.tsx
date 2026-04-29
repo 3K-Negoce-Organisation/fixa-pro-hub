@@ -2,6 +2,7 @@ import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { PageBackground } from "@/components/layout/PageBackground";
 import { Link } from "react-router-dom";
+import { FREE_SHIPPING_THRESHOLD_TTC, SHIPPING_FEE_TTC } from "@/lib/shipping";
 
 const CGVPage = () => {
   return (
@@ -57,7 +58,7 @@ const CGVPage = () => {
               Le Vendeur se réserve le droit de modifier ses prix à tout moment, étant entendu que le prix figurant sur le site le jour de la commande sera le seul applicable au Client.
             </p>
             <p className="text-muted-foreground mt-2">
-              <strong>Livraison offerte</strong> : La livraison est offerte pour toute commande d'un montant supérieur ou égal à 125€ HT (hors promotions spécifiques).
+              <strong>Livraison offerte</strong> : La livraison est offerte lorsque le montant des produits TTC atteint au moins {FREE_SHIPPING_THRESHOLD_TTC} € TTC. En dessous, des frais de livraison forfaitaires de {SHIPPING_FEE_TTC} € TTC sont facturés (hors promotions spécifiques).
             </p>
           </section>
 

@@ -8,13 +8,18 @@ import { PageBackground } from "@/components/layout/PageBackground";
 import { Footer } from "@/components/layout/Footer";
 import { useCart } from "@/contexts/CartContext";
 import { formatPriceHT, formatPrice, calculateTTC } from "@/lib/products";
+import {
+  FREE_SHIPPING_THRESHOLD_TTC,
+  orderGrandTotals,
+} from "@/lib/shipping";
 import { StripePaymentForm } from "@/components/checkout/StripePaymentForm";
 
 const CartPage = () => {
   const { items, removedItems, removeItem, restoreItem, clearRemovedItems, updateQuantity, clearCart, totalHT } = useCart();
   const [showPaymentForm, setShowPaymentForm] = useState(false);
 
-  const totalTTC = calculateTTC(totalHT);
+  const { subtotalTTC, shippingTTC, grandTotalTTC, grandTotalHT } = orderGrandTotals(totalHT);
+  const totalVatAmount = grandTotalTTC - grandTotalHT;
 
   const handleCheckout = () => {
     setShowPaymentForm(true);
@@ -251,13 +256,14 @@ const CartPage = () => {
                       <div className="flex justify-between items-baseline">
                         <span className="text-muted-foreground">Total à payer</span>
                         <span className="text-xl font-bold text-primary">
-                          {formatPrice(totalTTC)}
+                          {formatPrice(grandTotalTTC)}
                         </span>
                       </div>
                     </div>
                     <StripePaymentForm
                       items={items}
-                      totalTTC={totalTTC}
+                      totalTTC={grandTotalTTC}
+                      totalHT={grandTotalHT}
                       onSuccess={handlePaymentSuccess}
                       onCancel={handlePaymentCancel}
                     />
@@ -269,17 +275,17 @@ const CartPage = () => {
                     <div className="space-y-2 text-sm">
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Sous-total TTC</span>
-                        <span className="font-medium">{formatPrice(totalTTC)}</span>
+                        <span className="font-medium">{formatPrice(subtotalTTC)}</span>
+                      </div>
+                      <div className="flex justify-between text-muted-foreground">
+                        <span>Frais de livraison</span>
+                        <span>
+                          {shippingTTC === 0 ? "Gratuite" : formatPrice(shippingTTC)}
+                        </span>
                       </div>
                       <div className="flex justify-between text-muted-foreground">
                         <span>dont TVA (20%)</span>
-                        <span>{formatPriceHT(totalHT * 0.2)}</span>
-                      </div>
-                      <div className="flex justify-between text-muted-foreground">
-                        <span>Livraison</span>
-                        <span>
-                          {totalTTC >= 180 ? "Gratuite" : "Calculée à l'étape suivante"}
-                        </span>
+                        <span>{formatPriceHT(totalVatAmount)}</span>
                       </div>
                     </div>
 
@@ -287,17 +293,17 @@ const CartPage = () => {
                       <div className="flex justify-between items-baseline">
                         <span className="font-bold">Total TTC</span>
                         <span className="text-xl font-bold text-primary">
-                          {formatPrice(totalTTC)}
+                          {formatPrice(grandTotalTTC)}
                         </span>
                       </div>
                       <p className="text-xs text-muted-foreground text-right">
-                        {formatPriceHT(totalHT)} HT
+                        {formatPriceHT(grandTotalHT)} HT
                       </p>
                     </div>
 
-                    {totalTTC < 180 && (
+                    {subtotalTTC < FREE_SHIPPING_THRESHOLD_TTC && (
                       <p className="text-xs text-muted-foreground text-center">
-                        Plus que {formatPrice(180 - totalTTC)} pour la livraison
+                        Plus que {formatPrice(FREE_SHIPPING_THRESHOLD_TTC - subtotalTTC)} pour la livraison
                         gratuite !
                       </p>
                     )}

@@ -532,17 +532,17 @@ const CheckoutForm = ({ totalTTC, userEmail, isGuest, onSuccess, onCancel, items
 
 interface StripePaymentFormProps {
   items: CartItem[];
+  /** Total TTC à encaisser (produits + frais de port le cas échéant) */
   totalTTC: number;
-  totalHT?: number;
+  /** Total HT commande (produits + port HT si frais appliqués) */
+  totalHT: number;
   onSuccess: () => void;
   onCancel: () => void;
 }
 
 const LOADING_TIMEOUT_MS = 20000; // 20 seconds timeout
 
-export const StripePaymentForm = ({ items, totalTTC, onSuccess, onCancel }: StripePaymentFormProps) => {
-  // Calculate totalHT from items
-  const totalHT = items.reduce((sum, item) => sum + (item.priceHT * item.quantity), 0);
+export const StripePaymentForm = ({ items, totalTTC, totalHT, onSuccess, onCancel }: StripePaymentFormProps) => {
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string>("");
   const [guestGateEmail, setGuestGateEmail] = useState("");
