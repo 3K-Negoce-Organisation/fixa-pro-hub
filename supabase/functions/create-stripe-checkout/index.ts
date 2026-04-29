@@ -88,11 +88,17 @@ serve(async (req) => {
       }
     }
 
-    // Calculate totals
     const TVA_RATE = 0.20;
-    const totalHT = items.reduce((sum, item) => sum + (item.priceHT * item.quantity), 0);
-    const totalTTC = totalHT * (1 + TVA_RATE);
-    logStep("Calculated totals", { totalHT, totalTTC });
+    const FREE_SHIPPING_THRESHOLD_TTC = 150;
+    const SHIPPING_FEE_TTC = 12;
+
+    const productsHT = items.reduce((sum, item) => sum + (item.priceHT * item.quantity), 0);
+    const subtotalTTC = productsHT * (1 + TVA_RATE);
+    const shippingTTC = subtotalTTC >= FREE_SHIPPING_THRESHOLD_TTC ? 0 : SHIPPING_FEE_TTC;
+    const shippingHT = shippingTTC > 0 ? SHIPPING_FEE_TTC / (1 + TVA_RATE) : 0;
+    const totalHT = productsHT + shippingHT;
+    const totalTTC = subtotalTTC + shippingTTC;
+    logStep("Calculated totals", { productsHT, subtotalTTC, shippingTTC, totalHT, totalTTC });
 
     // Initialize Stripe
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
@@ -129,6 +135,18 @@ serve(async (req) => {
         quantity: item.quantity,
       };
     });
+    if (shippingTTC > 0) {
+      lineItems.push({
+        price_data: {
+          currency: 'eur',
+          product_data: {
+            name: 'Frais de livraison',
+          },
+          unit_amount: Math.round(SHIPPING_FEE_TTC * 100),
+        },
+        quantity: 1,
+      });
+    }
     logStep("Built line items", { count: lineItems.length });
 
     // Create Stripe Checkout session
@@ -148,6 +166,7 @@ serve(async (req) => {
       },
       metadata: {
         user_id: userId || "",
+        shipping_fee_ttc: shippingTTC.toFixed(2),
         total_ht: totalHT.toFixed(2),
         total_ttc: totalTTC.toFixed(2),
         items_json: JSON.stringify(items.map(i => ({

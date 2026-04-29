@@ -2,6 +2,7 @@ import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { PageBackground } from "@/components/layout/PageBackground";
 import { Link } from "react-router-dom";
+import { FREE_SHIPPING_THRESHOLD_TTC, SHIPPING_FEE_TTC } from "@/lib/shipping";
 
 const LivraisonPage = () => {
   return (
@@ -24,10 +25,11 @@ const LivraisonPage = () => {
           <section>
             <h2 className="text-xl font-semibold text-foreground mb-4">2. Frais de livraison</h2>
             <p className="text-muted-foreground">
-              <strong>Livraison offerte</strong> pour toute commande d'un montant supérieur ou égal à <strong>125€ HT</strong>.
+              <strong>Livraison offerte</strong> pour toute commande dont le montant produits TTC est supérieur ou égal à{' '}
+              <strong>{FREE_SHIPPING_THRESHOLD_TTC} € TTC</strong>.
             </p>
             <p className="text-muted-foreground mt-2">
-              Pour les commandes inférieures à ce montant, les frais de livraison sont calculés en fonction du poids et du volume de votre commande. Le montant exact vous est indiqué avant la validation de votre commande.
+              En dessous de ce montant, des frais de livraison forfaitaires de <strong>{SHIPPING_FEE_TTC} € TTC</strong> sont ajoutés au panier avant le paiement.
             </p>
             <div className="overflow-x-auto mt-4">
               <table className="w-full border-collapse border border-border">
@@ -39,11 +41,11 @@ const LivraisonPage = () => {
                 </thead>
                 <tbody className="text-muted-foreground">
                   <tr>
-                    <td className="border border-border p-3">Moins de 125€ HT</td>
-                    <td className="border border-border p-3">Selon poids et volume</td>
+                    <td className="border border-border p-3">Moins de {FREE_SHIPPING_THRESHOLD_TTC} € TTC (produits)</td>
+                    <td className="border border-border p-3">{SHIPPING_FEE_TTC} € TTC</td>
                   </tr>
                   <tr>
-                    <td className="border border-border p-3">125€ HT et plus</td>
+                    <td className="border border-border p-3">{FREE_SHIPPING_THRESHOLD_TTC} € TTC (produits) et plus</td>
                     <td className="border border-border p-3">Gratuit</td>
                   </tr>
                 </tbody>

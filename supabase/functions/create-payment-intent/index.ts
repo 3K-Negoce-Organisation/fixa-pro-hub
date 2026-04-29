@@ -104,12 +104,19 @@ serve(async (req) => {
       }
     }
 
-    // Calculate totals
+    // Totaux : sous-total produits TTC, puis frais de port 12 EUR TTC si sous-total < 150 EUR TTC
     const TVA_RATE = 0.20;
-    const totalHT = items.reduce((sum, item) => sum + (item.priceHT * item.quantity), 0);
-    const totalTTC = totalHT * (1 + TVA_RATE);
+    const FREE_SHIPPING_THRESHOLD_TTC = 150;
+    const SHIPPING_FEE_TTC = 12;
+
+    const productsHT = items.reduce((sum, item) => sum + (item.priceHT * item.quantity), 0);
+    const subtotalTTC = productsHT * (1 + TVA_RATE);
+    const shippingTTC = subtotalTTC >= FREE_SHIPPING_THRESHOLD_TTC ? 0 : SHIPPING_FEE_TTC;
+    const shippingHT = shippingTTC > 0 ? SHIPPING_FEE_TTC / (1 + TVA_RATE) : 0;
+    const totalHT = productsHT + shippingHT;
+    const totalTTC = subtotalTTC + shippingTTC;
     const amountInCents = Math.round(totalTTC * 100);
-    logStep("Calculated totals", { totalHT, totalTTC, amountInCents });
+    logStep("Calculated totals", { productsHT, subtotalTTC, shippingTTC, totalHT, totalTTC, amountInCents });
 
     // Initialize Stripe
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
@@ -146,6 +153,7 @@ serve(async (req) => {
         user_id: userId || "guest",
         user_email: emailToUse || "",
         is_guest: (!userId).toString(),
+        shipping_fee_ttc: shippingTTC.toFixed(2),
         total_ht: totalHT.toFixed(2),
         total_ttc: totalTTC.toFixed(2),
         // Store only essential item data (id, quantity, price) to stay under 500 char limit
