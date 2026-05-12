@@ -19,14 +19,14 @@ const CGVPage = () => {
               Les présentes Conditions Générales de Vente (CGV) régissent les relations contractuelles entre :
             </p>
             <p className="text-muted-foreground mt-2">
-              <strong>Luceka</strong> (exploitant la marque Vis à Bois)<br />
+              <strong>3K-Négoce</strong><br />
               Société par actions simplifiée (SAS)<br />
-              Capital social : 2 000 euros<br />
-              SIREN : 818 228 637<br />
-              TVA intracommunautaire : FR43818228637<br />
-              Siège social : 345 chemin de l'Espero, 13090 Aix-en-Provence<br />
-              Email : contact@vis-a-bois.fr<br />
-              Téléphone : 06 17 91 20 29
+              Capital social : 90,00 euros<br />
+              SIREN : 102 662 483<br />
+              TVA intracommunautaire : FR45102662483<br />
+              Siège social : 47 rue Vivienne, 75002 Paris<br />
+              Email : admin@3k-negoce.com<br />
+              Téléphone : 06 08 75 28 82
             </p>
             <p className="text-muted-foreground mt-2">
               Ci-après dénommée "le Vendeur", et toute personne physique ou morale passant commande sur le site vis-a-bois.fr, ci-après dénommée "le Client".
@@ -107,7 +107,7 @@ const CGVPage = () => {
               Conformément à l'article L.221-18 du Code de la consommation, le Client dispose d'un délai de <strong>14 jours</strong> à compter de la réception des produits pour exercer son droit de rétractation, sans avoir à justifier de motifs ni à payer de pénalités.
             </p>
             <p className="text-muted-foreground mt-2">
-              Pour exercer ce droit, le Client doit notifier sa décision de rétractation au Vendeur par email à contact@vis-a-bois.fr ou par courrier à l'adresse du siège social, en indiquant clairement son intention de se rétracter.
+              Pour exercer ce droit, le Client doit notifier sa décision de rétractation au Vendeur par email à admin@3k-negoce.com ou par courrier à l'adresse du siège social, en indiquant clairement son intention de se rétracter.
             </p>
             <p className="text-muted-foreground mt-2">
               Les frais de retour sont à la charge du Client. Les produits doivent être retournés dans leur état et emballage d'origine, non utilisés et non endommagés.
@@ -156,7 +156,7 @@ const CGVPage = () => {
               Les données personnelles collectées lors de la commande sont nécessaires au traitement de celle-ci et sont traitées conformément au Règlement Général sur la Protection des Données (RGPD).
             </p>
             <p className="text-muted-foreground mt-2">
-              Le Client dispose d'un droit d'accès, de rectification, de suppression et de portabilité de ses données. Pour exercer ces droits ou pour toute question relative au traitement des données, le Client peut contacter le Vendeur à contact@vis-a-bois.fr.
+              Le Client dispose d'un droit d'accès, de rectification, de suppression et de portabilité de ses données. Pour exercer ces droits ou pour toute question relative au traitement des données, le Client peut contacter le Vendeur à admin@3k-negoce.com.
             </p>
             <p className="text-muted-foreground mt-2">
               Pour plus d'informations, consultez notre <Link to="/politique-confidentialite" className="text-primary hover:underline">Politique de confidentialité</Link>.

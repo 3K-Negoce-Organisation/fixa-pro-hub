@@ -14,15 +14,15 @@ const MentionsLegalesPage = () => {
             <h2 className="text-xl font-semibold text-foreground mb-4">1. Éditeur du site</h2>
             <p className="text-muted-foreground">
               Le site vis-a-bois.fr est édité par :<br />
-              <strong>Luceka</strong> (exploitant la marque Vis à Bois)<br />
+              <strong>3K-Négoce</strong><br />
               Société par actions simplifiée (SAS)<br />
-              Capital social : 2 000 euros<br />
-              SIREN : 818 228 637<br />
-              TVA intracommunautaire : FR43818228637<br />
-              Siège social : 345 chemin de l'Espero, 13090 Aix-en-Provence<br />
-              Inscrite au greffe d'Aix-en-Provence le 04/02/2016<br />
-              Téléphone : 06 17 91 20 29<br />
-              Email : contact@vis-a-bois.fr
+              Capital social : 90,00 euros<br />
+              SIREN : 102 662 483<br />
+              TVA intracommunautaire : FR45102662483<br />
+              Siège social : 47 rue Vivienne, 75002 Paris<br />
+              Immatriculée au Registre du Commerce et des Sociétés de Paris<br />
+              Téléphone : 06 08 75 28 82<br />
+              Email : admin@3k-negoce.com
             </p>
           </section>
 
@@ -43,8 +43,8 @@ const MentionsLegalesPage = () => {
             </p>
             <p className="text-muted-foreground mt-4">
               <strong>Hébergement du contenu :</strong><br />
-              Luceka<br />
-              345 chemin de l'Espero, 13090 Aix-en-Provence
+              3K-Négoce<br />
+              47 rue Vivienne, 75002 Paris
             </p>
           </section>
 
