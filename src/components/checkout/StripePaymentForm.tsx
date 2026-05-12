@@ -257,15 +257,29 @@ const CheckoutForm = ({ totalTTC, userEmail, isGuest, onSuccess, onCancel, items
       setIsProcessing(false);
     } else if (paymentIntent && paymentIntent.status === "succeeded") {
       console.log("[STRIPE] Payment succeeded:", paymentIntent.id);
-      // Create order in database with shipping address
       try {
         const { data: { user } } = await supabase.auth.getUser();
-        
-        // Use user ID if logged in, otherwise generate guest ID
-        const userId = user?.id || generateGuestId();
+
+        // Check if the Stripe webhook already created the order (race condition)
+        const { data: existingOrder } = await supabase
+          .from('orders')
+          .select('id, order_number')
+          .ilike('notes', `%${paymentIntent.id}%`)
+          .maybeSingle();
+
+        if (existingOrder) {
+          console.log("[STRIPE] Order already created by webhook:", existingOrder.order_number);
+          clearCart();
+          onSuccess();
+          navigate(`/confirmation?order_number=${existingOrder.order_number}`);
+          return;
+        }
+
+        // Webhook hasn't fired yet or failed — create order as fallback
+        // null for guests (user_id is nullable since migration 20260512000000)
+        const userId = user?.id ?? null;
         const orderNumber = generateOrderNumber();
-        
-        // Create order
+
         const { data: order, error: orderError } = await supabase
           .from('orders')
           .insert({
@@ -286,7 +300,6 @@ const CheckoutForm = ({ totalTTC, userEmail, isGuest, onSuccess, onCancel, items
 
         if (orderError) throw orderError;
 
-        // Create order items
         const orderItems = items.map(item => ({
           order_id: order.id,
           product_id: item.id,
