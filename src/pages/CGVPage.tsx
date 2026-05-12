@@ -172,7 +172,7 @@ const CGVPage = () => {
               <strong>Médiation</strong> : Conformément aux articles L.612-1 et suivants du Code de la consommation, le Client peut recourir gratuitement au service de médiation proposé par le Vendeur. Le médiateur peut être saisi à l'adresse suivante : [médiateur à désigner].
             </p>
             <p className="text-muted-foreground mt-2">
-              À défaut de résolution amiable, les tribunaux compétents seront ceux du ressort de la Cour d'appel d'Aix-en-Provence.
+              À défaut de résolution amiable, les tribunaux compétents seront ceux du ressort de la Cour d'appel de Paris.
             </p>
           </section>
         </div>
