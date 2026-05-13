@@ -6,23 +6,38 @@ function trimEnv(value: unknown): string {
 }
 
 /**
+ * Repli sur `VITE_STRIPE_PUBLISHABLE_KEY` uniquement en **développement local**.
+ * Sur **staging / production**, ne pas réutiliser une seule clé pour les deux modes : sinon le passage en « live »
+ * charge encore un `pk_test` et le switch semble inopérant.
+ */
+const allowGenericPublishableKeyFallback = isDevelopment;
+
+function enforcePublishablePrefix(mode: "live" | "test", key: string): string {
+  if (!key) return "";
+  if (isDevelopment) return key;
+  const okLive = key.startsWith("pk_live_");
+  const okTest = key.startsWith("pk_test_");
+  if (mode === "live" && !okLive) return "";
+  if (mode === "test" && !okTest) return "";
+  return key;
+}
+
+/**
  * Clé publique pour Stripe.js selon le mode site (aligné sur `sites.stripe_mode`).
- * - test → VITE_STRIPE_PUBLISHABLE_KEY_TEST puis VITE_STRIPE_PUBLISHABLE_KEY
- * - live → VITE_STRIPE_PUBLISHABLE_KEY_LIVE puis VITE_STRIPE_PUBLISHABLE_KEY
- * En développement local uniquement : repli sur VITE_STRIPE_PUBLISHABLE_KEY si les variables spécifiques manquent (aucune clé codée en dur en staging/production).
+ * - test → VITE_STRIPE_PUBLISHABLE_KEY_TEST puis (dev seulement) VITE_STRIPE_PUBLISHABLE_KEY
+ * - live → VITE_STRIPE_PUBLISHABLE_KEY_LIVE puis (dev seulement) VITE_STRIPE_PUBLISHABLE_KEY
+ * Hors dev : la clé doit commencer par `pk_live_` ou `pk_test_` selon le mode.
  */
 export function resolvePublishableKey(mode: "live" | "test"): string {
   const generic = trimEnv(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
   if (mode === "test") {
     const test = trimEnv(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY_TEST);
-    if (test) return test;
-    if (isDevelopment && generic) return generic;
-    return "";
+    const raw = test || (allowGenericPublishableKeyFallback && generic ? generic : "");
+    return enforcePublishablePrefix("test", raw);
   }
   const live = trimEnv(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY_LIVE);
-  if (live) return live;
-  if (isDevelopment && generic) return generic;
-  return "";
+  const raw = live || (allowGenericPublishableKeyFallback && generic ? generic : "");
+  return enforcePublishablePrefix("live", raw);
 }
 
 const stripePromiseByKey = new Map<string, Promise<Stripe | null>>();
