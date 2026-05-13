@@ -9,7 +9,7 @@ Documentation de référence pour l’alignement vitrine ↔ admin ↔ Edge Func
 - Table **`public.sites`**, colonne **`stripe_mode`** : **`live`** ou **`test`** (défaut `live`). Migration `supabase/migrations/20260513120000_sites_stripe_mode.sql`.
 - **Admin Hub Central** : *Paramètres du site* — interrupteur « Stripe production (live) », double confirmation, persistance `sites.stripe_mode`, `SiteContext` / badge **STRIPE LIVE** ou **STRIPE TEST** (hors périmètre de ce dépôt).
 - **Edge Functions** (`fixa-pro-hub/supabase/functions/`) — **source de vérité** pour les secrets :
-  - `create-payment-intent` et `create-stripe-checkout` lisent `sites.stripe_mode` (service role) et choisissent **`STRIPE_SECRET_KEY_LIVE`** ou **`STRIPE_SECRET_KEY_TEST`** (repli sur `STRIPE_SECRET_KEY`).
+  - `create-payment-intent` et `create-stripe-checkout` lisent `sites.stripe_mode` (service role). En **live** : uniquement **`STRIPE_SECRET_KEY_LIVE`** (pas de repli sur `STRIPE_SECRET_KEY`, souvent une clé test). En **test** : **`STRIPE_SECRET_KEY_TEST`** puis repli **`STRIPE_SECRET_KEY`**.
   - `stripe-webhook` : secrets webhook **`STRIPE_WEBHOOK_SECRET_*`** selon la doc du projet (repli sur `STRIPE_WEBHOOK_SECRET`).
 - **Vitrine** : ne **passe pas** le mode Stripe dans le body des invocations Edge ; le serveur reste autoritaire. Le front ne sert qu’au choix de la **clé publique** Stripe.js et à l’**UX** (bandeau test).
 
@@ -22,7 +22,7 @@ Documentation de référence pour l’alignement vitrine ↔ admin ↔ Edge Func
 | Fichier | Rôle |
 |---------|------|
 | `src/lib/siteSlug.ts` | **`SITE_SLUG`** = `import.meta.env.VITE_SITE_SLUG?.trim()` ou défaut **`vis-a-bois`** — aligné avec le secret Edge optionnel **`STOREFRONT_SITE_SLUG`**. |
-| `src/lib/stripePublishableKey.ts` | Résolution des clés publiques : **test** → `VITE_STRIPE_PUBLISHABLE_KEY_TEST` puis `VITE_STRIPE_PUBLISHABLE_KEY` ; **live** → `VITE_STRIPE_PUBLISHABLE_KEY_LIVE` puis `VITE_STRIPE_PUBLISHABLE_KEY`. En **développement local uniquement** (`VITE_SITE_ENVIRONMENT_NAME` absent ou `DEVELOP`), repli possible sur la clé générique si la variable spécifique manque. **Aucune** clé `pk_*` codée en dur dans le bundle pour staging/production. Cache **`loadStripe` par clé** (`Map`) ; **`clearStripePromiseCache()`** pour invalider après changement de mode. |
+| `src/lib/stripePublishableKey.ts` | Résolution des clés publiques : **test** → `VITE_STRIPE_PUBLISHABLE_KEY_TEST` puis (dev seulement) `VITE_STRIPE_PUBLISHABLE_KEY` ; **live** → `VITE_STRIPE_PUBLISHABLE_KEY_LIVE` puis (dev seulement) clé générique. **Staging / production** : préfixe imposé (`pk_live_` en live, `pk_test_` en test). Repli générique **uniquement** en `DEVELOP` local. Cache **`loadStripe` par clé** ; **`clearStripePromiseCache()`** si le mode change. |
 | `src/hooks/useSiteStripeMode.ts` | Requête **lecture seule** `sites.stripe_mode` pour `SITE_SLUG` et `is_active = true`. Rechargement au **retour sur l’onglet** (`visibilitychange`). |
 | `src/components/checkout/StripeTestModeBanner.tsx` | Bandeau ambre : environnement **TEST**, aucun prélèvement réel, cartes de test uniquement. |
 | `src/components/checkout/StripePaymentForm.tsx` | Parcours paiement : hook + résolution de clé ; bandeau sur **tous** les états post–porte invité (config Stripe, chargement Stripe.js, préparation PaymentIntent, fallback Checkout hébergé, `Elements`). Si **`stripe_mode` change** en session : invalidation cache Stripe.js, reset `clientSecret` / promesse, incrément **`paymentEpoch`** pour recréer le PI, **`key`** sur `Elements` pour remonter le module. |
@@ -54,7 +54,11 @@ Documentation de référence pour l’alignement vitrine ↔ admin ↔ Edge Func
 
 - **Interdit** dans le code source vitrine : clés publiques Stripe **codées en dur** pour les builds **staging** et **production** (`VITE_SITE_ENVIRONMENT_NAME` = `STAGING` ou `PRODUCTION`) — les clés viennent uniquement des variables `VITE_*`.
 - Vérification : aucune occurrence de **`sk_`** ni **`whsec_`** sous `src/` (secrets réservés aux Edge Functions).
-- En staging/production, si la clé attendue pour le mode courant est **absente**, message d’erreur explicite côté UI (pas de repli silencieux vers une autre clé live/test).
+- En staging/production, si la clé attendue pour le mode courant est **absente** ou du **mauvais préfixe** (`pk_test` en mode live, etc.), message d’erreur côté UI (pas de repli silencieux).
+
+### Staging : pourquoi le switch « semblait » inactif
+
+Si Railway ne définissait qu’une seule **`VITE_STRIPE_PUBLISHABLE_KEY`** (`pk_test`) et que Supabase n’avait que **`STRIPE_SECRET_KEY`** (`sk_test`), le passage en **live** en base rechargeait quand même des clés **test** (repli générique). D’où l’impression « toujours en test ». Corriger en ajoutant **`VITE_STRIPE_PUBLISHABLE_KEY_LIVE`** + **`STRIPE_SECRET_KEY_LIVE`** (et les paires test dédiées si besoin).
 
 ---
 
@@ -68,11 +72,12 @@ Documentation de référence pour l’alignement vitrine ↔ admin ↔ Edge Func
 | `VITE_SITE_ENVIRONMENT_NAME` | `PRODUCTION` \| `STAGING` \| `DEVELOP` — contrôle les garde-fous clés publiques (voir `src/lib/environment.ts`). |
 | `VITE_STRIPE_PUBLISHABLE_KEY_LIVE` | `pk_live…` quand `stripe_mode === 'live'`. |
 | `VITE_STRIPE_PUBLISHABLE_KEY_TEST` | `pk_test…` quand `stripe_mode === 'test'`. |
-| `VITE_STRIPE_PUBLISHABLE_KEY` | (Optionnel) Repli si l’une des deux ci-dessus manque. |
+| `VITE_STRIPE_PUBLISHABLE_KEY` | (Optionnel) Repli **uniquement en développement local** si `_LIVE` / `_TEST` manquent. Sur **staging / production**, prévoir les deux clés dédiées pour que le switch fonctionne. |
 
 ### Supabase (secrets Edge Functions)
 
-- `STRIPE_SECRET_KEY_LIVE`, `STRIPE_SECRET_KEY_TEST` (repli `STRIPE_SECRET_KEY`).
+- **`STRIPE_SECRET_KEY_LIVE`** — obligatoire lorsque `sites.stripe_mode = live` (plus de repli implicite sur `STRIPE_SECRET_KEY`).
+- **`STRIPE_SECRET_KEY_TEST`** — mode test ; repli **`STRIPE_SECRET_KEY`** autorisé pour la rétrocompat test.
 - `STRIPE_WEBHOOK_SECRET_LIVE`, `STRIPE_WEBHOOK_SECRET_TEST` (repli `STRIPE_WEBHOOK_SECRET` selon implémentation webhook).
 - `STOREFRONT_SITE_SLUG` (optionnel, défaut aligné sur la vitrine).
 

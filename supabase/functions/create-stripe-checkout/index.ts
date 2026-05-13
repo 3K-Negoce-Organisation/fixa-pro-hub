@@ -26,7 +26,21 @@ function resolveStripeSecretKey(mode: "live" | "test"): string {
   if (mode === "test") {
     return Deno.env.get("STRIPE_SECRET_KEY_TEST") || Deno.env.get("STRIPE_SECRET_KEY") || "";
   }
-  return Deno.env.get("STRIPE_SECRET_KEY_LIVE") || Deno.env.get("STRIPE_SECRET_KEY") || "";
+  return Deno.env.get("STRIPE_SECRET_KEY_LIVE") || "";
+}
+
+function assertSecretMatchesStripeMode(mode: "live" | "test", secret: string) {
+  if (!secret) return;
+  if (mode === "live" && secret.startsWith("sk_test_")) {
+    throw new Error(
+      "Configuration Stripe : mode live mais la clé secrète ressemble à une clé test (sk_test_). Définissez STRIPE_SECRET_KEY_LIVE avec une clé sk_live_.",
+    );
+  }
+  if (mode === "test" && secret.startsWith("sk_live_")) {
+    throw new Error(
+      "Configuration Stripe : mode test mais la clé secrète ressemble à une clé live (sk_live_). Utilisez STRIPE_SECRET_KEY_TEST ou STRIPE_SECRET_KEY (sk_test_).",
+    );
+  }
 }
 
 serve(async (req) => {
@@ -98,9 +112,10 @@ serve(async (req) => {
       throw new Error(
         stripeMode === "test"
           ? "STRIPE_SECRET_KEY_TEST (ou STRIPE_SECRET_KEY) non configuré"
-          : "STRIPE_SECRET_KEY_LIVE (ou STRIPE_SECRET_KEY) non configuré",
+          : "STRIPE_SECRET_KEY_LIVE non configuré (obligatoire en mode live ; ne pas s'appuyer sur STRIPE_SECRET_KEY seul)",
       );
     }
+    assertSecretMatchesStripeMode(stripeMode, stripeKey);
     logStep("Stripe key resolved", { stripeMode });
 
     const checkoutSiteId = site?.id ?? "";
