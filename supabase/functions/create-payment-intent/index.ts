@@ -22,6 +22,13 @@ interface CartItem {
   quantity: number;
 }
 
+function resolveStripeSecretKey(mode: "live" | "test"): string {
+  if (mode === "test") {
+    return Deno.env.get("STRIPE_SECRET_KEY_TEST") || Deno.env.get("STRIPE_SECRET_KEY") || "";
+  }
+  return Deno.env.get("STRIPE_SECRET_KEY_LIVE") || Deno.env.get("STRIPE_SECRET_KEY") || "";
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -29,13 +36,6 @@ serve(async (req) => {
 
   try {
     logStep("Function started");
-
-    const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
-    if (!stripeKey) {
-      logStep("ERROR: STRIPE_SECRET_KEY is not set");
-      throw new Error("STRIPE_SECRET_KEY is not set - please configure this secret in your Supabase project");
-    }
-    logStep("Stripe key verified");
 
     const supabaseClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
@@ -73,20 +73,26 @@ serve(async (req) => {
       throw new Error("Cart is empty");
     }
 
+    let resolvedSiteId: string | undefined;
+    let stripeMode: "live" | "test" = "live";
+
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (!serviceKey) {
+      throw new Error("SUPABASE_SERVICE_ROLE_KEY is not configured");
+    }
+    const admin = createClient(Deno.env.get("SUPABASE_URL") ?? "", serviceKey);
+    const siteSlug = Deno.env.get("STOREFRONT_SITE_SLUG") || "vis-a-bois";
+    const { data: site, error: siteErr } = await admin
+      .from("sites")
+      .select("id, storefront_public, stripe_mode")
+      .eq("slug", siteSlug)
+      .eq("is_active", true)
+      .maybeSingle();
+    if (siteErr) throw siteErr;
+    resolvedSiteId = site?.id;
+    stripeMode = site?.stripe_mode === "test" ? "test" : "live";
+
     if (!userId) {
-      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-      if (!serviceKey) {
-        throw new Error("SUPABASE_SERVICE_ROLE_KEY is not configured");
-      }
-      const admin = createClient(Deno.env.get("SUPABASE_URL") ?? "", serviceKey);
-      const siteSlug = Deno.env.get("STOREFRONT_SITE_SLUG") || "vis-a-bois";
-      const { data: site, error: siteErr } = await admin
-        .from("sites")
-        .select("storefront_public")
-        .eq("slug", siteSlug)
-        .eq("is_active", true)
-        .maybeSingle();
-      if (siteErr) throw siteErr;
       if (!site?.storefront_public) {
         return new Response(
           JSON.stringify({
@@ -103,6 +109,17 @@ serve(async (req) => {
         );
       }
     }
+
+    const stripeKey = resolveStripeSecretKey(stripeMode);
+    if (!stripeKey) {
+      logStep("ERROR: No Stripe secret for mode", { stripeMode });
+      throw new Error(
+        stripeMode === "test"
+          ? "STRIPE_SECRET_KEY_TEST (ou STRIPE_SECRET_KEY) non configuré"
+          : "STRIPE_SECRET_KEY_LIVE (ou STRIPE_SECRET_KEY) non configuré",
+      );
+    }
+    logStep("Stripe key resolved", { stripeMode });
 
     // Totaux : sous-total produits TTC, puis frais de port 12 EUR TTC si sous-total < 150 EUR TTC
     const TVA_RATE = 0.20;
@@ -156,6 +173,8 @@ serve(async (req) => {
         shipping_fee_ttc: shippingTTC.toFixed(2),
         total_ht: totalHT.toFixed(2),
         total_ttc: totalTTC.toFixed(2),
+        site_id: resolvedSiteId || "",
+        stripe_mode: stripeMode,
         // Store only essential item data (id, quantity, price) to stay under 500 char limit
         items_compact: JSON.stringify(items.map(i => ({
           i: i.id,

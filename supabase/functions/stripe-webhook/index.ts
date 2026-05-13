@@ -201,6 +201,28 @@ async function fetchProductDetails(supabaseAdmin: any, productIds: string[]): Pr
   return productMap;
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Résout `orders.site_id` pour l’admin (filtre par boutique). */
+async function resolveOrderSiteId(
+  supabaseAdmin: ReturnType<typeof createClient>,
+  metadata: Record<string, string | undefined>,
+): Promise<string | null> {
+  const fromStripe = metadata.site_id?.trim();
+  if (fromStripe && UUID_RE.test(fromStripe)) {
+    const { data } = await supabaseAdmin.from("sites").select("id").eq("id", fromStripe).maybeSingle();
+    if (data?.id) return data.id;
+  }
+  const slug = (Deno.env.get("STOREFRONT_SITE_SLUG") || "vis-a-bois").trim();
+  const { data: site } = await supabaseAdmin
+    .from("sites")
+    .select("id")
+    .eq("slug", slug)
+    .eq("is_active", true)
+    .maybeSingle();
+  return site?.id ?? null;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -209,33 +231,58 @@ serve(async (req) => {
   try {
     logStep("Webhook received");
 
-    const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
-    const webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET");
-    const n8nWebhookUrl = Deno.env.get("N8N_WEBHOOK_URL");
+    const placeholderKey =
+      Deno.env.get("STRIPE_SECRET_KEY_LIVE") ||
+      Deno.env.get("STRIPE_SECRET_KEY") ||
+      "sk_live_placeholder";
+    const verifyClient = new Stripe(placeholderKey, { apiVersion: "2025-08-27.basil" });
 
-    if (!stripeKey) throw new Error("STRIPE_SECRET_KEY is not set");
-    if (!webhookSecret) throw new Error("STRIPE_WEBHOOK_SECRET is not set");
+    const webhookSecrets = [
+      Deno.env.get("STRIPE_WEBHOOK_SECRET_LIVE"),
+      Deno.env.get("STRIPE_WEBHOOK_SECRET"),
+      Deno.env.get("STRIPE_WEBHOOK_SECRET_TEST"),
+    ].filter((s, i, arr): s is string => Boolean(s) && arr.indexOf(s) === i);
 
-    const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
+    if (webhookSecrets.length === 0) {
+      throw new Error("Aucun STRIPE_WEBHOOK_SECRET_* configuré");
+    }
 
-    // Verify webhook signature
     const signature = req.headers.get("stripe-signature");
     if (!signature) throw new Error("No Stripe signature found");
 
     const body = await req.text();
-    let event: Stripe.Event;
-
-    try {
-      event = await stripe.webhooks.constructEventAsync(body, signature, webhookSecret);
-      logStep("Webhook signature verified", { eventType: event.type });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Unknown error";
+    let event: Stripe.Event | null = null;
+    let verifyError: unknown = null;
+    for (const whSecret of webhookSecrets) {
+      try {
+        event = await verifyClient.webhooks.constructEventAsync(body, signature, whSecret);
+        break;
+      } catch (e) {
+        verifyError = e;
+      }
+    }
+    if (!event) {
+      const message = verifyError instanceof Error ? verifyError.message : "Webhook verification failed";
       logStep("Webhook signature verification failed", { error: message });
       return new Response(JSON.stringify({ error: `Webhook Error: ${message}` }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    logStep("Webhook signature verified", { eventType: event.type, livemode: event.livemode });
+
+    const stripeApiKey = event.livemode
+      ? (Deno.env.get("STRIPE_SECRET_KEY_LIVE") || Deno.env.get("STRIPE_SECRET_KEY") || "")
+      : (Deno.env.get("STRIPE_SECRET_KEY_TEST") || Deno.env.get("STRIPE_SECRET_KEY") || "");
+    if (!stripeApiKey) {
+      throw new Error(
+        event.livemode
+          ? "STRIPE_SECRET_KEY_LIVE (ou STRIPE_SECRET_KEY) manquant pour traiter cet événement live"
+          : "STRIPE_SECRET_KEY_TEST (ou STRIPE_SECRET_KEY) manquant pour traiter cet événement test",
+      );
+    }
+    const stripe = new Stripe(stripeApiKey, { apiVersion: "2025-08-27.basil" });
+    const n8nWebhookUrl = Deno.env.get("N8N_WEBHOOK_URL");
 
     // Create Supabase client with service role
     const supabaseAdmin = createClient(
@@ -317,6 +364,9 @@ serve(async (req) => {
 
       logStep("PaymentIntent metadata", { userId, userEmail, totalHT, totalTTC });
 
+      const orderSiteId = await resolveOrderSiteId(supabaseAdmin, metadata);
+      logStep("Resolved order site_id", { orderSiteId });
+
       // Parse compact items from metadata
       let cartItems: any[] = [];
       try {
@@ -375,23 +425,26 @@ serve(async (req) => {
       logStep("Generated order number", { orderNumber });
 
       // Create order in Supabase
+      const insertPayload: Record<string, unknown> = {
+        order_number: orderNumber,
+        user_id: userId,
+        user_email: userEmail,
+        status: "paid",
+        total_ht: totalHT,
+        total_ttc: totalTTC,
+        shipping_address: shippingAddress
+          ? `${shippingAddress.line1 || ""}${shippingAddress.line2 ? ", " + shippingAddress.line2 : ""}`
+          : null,
+        shipping_city: shippingAddress?.city || null,
+        shipping_postal_code: shippingAddress?.postal_code || null,
+        shipping_name: customerName,
+        notes: `Stripe PaymentIntent: ${paymentIntent.id}`,
+      };
+      if (orderSiteId) insertPayload.site_id = orderSiteId;
+
       const { data: order, error: orderError } = await supabaseAdmin
         .from("orders")
-        .insert({
-          order_number: orderNumber,
-          user_id: userId,
-          user_email: userEmail,
-          status: "paid",
-          total_ht: totalHT,
-          total_ttc: totalTTC,
-          shipping_address: shippingAddress 
-            ? `${shippingAddress.line1 || ''}${shippingAddress.line2 ? ', ' + shippingAddress.line2 : ''}`
-            : null,
-          shipping_city: shippingAddress?.city || null,
-          shipping_postal_code: shippingAddress?.postal_code || null,
-          shipping_name: customerName,
-          notes: `Stripe PaymentIntent: ${paymentIntent.id}`,
-        })
+        .insert(insertPayload as any)
         .select()
         .single();
 
@@ -524,6 +577,9 @@ serve(async (req) => {
 
       logStep("Session metadata", { userId, totalHT, totalTTC });
 
+      const sessionOrderSiteId = await resolveOrderSiteId(supabaseAdmin, metadata as Record<string, string | undefined>);
+      logStep("Resolved order site_id (checkout session)", { sessionOrderSiteId });
+
       // Parse cart items from metadata
       let cartItems: any[] = [];
       try {
@@ -557,22 +613,25 @@ serve(async (req) => {
       const customerEmail = fullSession.customer_details?.email || fullSession.customer_email || null;
 
       // Create order in Supabase
+      const sessionInsert: Record<string, unknown> = {
+        order_number: orderNumber,
+        user_id: userId,
+        user_email: customerEmail,
+        status: "paid",
+        total_ht: totalHT,
+        total_ttc: totalTTC,
+        shipping_address: shippingAddress
+          ? `${shippingAddress.line1}${shippingAddress.line2 ? ", " + shippingAddress.line2 : ""}`
+          : null,
+        shipping_city: shippingAddress?.city || null,
+        shipping_postal_code: shippingAddress?.postal_code || null,
+        notes: `Stripe Session: ${session.id}`,
+      };
+      if (sessionOrderSiteId) sessionInsert.site_id = sessionOrderSiteId;
+
       const { data: order, error: orderError } = await supabaseAdmin
         .from("orders")
-        .insert({
-          order_number: orderNumber,
-          user_id: userId,
-          user_email: customerEmail,
-          status: "paid",
-          total_ht: totalHT,
-          total_ttc: totalTTC,
-          shipping_address: shippingAddress 
-            ? `${shippingAddress.line1}${shippingAddress.line2 ? ', ' + shippingAddress.line2 : ''}`
-            : null,
-          shipping_city: shippingAddress?.city || null,
-          shipping_postal_code: shippingAddress?.postal_code || null,
-          notes: `Stripe Session: ${session.id}`,
-        })
+        .insert(sessionInsert as any)
         .select()
         .single();
 
