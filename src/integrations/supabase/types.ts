@@ -594,6 +594,7 @@ export type Database = {
           name: string
           slug: string
           storefront_public: boolean
+          stripe_mode: string
           updated_at: string
         }
         Insert: {
@@ -603,6 +604,7 @@ export type Database = {
           name: string
           slug: string
           storefront_public?: boolean
+          stripe_mode?: string
           updated_at?: string
         }
         Update: {
@@ -612,6 +614,7 @@ export type Database = {
           name?: string
           slug?: string
           storefront_public?: boolean
+          stripe_mode?: string
           updated_at?: string
         }
         Relationships: []
