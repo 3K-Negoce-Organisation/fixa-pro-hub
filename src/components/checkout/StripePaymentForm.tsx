@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from "react";
-import { loadStripe, Stripe } from "@stripe/stripe-js";
+import { useState, useEffect, useRef, type ReactNode } from "react";
+import type { Stripe } from "@stripe/stripe-js";
 import {
   Elements,
   PaymentElement,
@@ -16,50 +16,14 @@ import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { useCart, CartItem } from "@/contexts/CartContext";
 import { formatPrice } from "@/lib/products";
-import { isProduction, isStaging } from "@/lib/environment";
 import { useTheme } from "@/contexts/ThemeContext";
-import { SITE_SLUG } from "@/lib/siteSlug";
-
-const STRIPE_PK_LIVE =
-  import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY_LIVE ||
-  import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY ||
-  "pk_test_51Sd81FLdlL70a9Pj6JpRNhY6hna6DZZ8I4Id57wBuIppTvQh3GA4RQwpMAFR3h7dSMOstwk45IdQjqRlDYGACA4R00mUtZfUP7";
-
-const STRIPE_PK_TEST =
-  import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY_TEST ||
-  import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY ||
-  STRIPE_PK_LIVE;
-
-function resolvePublishableKey(mode: "live" | "test"): string {
-  return mode === "test" ? STRIPE_PK_TEST : STRIPE_PK_LIVE;
-}
-
-if ((isProduction || isStaging) && !STRIPE_PK_LIVE) {
-  console.error("[STRIPE] Missing VITE_STRIPE_PUBLISHABLE_KEY_LIVE / VITE_STRIPE_PUBLISHABLE_KEY for this environment");
-}
-
-const stripePromiseCache = new Map<string, Promise<Stripe | null>>();
-
-function getStripePromiseForKey(publishableKey: string): Promise<Stripe | null> {
-  if (!publishableKey) return Promise.resolve(null);
-  if (!stripePromiseCache.has(publishableKey)) {
-    console.log("[STRIPE] Starting Stripe.js load…");
-    stripePromiseCache.set(
-      publishableKey,
-      loadStripe(publishableKey)
-        .then((stripe) => {
-          if (stripe) console.log("[STRIPE] Stripe.js loaded successfully");
-          else console.error("[STRIPE] Stripe.js returned null");
-          return stripe;
-        })
-        .catch((error) => {
-          console.error("[STRIPE] Failed to load Stripe.js:", error);
-          return null;
-        }),
-    );
-  }
-  return stripePromiseCache.get(publishableKey)!;
-}
+import {
+  resolvePublishableKey,
+  getStripePromiseForPublishableKey,
+  clearStripePromiseCache,
+} from "@/lib/stripePublishableKey";
+import { useSiteStripeMode, type SiteStripeMode } from "@/hooks/useSiteStripeMode";
+import { StripeTestModeBanner } from "@/components/checkout/StripeTestModeBanner";
 
 interface CheckoutFormProps {
   totalTTC: number;
@@ -89,11 +53,9 @@ const ELEMENTS_READY_TIMEOUT_MS = 20000; // 20 seconds for elements to load
 interface CheckoutFormInnerPropsWithFallback extends CheckoutFormInnerProps {
   onFallbackToCheckout: () => void;
   fallbackLoading: boolean;
-  /** True when site uses Stripe test keys (from DB). */
-  stripeTestMode: boolean;
 }
 
-const CheckoutForm = ({ totalTTC, userEmail, isGuest, onSuccess, onCancel, items, totalHT, setUserEmail, onFallbackToCheckout, fallbackLoading, userProfile, stripeTestMode }: CheckoutFormInnerPropsWithFallback) => {
+const CheckoutForm = ({ totalTTC, userEmail, isGuest, onSuccess, onCancel, items, totalHT, setUserEmail, onFallbackToCheckout, fallbackLoading, userProfile }: CheckoutFormInnerPropsWithFallback) => {
   const { theme } = useTheme();
   const stripe = useStripe();
   const elements = useElements();
@@ -356,21 +318,6 @@ const CheckoutForm = ({ totalTTC, userEmail, isGuest, onSuccess, onCancel, items
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      {stripeTestMode && (
-        <div
-          role="status"
-          className="rounded-lg border-2 border-amber-500 bg-amber-500/10 px-4 py-3 text-sm text-amber-900 dark:text-amber-100"
-        >
-          <p className="font-semibold flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4 shrink-0" />
-            Environnement Stripe TEST
-          </p>
-          <p className="mt-1 text-xs opacity-90">
-            Aucun paiement réel : utilisez uniquement les cartes de test Stripe. Ce bandeau disparaît lorsque le site
-            repasse en mode production dans l&apos;admin.
-          </p>
-        </div>
-      )}
       {/* Email : une seule saisie (étape invité avant le formulaire) ; ici affichage seulement */}
       <div className="space-y-2">
         <Label htmlFor="email">Email *</Label>
@@ -597,16 +544,25 @@ export const StripePaymentForm = ({ items, totalTTC, totalHT, onSuccess, onCance
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [stripeLoaded, setStripeLoaded] = useState<boolean | null>(null);
-  const [stripeMode, setStripeMode] = useState<"live" | "test" | null>(null);
+  const { stripeMode } = useSiteStripeMode(true);
   const [stripePromiseState, setStripePromiseState] = useState<Promise<Stripe | null> | null>(null);
   const [retryCount, setRetryCount] = useState(0);
+  const [paymentEpoch, setPaymentEpoch] = useState(0);
   const [fallbackLoading, setFallbackLoading] = useState(false);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const { toast } = useToast();
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const prevStripeModeRef = useRef<SiteStripeMode | null>(null);
 
   const pastGuestGate = !isGuest || guestGatePassed;
-  const stripeTestMode = stripeMode === "test";
+  const showStripeTestBanner = stripeMode === "test";
+
+  const withStripeTestBanner = (node: ReactNode) => (
+    <>
+      {showStripeTestBanner && <StripeTestModeBanner />}
+      {node}
+    </>
+  );
 
   // Fallback to Stripe Checkout hosted page
   const handleFallbackToCheckout = async () => {
@@ -683,29 +639,21 @@ export const StripePaymentForm = ({ items, totalTTC, totalHT, onSuccess, onCance
     };
   }, []);
 
-  // Stripe mode (live/test) from DB — must match Edge Functions secrets
+  // Si l’admin change `sites.stripe_mode` pendant la session : invalider Stripe.js, clientSecret et remonter Elements.
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const { data, error: siteError } = await supabase
-        .from("sites")
-        .select("stripe_mode")
-        .eq("slug", SITE_SLUG)
-        .eq("is_active", true)
-        .maybeSingle();
-      if (cancelled) return;
-      if (siteError) {
-        console.warn("[STRIPE] Could not load sites.stripe_mode, defaulting to live", siteError);
-        setStripeMode("live");
-        return;
-      }
-      const mode = (data as { stripe_mode?: string } | null)?.stripe_mode === "test" ? "test" : "live";
-      setStripeMode(mode);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    if (stripeMode === null) return;
+    const prev = prevStripeModeRef.current;
+    if (prev !== null && prev !== stripeMode) {
+      clearStripePromiseCache();
+      setClientSecret(null);
+      setStripeLoaded(null);
+      setStripePromiseState(null);
+      setError(null);
+      setIsLoading(false);
+      setPaymentEpoch((e) => e + 1);
+    }
+    prevStripeModeRef.current = stripeMode;
+  }, [stripeMode]);
 
   useEffect(() => {
     if (stripeMode === null) return;
@@ -721,7 +669,7 @@ export const StripePaymentForm = ({ items, totalTTC, totalHT, onSuccess, onCance
       return;
     }
     setError(null);
-    const p = getStripePromiseForKey(pk);
+    const p = getStripePromiseForPublishableKey(pk);
     setStripePromiseState(p);
     p.then((stripe) => {
       const loaded = stripe !== null;
@@ -818,7 +766,7 @@ export const StripePaymentForm = ({ items, totalTTC, totalHT, onSuccess, onCance
         timeoutRef.current = null;
       }
     };
-  }, [stripeLoaded, stripeMode, sessionResolved, pastGuestGate, isGuest, userEmail, retryCount]);
+  }, [stripeLoaded, stripeMode, sessionResolved, pastGuestGate, isGuest, userEmail, retryCount, paymentEpoch]);
 
   const submitGuestEmailGate = (e: React.FormEvent) => {
     e.preventDefault();
@@ -900,29 +848,29 @@ export const StripePaymentForm = ({ items, totalTTC, totalHT, onSuccess, onCance
   }
 
   if ((stripeMode === null || stripeLoaded === null) && !error) {
-    return (
+    return withStripeTestBanner(
       <div className="flex flex-col items-center justify-center py-12 space-y-4">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
         <p className="text-muted-foreground">
           {stripeMode === null ? "Chargement de la configuration Stripe…" : "Chargement du module de paiement…"}
         </p>
-      </div>
+      </div>,
     );
   }
 
   if (isLoading) {
-    return (
+    return withStripeTestBanner(
       <div className="flex flex-col items-center justify-center py-12 space-y-4">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
         <p className="text-muted-foreground">Préparation du paiement...</p>
         <p className="text-xs text-muted-foreground/70">Si le chargement prend trop de temps, vérifiez votre connexion</p>
-      </div>
+      </div>,
     );
   }
 
   // Error state - auto-fallback to Stripe Checkout
   if (shouldFallback) {
-    return (
+    return withStripeTestBanner(
       <div className="text-center py-8 space-y-4">
         <div className="flex justify-center">
           {fallbackLoading ? (
@@ -958,30 +906,31 @@ export const StripePaymentForm = ({ items, totalTTC, totalHT, onSuccess, onCance
             </>
           )}
         </div>
-      </div>
+      </div>,
     );
   }
 
   if (!stripePromiseState) {
-    return (
+    return withStripeTestBanner(
       <div className="flex flex-col items-center justify-center py-12 space-y-4">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
         <p className="text-muted-foreground">Initialisation Stripe…</p>
-      </div>
+      </div>,
     );
   }
 
   if (!clientSecret) {
-    return (
+    return withStripeTestBanner(
       <div className="flex flex-col items-center justify-center py-12 space-y-4">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
         <p className="text-muted-foreground">Préparation du paiement sécurisé…</p>
-      </div>
+      </div>,
     );
   }
 
-  return (
+  return withStripeTestBanner(
     <Elements
+      key={`stripe-elements-${stripeMode}-${paymentEpoch}`}
       stripe={stripePromiseState}
       options={{
         clientSecret,
@@ -1021,8 +970,7 @@ export const StripePaymentForm = ({ items, totalTTC, totalHT, onSuccess, onCance
         onFallbackToCheckout={handleFallbackToCheckout}
         fallbackLoading={fallbackLoading}
         userProfile={userProfile}
-        stripeTestMode={stripeTestMode}
       />
-    </Elements>
+    </Elements>,
   );
 };
