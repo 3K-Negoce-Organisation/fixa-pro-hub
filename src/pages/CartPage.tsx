@@ -252,13 +252,26 @@ const CartPage = () => {
                 {showPaymentForm ? (
                   <>
                     <h2 className="text-lg font-bold">Paiement sécurisé</h2>
-                    <div className="border-b border-border pb-4 mb-4">
-                      <div className="flex justify-between items-baseline">
-                        <span className="text-muted-foreground">Total à payer</span>
+                    <div className="space-y-2 text-sm border-b border-border pb-4 mb-4">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Sous-total TTC</span>
+                        <span className="font-medium">{formatPrice(subtotalTTC)}</span>
+                      </div>
+                      <div className="flex justify-between text-muted-foreground">
+                        <span>Frais de livraison</span>
+                        <span>
+                          {shippingTTC === 0 ? "Gratuite" : formatPrice(shippingTTC)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-baseline pt-2 border-t border-border">
+                        <span className="font-semibold text-foreground">Total à payer</span>
                         <span className="text-xl font-bold text-primary">
                           {formatPrice(grandTotalTTC)}
                         </span>
                       </div>
+                      <p className="text-xs text-muted-foreground text-right">
+                        {formatPriceHT(grandTotalHT)} HT
+                      </p>
                     </div>
                     <StripePaymentForm
                       items={items}
