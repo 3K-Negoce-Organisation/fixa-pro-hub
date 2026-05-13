@@ -1,5 +1,7 @@
 # Prompt — App vitrine (site) : prise en charge du switch Stripe live / test
 
+**Implémentation fixa-pro-hub documentée** : voir [`STRIPE_SITE_PROMPT.md`](./STRIPE_SITE_PROMPT.md) (fichiers, sécurité, tests, variables).
+
 Copie le bloc ci-dessous dans une nouvelle conversation Cursor (ou ticket) pour l’app **front boutique** qui consomme Supabase et Stripe.
 
 ---
@@ -47,10 +49,11 @@ Le front doit exposer **deux** clés publiques (repli possible sur une seule var
    - Avec `stripe_mode = test` : paiement avec carte test Stripe, pas de charge live.  
    - Avec `stripe_mode = live` : pas de bandeau test, clés `pk_live` chargées.
 
-## Références code (fixa-pro-hub — déjà implémenté en partie)
+## Références code (fixa-pro-hub)
 
-- `src/components/checkout/StripePaymentForm.tsx` : lecture `sites.stripe_mode`, clés `VITE_STRIPE_*`, bandeau test, `Elements` avec la bonne `Promise` Stripe.
-- `src/lib/siteSlug.ts` (ou équivalent) : slug du site pour la requête `sites`.
+- [`STRIPE_SITE_PROMPT.md`](./STRIPE_SITE_PROMPT.md) — **documentation complète** (tableau des fichiers, payload Edge, sécurité, tests).
+- `src/lib/siteSlug.ts` — `SITE_SLUG` / `VITE_SITE_SLUG`.
+- `src/lib/stripePublishableKey.ts`, `src/hooks/useSiteStripeMode.ts`, `src/components/checkout/StripeTestModeBanner.tsx`, `src/components/checkout/StripePaymentForm.tsx`.
 
 ## Hors périmètre front (ne pas dupliquer ici)
 
