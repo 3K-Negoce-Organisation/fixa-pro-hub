@@ -54,7 +54,7 @@ Configurer dans **Settings → Secrets and variables → Actions** :
 
 ## Configuration Supabase
 
-**Refs canoniques 3K (develop / staging / production) :** voir [`AI-WORKSPACE-CONTEXT.md`](../AI-WORKSPACE-CONTEXT.md) à la racine du workspace. Staging = branche DB **`staging`**, ref projet **`lhrwjnieojuempxjbgql`** (ne pas utiliser l’ancien ref **`gcyxfuxywratoyjnxurf`**).
+**Refs canoniques 3K (develop / staging / production) :** voir [`AI-WORKSPACE-CONTEXT.md`](./AI-WORKSPACE-CONTEXT.md) à la racine de ce dépôt. Staging = branche DB **`staging`**, ref projet **`lhrwjnieojuempxjbgql`** (ne pas utiliser l’ancien ref **`gcyxfuxywratoyjnxurf`**).
 
 ### Créer les projets
 
