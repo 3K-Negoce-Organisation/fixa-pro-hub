@@ -3,6 +3,8 @@ import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { jsPDF } from "https://esm.sh/jspdf@2.5.1";
 import autoTable from "https://esm.sh/jspdf-autotable@3.8.2";
+import { splitOrderTotals } from "../_shared/order-totals.ts";
+import { sendOrderConfirmationEmail } from "../_shared/send-order-confirmation-email.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -35,10 +37,8 @@ function generateOrderPDF(
 ): string {
   const date = new Date();
   const dateStr = `${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}/${String(date.getFullYear()).slice(-2)}`;
-  
-  // Customer name in uppercase
-  const customerNameUpper = (customerName || customerEmail).toUpperCase();
-  
+  const { shippingHT } = splitOrderTotals(items, totalHT);
+
   // Create PDF document (A4 landscape for better table fit)
   const doc = new jsPDF({
     orientation: 'landscape',
@@ -58,17 +58,13 @@ function generateOrderPDF(
   doc.setFontSize(11);
   doc.setFont('helvetica', 'normal');
   doc.text(dateStr, margin, 15);
-  
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(infoDarkBlue[0], infoDarkBlue[1], infoDarkBlue[2]);
-  doc.text(`clt ${customerNameUpper}`, pageWidth - margin, 15, { align: 'right' });
-  
+
   doc.setTextColor(0, 0, 0);
   doc.setFont('helvetica', 'normal');
   doc.text('commande', margin, 22);
   doc.setFont('helvetica', 'bold');
   doc.text(orderNumber, margin + 25, 22);
-  
+
   doc.setTextColor(infoDarkBlue[0], infoDarkBlue[1], infoDarkBlue[2]);
   doc.text(`N° clt ${customerNumber}`, pageWidth - margin, 22, { align: 'right' });
   doc.setTextColor(0, 0, 0);
@@ -88,6 +84,16 @@ function generateOrderPDF(
       `${totalItemHT.toFixed(2)} €`
     ];
   });
+
+  if (shippingHT > 0) {
+    tableData.push([
+      '',
+      'Frais de livraison',
+      '1',
+      `${shippingHT.toFixed(2)} €`,
+      `${shippingHT.toFixed(2)} €`,
+    ]);
+  }
 
   // Add table with styling
   autoTable(doc, {
@@ -756,6 +762,39 @@ async function sendToN8n(
 
     logStep("PDF file generated", { size: pdfBase64.length });
 
+    const { productsHT, shippingHT } = splitOrderTotals(cartItems, totalHT);
+    const fromEmail = supplierSettings?.customer_service_email || supplierSettings?.email;
+    if (fromEmail && customerEmail) {
+      const shippingName = shippingAddress?.name || customerName;
+      const shippingLine = [shippingAddress?.line1, shippingAddress?.line2].filter(Boolean).join(", ") || null;
+      const shippingCityLine = shippingAddress?.postal_code && shippingAddress?.city
+        ? `${shippingAddress.postal_code} ${shippingAddress.city}`
+        : shippingAddress?.city || null;
+
+      await sendOrderConfirmationEmail({
+        customerEmail,
+        fromEmail,
+        fromName: supplierSettings?.name || "Vis-à-Bois",
+        bccEmail: supplierSettings?.status_email || null,
+        orderNumber,
+        items: cartItems.map((item) => ({
+          title: item.title || item.product_title || "",
+          variantTitle: item.variantTitle || item.variant_title || null,
+          quantity: item.quantity || item.q || 1,
+          unit_price_ht: item.priceHT || item.unit_price_ht || 0,
+        })),
+        productsHT,
+        shippingHT,
+        totalHT,
+        totalTTC,
+        shippingName,
+        shippingAddress: shippingLine,
+        shippingCityLine,
+      });
+    } else {
+      logStep("Skipping customer confirmation email", { hasFrom: !!fromEmail, hasCustomerEmail: !!customerEmail });
+    }
+
     // Upload PDF to Supabase Storage and update order documents
     const pdfFileName = `commande_${orderNumber}.pdf`;
     const filePath = `${orderId}/${pdfFileName}`;
@@ -856,6 +895,8 @@ async function sendToN8n(
       totals: {
         ht: totalHT,
         ttc: totalTTC,
+        products_ht: productsHT,
+        shipping_ht: shippingHT,
         currency: "EUR",
       },
       // PDF file as base64 (replaces excel_file for Deno Edge compatibility)
