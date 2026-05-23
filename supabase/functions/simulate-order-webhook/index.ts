@@ -120,8 +120,21 @@ function generateOrderPDF(
   // Get Y position after table
   const finalY = (doc as any).lastAutoTable.finalY || 100;
 
+  const summaryRight = pageWidth - margin - 10;
+  const summaryLabelX = pageWidth - margin - 55;
+  let summaryY = finalY + 6;
+  const tvaAmount = Math.round((totalTTC - totalHT) * 100) / 100;
+
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  doc.text('Total HT', summaryLabelX, summaryY, { align: 'right' });
+  doc.text(`${totalHT.toFixed(2)} €`, summaryRight, summaryY, { align: 'right' });
+  summaryY += 5;
+  doc.text('TVA (20 %)', summaryLabelX, summaryY, { align: 'right' });
+  doc.text(`${tvaAmount.toFixed(2)} €`, summaryRight, summaryY, { align: 'right' });
+
   // Total row with green background
-  const totalRowY = finalY + 2;
+  const totalRowY = summaryY + 5;
   doc.setFillColor(totalGreen[0], totalGreen[1], totalGreen[2]);
   doc.rect(margin, totalRowY, pageWidth - 2 * margin, 10, 'F');
   doc.setDrawColor(0, 0, 0);
