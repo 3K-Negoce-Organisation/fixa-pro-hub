@@ -4,7 +4,7 @@
 
 **Emplacement canonique :** versionné à la **racine de ce dépôt** (`AI-WORKSPACE-CONTEXT.md`). Workspace multi-dépôts local : scripts partagés `../scripts/`, admin `../admin-hub-central/`, docs transverses `../docs/`.
 
-**Last updated:** 2026-05-23 (commande payée — frais de port PDF / email / suivi ; fix prod VIS-202605-QGGC41)
+**Last updated:** 2026-05-23 (PDF commande — code Alsafix, alignement tableau, TVA, total TTC)
 
 ---
 
@@ -491,15 +491,40 @@ Les adresses **`from`** des Edge (ex. sous-domaines de **`vis-a-bois.com`** ou *
 
 **Important :** ne pas confondre « total produits seuls » et « total commande » — comparer toujours la somme des lignes **plus** la ligne livraison au **`total_ht`** en base.
 
-### Détail affiché (après correctif 2026-05-23)
+### Détail affiché (état actuel — 2026-05-23)
 
 | Canal | Comportement |
 |-------|----------------|
-| **Panier / paiement** | Sous-total produits + frais de livraison + total (encart « Paiement sécurisé », commit antérieur `9b177f1`) |
-| **Suivi commande** | Sous-total produits HT + frais de livraison HT (ou « Gratuite ») + Total HT / TTC — `OrderTrackingPage.tsx`, helper `splitOrderTotalsFromItems` dans `shipping.ts` |
-| **PDF bon de commande** | Ligne **« Frais de livraison »** dans le tableau si `shippingHT > 0` ; **retrait** du libellé **`clt NOM CLIENT`** en haut à droite (conservation de **`N° clt …`**) — `generateOrderPDF()` dans `stripe-webhook` / `simulate-order-webhook` |
-| **Email client (confirmation)** | HTML Resend structuré (tableau + livraison + totaux) — `_shared/send-order-confirmation-email.ts` |
-| **Payload n8n** | `totals.products_ht` et `totals.shipping_ht` en plus de `ht` / `ttc` |
+| **Panier / paiement** | Sous-total produits + frais de livraison + total TTC (encart « Paiement sécurisé ») |
+| **Suivi commande** | Liste « Mes commandes » et récap : **montant principal en TTC** (ex. 26,55 €) ; détail sous-total produits HT + frais de port HT + Total HT + **Total TTC** — `OrderTrackingPage.tsx`, `splitOrderTotalsFromItems` dans `shipping.ts` |
+| **Mon compte** | Montant commande affiché en **TTC** (mobile) |
+| **PDF bon de commande** | Voir **[Structure PDF](#structure-pdf-bon-de-commande)** ci-dessous |
+| **Email client (confirmation)** | HTML Resend : articles + livraison ; **Total TTC en gras**, Total HT en second — `_shared/send-order-confirmation-email.ts` |
+| **Payload n8n** | `totals.products_ht`, `totals.shipping_ht`, `ht`, `ttc` ; items avec `code_alsafix` si renseigné |
+
+### Structure PDF bon de commande
+
+Génération centralisée : **`supabase/functions/_shared/generate-order-pdf.ts`** (appelée par **`stripe-webhook`** et **`simulate-order-webhook`**).
+
+| Zone | Contenu |
+|------|---------|
+| **En-tête** | Date, n° commande, **`N° clt …`** (sans libellé `clt NOM CLIENT`) |
+| **Tableau (bleu)** | Colonnes : Code, Désignation, Qté, Prix au conditionnement, Prix total HT net — **largeur pleine** (`tableWidth = page − marges`), **alignée** avec la barre verte du total |
+| **Colonne Code** | **`products.code_alsafix`** uniquement (référence Alsafix) — **jamais** l’UUID produit en repli ; cellule **vide** si le code n’est pas renseigné en admin |
+| **Ligne livraison** | « Frais de livraison » si `shippingHT > 0` |
+| **Synthèse sous le tableau** | Total HT → TVA (20 %) → barre verte **TOTAL TTC** (montant payé client, ex. 26,55 €) |
+| **Pied** | Adresse de livraison, mention « Livraison direct sans BL chiffré » |
+
+**Exemple chiffré (commande type) :** produit 12,13 € HT + port 10,00 € HT → Total HT 22,13 € + TVA 4,42 € → **TOTAL TTC 26,55 €**.
+
+### Code Alsafix (`code_alsafix`)
+
+| Élément | Détail |
+|---------|--------|
+| **Champ admin** | **Paramètres produit** → « Code ALSAFIX » — `AdminProductsPage.tsx`, colonne `products.code_alsafix` |
+| **Enrichissement PDF** | `_shared/alsafix-code.ts` : `enrichItemsWithAlsafixCodes()` relit `products.code_alsafix` par `product_id` avant génération ; `alsafixCodeOnly()` filtre les UUID |
+| **Repli interdit** | Ne pas utiliser `product_id` / UUID dans la colonne Code du PDF — si absent en base, la cellule reste vide |
+| **Correction rétroactive** | Renseigner le code en admin puis **Renvoyer** la commande (`simulate-order-webhook`) |
 
 ### Modules partagés Edge (fixa)
 
@@ -507,6 +532,8 @@ Les adresses **`from`** des Edge (ex. sous-domaines de **`vis-a-bois.com`** ou *
 |---------|------|
 | `supabase/functions/_shared/order-totals.ts` | `sumItemsHT`, `splitOrderTotals(items, totalHT)` → `{ productsHT, shippingHT }` |
 | `supabase/functions/_shared/send-order-confirmation-email.ts` | Envoi Resend HTML à la confirmation |
+| `supabase/functions/_shared/generate-order-pdf.ts` | Génération PDF (tableau, TVA, total TTC, alignement) |
+| `supabase/functions/_shared/alsafix-code.ts` | `alsafixCodeOnly`, `enrichItemsWithAlsafixCodes` |
 
 ### Régénérer PDF / email pour une commande existante
 
@@ -517,8 +544,8 @@ Depuis **admin-hub-central** → **Commandes** → action **Renvoyer** : appelle
 | Cible | Action |
 |-------|--------|
 | **Supabase prod** `lqsbsinycyewdvdtbruy` | `supabase functions deploy stripe-webhook` et `simulate-order-webhook` (incl. `_shared/*`) |
-| **Git fixa-pro-hub** | Commit **`3cdb075`** sur **`staging`**, merge **`main`** **`0057b94`** — push **`origin/staging`** + **`origin/main`** |
-| **Railway prod** | Rebuild storefront depuis **`main`** (suivi commande frontend) |
+| **Git fixa-pro-hub** | Voir changelog 2026-05-23 (`3cdb075` → `75aae7a` sur **`staging`** / **`main`**) |
+| **Railway prod** | Rebuild storefront depuis **`main`** (suivi commande / mon compte — affichage TTC) |
 
 **Prérequis email :** `supplier_settings.customer_service_email` (ou `email`) renseigné en admin ; domaine **`from`** vérifié dans Resend ; secret **`RESEND_API_KEY`** présent sur le projet Supabase fixa prod.
 
@@ -544,6 +571,8 @@ Depuis **admin-hub-central** → **Commandes** → action **Renvoyer** : appelle
 
 | Date       | Change                                                                                                                                                                                                                                                                                       |
 | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-05-23 | **fixa-pro-hub — PDF commande :** module `_shared/generate-order-pdf.ts` + `_shared/alsafix-code.ts` ; colonne **Code = `code_alsafix` uniquement** (pas d’UUID) ; tableau pleine largeur aligné sur barre **TOTAL TTC** ; lignes **Total HT / TVA 20 % / TOTAL TTC** ; enrichissement Alsafix via `product_id`. **Git** `432b122` → merge `main` `75aae7a`. **Edge prod** deploy. |
+| 2026-05-23 | **fixa-pro-hub — totaux commande :** montant **principal en TTC** (suivi, mon compte, PDF barre verte, email confirmation) ; détail **TVA** sous le tableau PDF. **Git** `3bf6c8c` / `5c8009b` → merge `main` `df710c8` / `d7b65d7`. |
 | 2026-05-23 | **Docs :** `AI-WORKSPACE-CONTEXT.md` versionné à la **racine du dépôt fixa-pro-hub** (source de vérité assistants) ; section commande payée / frais de port / PDF / email ; changelog 2026-05-23. |
 | 2026-05-23 | **fixa-pro-hub — commande payée :** frais de port **détaillés** (PDF ligne livraison, suivi commande sous-total + port, email HTML Resend à la confirmation) ; retrait **`clt NOM`** du PDF ; modules `_shared/order-totals.ts` + `send-order-confirmation-email.ts` ; payload n8n `products_ht` / `shipping_ht`. **Incident prod** `VIS-202605-QGGC41` documenté (total 22,13 € = 12,13 + 10 HT port). **Git** : `3cdb075` staging → merge `main` `0057b94`. **Edge prod** `lqsbsinycyewdvdtbruy` : deploy `stripe-webhook` + `simulate-order-webhook`. |
 | 2026-05-14 | **Resend :** domaine d’envoi **`mail.vis-a-bois.com`** **vérifié** (DKIM `resend._domainkey.mail`, SPF/MX `send.mail`, région `eu-west-1`, réception désactivée). Détail consigné dans *External tools → Resend* ; inventaire prérequis Resend passé en **Présent** pour le domaine. |
