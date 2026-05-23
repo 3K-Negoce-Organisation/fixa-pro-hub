@@ -1,10 +1,10 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
-import { jsPDF } from "https://esm.sh/jspdf@2.5.1";
-import autoTable from "https://esm.sh/jspdf-autotable@3.8.2";
 import { splitOrderTotals } from "../_shared/order-totals.ts";
 import { sendOrderConfirmationEmail } from "../_shared/send-order-confirmation-email.ts";
+import { alsafixCodeOnly, enrichItemsWithAlsafixCodes } from "../_shared/alsafix-code.ts";
+import { generateOrderPDF } from "../_shared/generate-order-pdf.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -25,178 +25,6 @@ function generateOrderNumber(): string {
   return `VIS-${year}${month}-${random}`;
 }
 
-// Generate PDF order recap file matching the template format with full styling
-function generateOrderPDF(
-  orderNumber: string,
-  customerName: string,
-  customerEmail: string,
-  customerNumber: string,
-  items: any[],
-  totalHT: number,
-  totalTTC: number,
-  shippingAddress: { name?: string; line1?: string; line2?: string; city?: string; postal_code?: string } | null
-): string {
-  const date = new Date();
-  const dateStr = `${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}/${String(date.getFullYear()).slice(-2)}`;
-  const { shippingHT } = splitOrderTotals(items, totalHT);
-
-  // Create PDF document (A4 landscape for better table fit)
-  const doc = new jsPDF({
-    orientation: 'landscape',
-    unit: 'mm',
-    format: 'a4'
-  });
-
-  const pageWidth = doc.internal.pageSize.getWidth();
-  const margin = 15;
-
-  // Colors (typed as tuples)
-  const headerBlue: [number, number, number] = [30, 58, 95]; // #1E3A5F
-  const totalGreen: [number, number, number] = [212, 237, 218]; // #D4EDDA
-  const infoDarkBlue = [25, 50, 85];
-
-  // Header section - Date and Customer info
-  doc.setFontSize(11);
-  doc.setFont('helvetica', 'normal');
-  doc.text(dateStr, margin, 15);
-
-  doc.setTextColor(0, 0, 0);
-  doc.setFont('helvetica', 'normal');
-  doc.text('commande', margin, 22);
-  doc.setFont('helvetica', 'bold');
-  doc.text(orderNumber, margin + 25, 22);
-
-  doc.setTextColor(infoDarkBlue[0], infoDarkBlue[1], infoDarkBlue[2]);
-  doc.text(`N° clt ${customerNumber}`, pageWidth - margin, 22, { align: 'right' });
-  doc.setTextColor(0, 0, 0);
-
-  // Prepare table data
-  const tableHeaders = [['Code', 'Désignation', 'Qté', 'Prix au conditionnement', 'Prix total HT net']];
-  
-  const tableData = items.map(item => {
-    const priceHT = item.priceHT || item.unit_price_ht || 0;
-    const qty = item.quantity || item.q || 1;
-    const totalItemHT = priceHT * qty;
-    return [
-      item.code_alsafix || item.id || item.product_id || '',
-      item.title || item.product_title || '',
-      String(qty),
-      `${priceHT.toFixed(2)} €`,
-      `${totalItemHT.toFixed(2)} €`
-    ];
-  });
-
-  if (shippingHT > 0) {
-    tableData.push([
-      '',
-      'Frais de livraison',
-      '1',
-      `${shippingHT.toFixed(2)} €`,
-      `${shippingHT.toFixed(2)} €`,
-    ]);
-  }
-
-  // Add table with styling
-  autoTable(doc, {
-    startY: 30,
-    head: tableHeaders,
-    body: tableData,
-    theme: 'grid',
-    styles: {
-      fontSize: 10,
-      cellPadding: 3,
-      lineColor: [0, 0, 0],
-      lineWidth: 0.3,
-    },
-    headStyles: {
-      fillColor: headerBlue,
-      textColor: [255, 255, 255],
-      fontStyle: 'bold',
-      halign: 'center',
-    },
-    columnStyles: {
-      0: { cellWidth: 30 },  // Code
-      1: { cellWidth: 80 },  // Désignation
-      2: { cellWidth: 20, halign: 'center' },  // Qté
-      3: { cellWidth: 45, halign: 'right' },   // Prix unitaire
-      4: { cellWidth: 45, halign: 'right' },   // Prix total
-    },
-    didParseCell: function(data) {
-      // Style for body rows
-      if (data.section === 'body') {
-        data.cell.styles.fillColor = [255, 255, 255];
-      }
-    },
-  });
-
-  // Get Y position after table
-  const finalY = (doc as any).lastAutoTable.finalY || 100;
-
-  const summaryRight = pageWidth - margin - 10;
-  const summaryLabelX = pageWidth - margin - 55;
-  let summaryY = finalY + 6;
-  const tvaAmount = Math.round((totalTTC - totalHT) * 100) / 100;
-
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'normal');
-  doc.text('Total HT', summaryLabelX, summaryY, { align: 'right' });
-  doc.text(`${totalHT.toFixed(2)} €`, summaryRight, summaryY, { align: 'right' });
-  summaryY += 5;
-  doc.text('TVA (20 %)', summaryLabelX, summaryY, { align: 'right' });
-  doc.text(`${tvaAmount.toFixed(2)} €`, summaryRight, summaryY, { align: 'right' });
-
-  // Total row with green background
-  const totalRowY = summaryY + 5;
-  doc.setFillColor(totalGreen[0], totalGreen[1], totalGreen[2]);
-  doc.rect(margin, totalRowY, pageWidth - 2 * margin, 10, 'F');
-  doc.setDrawColor(0, 0, 0);
-  doc.setLineWidth(0.3);
-  doc.rect(margin, totalRowY, pageWidth - 2 * margin, 10, 'S');
-  
-  doc.setFontSize(11);
-  doc.setFont('helvetica', 'bold');
-  doc.text('TOTAL TTC', margin + 130, totalRowY + 7);
-  doc.text(`${totalTTC.toFixed(2)} €`, pageWidth - margin - 10, totalRowY + 7, { align: 'right' });
-
-  // Shipping address section
-  const addressY = totalRowY + 20;
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10);
-  doc.text('Adresse de livraison', margin, addressY);
-  
-  doc.setFont('helvetica', 'normal');
-  let currentY = addressY + 6;
-  
-  if (shippingAddress) {
-    // Use shipping name if available, otherwise fall back to customerName
-    const displayShippingName = shippingAddress.name || customerName;
-    if (displayShippingName) {
-      doc.text(displayShippingName, margin + 10, currentY);
-      currentY += 5;
-    }
-    if (shippingAddress.line1) {
-      doc.text(shippingAddress.line1, margin + 10, currentY);
-      currentY += 5;
-    }
-    if (shippingAddress.line2) {
-      doc.text(shippingAddress.line2, margin + 10, currentY);
-      currentY += 5;
-    }
-    if (shippingAddress.postal_code || shippingAddress.city) {
-      doc.text(`${shippingAddress.postal_code || ''} ${shippingAddress.city || ''}`.trim(), margin + 10, currentY);
-      currentY += 5;
-    }
-  }
-
-  // Footer note
-  currentY += 10;
-  doc.setFont('helvetica', 'bold');
-  doc.text('Livraison direct sans BL chiffré', margin, currentY);
-
-  // Generate base64
-  const pdfBase64 = doc.output('datauristring').split(',')[1];
-  return pdfBase64;
-}
 
 // Fetch full product details from Supabase
 async function fetchProductDetails(supabaseAdmin: any, productIds: string[]): Promise<Map<string, any>> {
@@ -414,7 +242,7 @@ serve(async (req) => {
           title: product?.title || `Product ${item.id}`,
           handle: product?.handle || '',
           image: product?.images?.[0]?.url || '',
-          code_alsafix: product?.code_alsafix || item.id,
+          code_alsafix: alsafixCodeOnly(product?.code_alsafix),
           variantTitle: 'Default',
         };
       });
@@ -617,7 +445,7 @@ serve(async (req) => {
         const product = productMap.get(item.id);
         return {
           ...item,
-          code_alsafix: product?.code_alsafix || item.id,
+          code_alsafix: alsafixCodeOnly(product?.code_alsafix),
         };
       });
 
@@ -757,13 +585,15 @@ async function sendToN8n(
     // Get customer number from supplier settings (default to "000001")
     const customerNumber = supplierSettings?.customer_number || '000001';
 
+    const enrichedCartItems = await enrichItemsWithAlsafixCodes(supabaseAdmin, cartItems);
+
     // Generate PDF recap file (replaces Excel for Deno Edge compatibility)
     const pdfBase64 = generateOrderPDF(
       orderNumber,
       customerName || '',
       customerEmail || '',
       customerNumber,
-      cartItems,
+      enrichedCartItems,
       totalHT,
       totalTTC,
       shippingAddress ? {
@@ -777,7 +607,7 @@ async function sendToN8n(
 
     logStep("PDF file generated", { size: pdfBase64.length });
 
-    const { productsHT, shippingHT } = splitOrderTotals(cartItems, totalHT);
+    const { productsHT, shippingHT } = splitOrderTotals(enrichedCartItems, totalHT);
     const fromEmail = supplierSettings?.customer_service_email || supplierSettings?.email;
     if (fromEmail && customerEmail) {
       const shippingName = shippingAddress?.name || customerName;
@@ -792,7 +622,7 @@ async function sendToN8n(
         fromName: supplierSettings?.name || "Vis-à-Bois",
         bccEmail: supplierSettings?.status_email || null,
         orderNumber,
-        items: cartItems.map((item) => ({
+        items: enrichedCartItems.map((item) => ({
           title: item.title || item.product_title || "",
           variantTitle: item.variantTitle || item.variant_title || null,
           quantity: item.quantity || item.q || 1,
@@ -897,9 +727,9 @@ async function sendToN8n(
         city: supplierSettings.city || null,
         phone: supplierSettings.phone || null,
       } : null,
-      items: cartItems.map(item => ({
+      items: enrichedCartItems.map(item => ({
         product_id: item.id || item.product_id,
-        code_alsafix: item.code_alsafix || item.id,
+        code_alsafix: item.code_alsafix || '',
         variant_id: item.variantId || item.id,
         title: item.title || item.product_title,
         variant_title: item.variantTitle || 'Default',
