@@ -23,6 +23,7 @@ function generateOrderPDF(
   customerNumber: string,
   items: any[],
   totalHT: number,
+  totalTTC: number,
   shippingAddress: { name?: string; line1?: string; line2?: string; city?: string; postal_code?: string } | null
 ): string {
   const date = new Date();
@@ -129,8 +130,8 @@ function generateOrderPDF(
   
   doc.setFontSize(11);
   doc.setFont('helvetica', 'bold');
-  doc.text('TOTAL HT', margin + 130, totalRowY + 7);
-  doc.text(`${totalHT.toFixed(2)} €`, pageWidth - margin - 10, totalRowY + 7, { align: 'right' });
+  doc.text('TOTAL TTC', margin + 130, totalRowY + 7);
+  doc.text(`${totalTTC.toFixed(2)} €`, pageWidth - margin - 10, totalRowY + 7, { align: 'right' });
 
   // Shipping address section
   const addressY = totalRowY + 20;
@@ -312,6 +313,7 @@ serve(async (req) => {
       customerNumber,
       enrichedItems,
       order.total_ht,
+      order.total_ttc,
       {
         name: order.shipping_name || undefined,
         line1: order.shipping_address || undefined,

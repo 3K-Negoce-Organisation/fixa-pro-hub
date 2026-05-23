@@ -82,8 +82,8 @@ function buildOrderConfirmationHtml(params: OrderConfirmationEmailParams): strin
           ${shippingRow}
         </tbody>
       </table>
-      <p style="margin:16px 0 4px;text-align:right;"><strong>Total HT : ${params.totalHT.toFixed(2)} €</strong></p>
-      <p style="margin:0 0 24px;text-align:right;">Total TTC : ${params.totalTTC.toFixed(2)} €</p>
+      <p style="margin:16px 0 4px;text-align:right;"><strong>Total TTC : ${params.totalTTC.toFixed(2)} €</strong></p>
+      <p style="margin:0 0 24px;text-align:right;color:#777;">Total HT : ${params.totalHT.toFixed(2)} €</p>
       ${addressBlock ? `<h2 style="font-size:16px;margin:0 0 8px;">Adresse de livraison</h2>${addressBlock}` : ""}
       <p style="margin-top:24px;">Livraison estimée : 24–48 h. Vous recevrez un email avec le numéro de suivi dès l'expédition.</p>
       <p>Merci pour votre confiance,<br/><strong>${escapeHtml(params.fromName)}</strong></p>

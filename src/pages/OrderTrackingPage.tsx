@@ -661,7 +661,7 @@ const OrderTrackingPage = () => {
                         </div>
                         <div className="flex items-center justify-between text-xs text-muted-foreground">
                           <span>{formatShortDate(o.created_at)}</span>
-                          <span>{formatPriceHT(o.total_ht)}</span>
+                          <span>{formatPriceTTC(o.total_ttc)}</span>
                         </div>
                       </button>
                     ))}
@@ -887,10 +887,10 @@ const OrderTrackingPage = () => {
                                   </span>
                                 </p>
                                 <p className="text-sm text-muted-foreground">
-                                  Total HT: <span className="font-semibold text-foreground">{formatPriceHT(order.total_ht)}</span>
+                                  Total TTC: <span className="font-semibold text-foreground">{formatPriceTTC(order.total_ttc)}</span>
                                 </p>
                                 <p className="text-sm text-muted-foreground">
-                                  Total TTC: <span className="text-foreground">{formatPriceTTC(order.total_ttc)}</span>
+                                  Total HT: <span className="text-foreground">{formatPriceHT(order.total_ht)}</span>
                                 </p>
                               </>
                             );
