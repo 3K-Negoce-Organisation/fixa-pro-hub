@@ -34,3 +34,14 @@ export function orderGrandTotals(productsHT: number) {
     grandTotalHT,
   };
 }
+
+export function splitOrderTotalsFromItems(
+  items: Array<{ unit_price_ht: number; quantity: number }>,
+  totalHT: number,
+): { productsHT: number; shippingHT: number } {
+  const productsHT = Math.round(
+    items.reduce((sum, item) => sum + item.unit_price_ht * item.quantity, 0) * 100,
+  ) / 100;
+  const shippingHT = Math.round(Math.max(0, totalHT - productsHT) * 100) / 100;
+  return { productsHT, shippingHT };
+}

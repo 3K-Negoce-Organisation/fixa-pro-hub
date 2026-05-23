@@ -21,6 +21,7 @@ import { Package, Truck, CheckCircle, Clock, XCircle, Search, AlertCircle, Loade
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { splitOrderTotalsFromItems } from "@/lib/shipping";
 
 // Download document via fetch to avoid ad-blocker issues
 const downloadDocument = async (url: string, fileName: string) => {
@@ -868,12 +869,32 @@ const OrderTrackingPage = () => {
                     <div className="border-t mt-4 pt-4">
                       <div className="flex justify-end">
                         <div className="space-y-1 text-right">
-                          <p className="text-sm text-muted-foreground">
-                            Total HT: <span className="font-semibold text-foreground">{formatPriceHT(order.total_ht)}</span>
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            Total TTC: <span className="text-foreground">{formatPriceTTC(order.total_ttc)}</span>
-                          </p>
+                          {(() => {
+                            const { productsHT, shippingHT } = splitOrderTotalsFromItems(
+                              order.order_items,
+                              order.total_ht,
+                            );
+                            return (
+                              <>
+                                <p className="text-sm text-muted-foreground">
+                                  Sous-total produits HT :{" "}
+                                  <span className="text-foreground">{formatPriceHT(productsHT)}</span>
+                                </p>
+                                <p className="text-sm text-muted-foreground">
+                                  Frais de livraison HT :{" "}
+                                  <span className="text-foreground">
+                                    {shippingHT > 0 ? formatPriceHT(shippingHT) : "Gratuite"}
+                                  </span>
+                                </p>
+                                <p className="text-sm text-muted-foreground">
+                                  Total HT: <span className="font-semibold text-foreground">{formatPriceHT(order.total_ht)}</span>
+                                </p>
+                                <p className="text-sm text-muted-foreground">
+                                  Total TTC: <span className="text-foreground">{formatPriceTTC(order.total_ttc)}</span>
+                                </p>
+                              </>
+                            );
+                          })()}
                         </div>
                       </div>
                     </div>
