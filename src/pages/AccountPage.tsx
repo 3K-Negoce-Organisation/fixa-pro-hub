@@ -455,8 +455,7 @@ const AccountPage = () => {
                               year: "numeric"
                             })}
                           </div>
-                          <div className="flex items-center justify-between text-sm">
-                            <span>{Number(order.total_ht).toFixed(2)} € HT</span>
+                          <div className="flex items-center justify-end text-sm">
                             <span className="font-medium">{Number(order.total_ttc).toFixed(2)} € TTC</span>
                           </div>
                           <Button variant="outline" size="sm" className="w-full" asChild>
