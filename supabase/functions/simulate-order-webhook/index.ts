@@ -64,7 +64,7 @@ serve(async (req) => {
       );
     }
 
-    const { order_id } = await req.json();
+    const { order_id, preview_only } = await req.json();
 
     if (!order_id) {
       return new Response(
@@ -150,7 +150,24 @@ serve(async (req) => {
       }
     );
 
-    logStep("PDF file generated", { size: pdfBase64.length });
+    logStep("PDF file generated", { size: pdfBase64.length, preview_only: !!preview_only });
+
+    const pdfFileName = `commande_${order.order_number}.pdf`;
+
+    if (preview_only) {
+      return new Response(
+        JSON.stringify({
+          preview: true,
+          order_number: order.order_number,
+          pdf_file: {
+            filename: pdfFileName,
+            content_base64: pdfBase64,
+            content_type: "application/pdf",
+          },
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
 
     const { productsHT, shippingHT } = splitOrderTotals(enrichedItems, order.total_ht);
     const fromEmail = supplierSettings?.customer_service_email || supplierSettings?.email;
@@ -180,7 +197,6 @@ serve(async (req) => {
     }
 
     // Store PDF in order-documents bucket
-    const pdfFileName = `commande_${order.order_number}.pdf`;
     const pdfPath = `${order.id}/${pdfFileName}`;
     
     // Decode base64 to binary
