@@ -34,10 +34,11 @@ function readJpegDimensions(bytes: Uint8Array): { width: number; height: number 
   return null;
 }
 
-function imageFormatFromUrl(url: string, contentType: string): "PNG" | "JPEG" | null {
-  const lower = url.toLowerCase();
-  if (contentType.includes("png") || lower.includes(".png")) return "PNG";
-  if (contentType.includes("jpeg") || contentType.includes("jpg") || lower.includes(".jpg") || lower.includes(".jpeg")) {
+function detectImageFormat(bytes: Uint8Array): "PNG" | "JPEG" | null {
+  if (bytes.length >= 8 && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) {
+    return "PNG";
+  }
+  if (bytes.length >= 2 && bytes[0] === 0xff && bytes[1] === 0xd8) {
     return "JPEG";
   }
   return null;
@@ -102,12 +103,11 @@ export async function loadSiteLogoForPdf(logoUrl: string | null | undefined): Pr
     const response = await fetch(url);
     if (!response.ok) return null;
 
-    const contentType = response.headers.get("content-type") || "";
-    const format = imageFormatFromUrl(url, contentType);
-    if (!format) return null;
-
     const bytes = new Uint8Array(await response.arrayBuffer());
     if (bytes.length === 0) return null;
+
+    const format = detectImageFormat(bytes);
+    if (!format) return null;
 
     const dimensions = format === "PNG"
       ? readPngDimensions(bytes)

@@ -17,19 +17,25 @@ function drawSiteLogo(
   margin: number,
   siteLogo?: PdfSiteLogo | null,
 ): void {
-  if (!siteLogo) return;
-
-  const ratio = siteLogo.width / siteLogo.height;
-  let logoWidth = LOGO_MAX_WIDTH_MM;
-  let logoHeight = logoWidth / ratio;
-
-  if (logoHeight > LOGO_MAX_HEIGHT_MM) {
-    logoHeight = LOGO_MAX_HEIGHT_MM;
-    logoWidth = logoHeight * ratio;
-  }
-
-  const logoX = pageWidth - margin - logoWidth;
   try {
+    if (!siteLogo?.dataUrl || !siteLogo.format) return;
+
+    const sourceWidth = Number(siteLogo.width);
+    const sourceHeight = Number(siteLogo.height);
+    if (!Number.isFinite(sourceWidth) || !Number.isFinite(sourceHeight) || sourceWidth <= 0 || sourceHeight <= 0) {
+      return;
+    }
+
+    const ratio = sourceWidth / sourceHeight;
+    let logoWidth = LOGO_MAX_WIDTH_MM;
+    let logoHeight = logoWidth / ratio;
+
+    if (logoHeight > LOGO_MAX_HEIGHT_MM) {
+      logoHeight = LOGO_MAX_HEIGHT_MM;
+      logoWidth = logoHeight * ratio;
+    }
+
+    const logoX = pageWidth - margin - logoWidth;
     doc.addImage(siteLogo.dataUrl, siteLogo.format, logoX, 6, logoWidth, logoHeight);
   } catch {
     // Logo optionnel : ne pas bloquer la génération du PDF
@@ -145,10 +151,16 @@ export function generateOrderPDF(
     },
   });
 
-  const lastTable = (doc as { lastAutoTable: { settings: { margin: { left: number } }; table: { width: number }; finalY: number } }).lastAutoTable;
-  const tableLeft = lastTable.settings.margin.left;
-  const tableDrawWidth = lastTable.table.width;
-  const finalY = lastTable.finalY || 100;
+  const lastTable = (doc as {
+    lastAutoTable?: {
+      settings?: { margin?: { left?: number } };
+      table?: { width?: number };
+      finalY?: number;
+    };
+  }).lastAutoTable;
+  const tableLeft = lastTable?.settings?.margin?.left ?? margin;
+  const tableDrawWidth = lastTable?.table?.width ?? tableWidth;
+  const finalY = lastTable?.finalY ?? 100;
 
   const summaryRight = tableLeft + tableDrawWidth - 10;
   const summaryLabelX = tableLeft + tableDrawWidth - 55;
