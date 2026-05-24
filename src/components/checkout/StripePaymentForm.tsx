@@ -279,6 +279,13 @@ const CheckoutForm = ({ totalTTC, userEmail, isGuest, onSuccess, onCancel, items
 
         if (orderError) throw orderError;
 
+        if (user?.id && phone.trim()) {
+          await supabase
+            .from("profiles")
+            .update({ phone: phone.trim() })
+            .eq("user_id", user.id);
+        }
+
         // Create order items
         const orderItems = items.map(item => ({
           order_id: order.id,
