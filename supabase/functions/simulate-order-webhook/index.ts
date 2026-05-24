@@ -5,6 +5,7 @@ import { sendOrderConfirmationEmail } from "../_shared/send-order-confirmation-e
 import { enrichItemsWithAlsafixCodes } from "../_shared/alsafix-code.ts";
 import { generateOrderPDF } from "../_shared/generate-order-pdf.ts";
 import { loadSiteLogoForOrderPdf } from "../_shared/site-logo.ts";
+import { resolveOrderCustomerPhone } from "../_shared/order-customer-phone.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -130,6 +131,8 @@ serve(async (req) => {
     }
 
     const displayName = profile?.company_name || customerName || customerEmail;
+    const customerPhone = await resolveOrderCustomerPhone(supabaseAdmin, order);
+    logStep("Resolved customer phone", { hasPhone: !!customerPhone, orderNumber: order.order_number });
 
     // Get supplier settings
     const { data: supplierSettings } = await supabaseAdmin
@@ -151,6 +154,7 @@ serve(async (req) => {
 
     // Generate PDF file
     const siteLogo = await loadSiteLogoForOrderPdf(supabaseAdmin, order.site_id);
+    logStep("Resolved site logo", { hasLogo: !!siteLogo, siteId: order.site_id ?? null });
     const pdfBase64 = generateOrderPDF(
       order.order_number,
       displayName,
@@ -163,7 +167,7 @@ serve(async (req) => {
         city: order.shipping_city || undefined,
         postal_code: order.shipping_postal_code || undefined,
       },
-      profile?.phone || null,
+      profile?.phone || customerPhone || null,
       siteLogo,
     );
 
@@ -284,7 +288,7 @@ serve(async (req) => {
       simulation: true,
       customer: {
         email: customerEmail,
-        phone: profile?.phone || null,
+        phone: customerPhone || profile?.phone || null,
         name: displayName,
         shipping_address: {
           line1: order.shipping_address,

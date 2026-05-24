@@ -6,6 +6,7 @@ import { sendOrderConfirmationEmail } from "../_shared/send-order-confirmation-e
 import { alsafixCodeOnly, enrichItemsWithAlsafixCodes } from "../_shared/alsafix-code.ts";
 import { generateOrderPDF } from "../_shared/generate-order-pdf.ts";
 import { loadSiteLogoForOrderPdf } from "../_shared/site-logo.ts";
+import { resolveOrderCustomerPhone } from "../_shared/order-customer-phone.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -601,17 +602,12 @@ async function sendToN8n(
     if (orderId) {
       const { data: orderRow } = await supabaseAdmin
         .from("orders")
-        .select("user_id, site_id")
+        .select("user_id, site_id, notes")
         .eq("id", orderId)
         .maybeSingle();
       orderSiteId = orderRow?.site_id ?? null;
-      if (!resolvedPhone && orderRow?.user_id) {
-        const { data: profile } = await supabaseAdmin
-          .from("profiles")
-          .select("phone")
-          .eq("user_id", orderRow.user_id)
-          .maybeSingle();
-        resolvedPhone = profile?.phone?.trim() || null;
+      if (!resolvedPhone && orderRow) {
+        resolvedPhone = await resolveOrderCustomerPhone(supabaseAdmin, orderRow);
       }
     }
 
