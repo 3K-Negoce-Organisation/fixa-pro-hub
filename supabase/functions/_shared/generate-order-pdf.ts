@@ -29,7 +29,11 @@ function drawSiteLogo(
   }
 
   const logoX = pageWidth - margin - logoWidth;
-  doc.addImage(siteLogo.dataUrl, siteLogo.format, logoX, 6, logoWidth, logoHeight);
+  try {
+    doc.addImage(siteLogo.dataUrl, siteLogo.format, logoX, 6, logoWidth, logoHeight);
+  } catch {
+    // Logo optionnel : ne pas bloquer la génération du PDF
+  }
 }
 
 export function generateOrderPDF(

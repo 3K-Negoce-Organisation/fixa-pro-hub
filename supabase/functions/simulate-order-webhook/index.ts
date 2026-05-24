@@ -102,17 +102,32 @@ serve(async (req) => {
       orderItems || [],
     );
 
-    // Get user info
-    const { data: userData } = await supabaseAdmin.auth.admin.getUserById(order.user_id);
-    const customerEmail = userData?.user?.email || '';
-    const customerName = userData?.user?.user_metadata?.full_name || '';
+    // Get user info (guest orders may not exist in auth.users)
+    let customerEmail = order.user_email || '';
+    let customerName = '';
+    if (order.user_id) {
+      try {
+        const { data: userData } = await supabaseAdmin.auth.admin.getUserById(order.user_id);
+        customerEmail = userData?.user?.email || customerEmail;
+        customerName = userData?.user?.user_metadata?.full_name || '';
+      } catch (userLookupError) {
+        logStep("Could not load auth user for order", {
+          user_id: order.user_id,
+          error: userLookupError instanceof Error ? userLookupError.message : String(userLookupError),
+        });
+      }
+    }
 
     // Get profile for more details
-    const { data: profile } = await supabaseAdmin
-      .from('profiles')
-      .select('company_name, phone')
-      .eq('user_id', order.user_id)
-      .maybeSingle();
+    let profile: { company_name?: string | null; phone?: string | null } | null = null;
+    if (order.user_id) {
+      const { data: profileData } = await supabaseAdmin
+        .from('profiles')
+        .select('company_name, phone')
+        .eq('user_id', order.user_id)
+        .maybeSingle();
+      profile = profileData;
+    }
 
     const displayName = profile?.company_name || customerName || customerEmail;
 
@@ -127,7 +142,7 @@ serve(async (req) => {
     // Get customer number from supplier settings (default to "000001")
     const customerNumber = supplierSettings?.customer_number || '000001';
 
-    if (!n8nWebhookUrl) {
+    if (!preview_only && !n8nWebhookUrl) {
       return new Response(
         JSON.stringify({ error: 'N8N_WEBHOOK_URL non configuré' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -312,6 +327,13 @@ serve(async (req) => {
     };
 
     logStep("Sending to n8n", { url: n8nWebhookUrl });
+
+    if (!n8nWebhookUrl) {
+      return new Response(
+        JSON.stringify({ error: 'N8N_WEBHOOK_URL non configuré' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
 
     const n8nResponse = await fetch(n8nWebhookUrl, {
       method: "POST",
