@@ -2,6 +2,7 @@ import { jsPDF } from "https://esm.sh/jspdf@2.5.1";
 import autoTable from "https://esm.sh/jspdf-autotable@3.8.2";
 import { alsafixCodeOnly } from "./alsafix-code.ts";
 import {
+  roundPdfFooterMoney,
   supplierElementQuantity,
   supplierPurchaseLineTotal,
   supplierTarifUv,
@@ -11,19 +12,30 @@ import type { PdfSiteLogo } from "./site-logo.ts";
 const LOGO_MAX_WIDTH_MM = 45;
 const LOGO_MAX_HEIGHT_MM = 14;
 
+function formatMoneyFr(value: number, maxDecimals = 2): string {
+  const factor = 10 ** maxDecimals;
+  const rounded = Math.round(value * factor) / factor;
+  const fixed = rounded.toFixed(maxDecimals);
+  const [intPart, decPart] = fixed.split(".");
+  const withSpaces = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+  if (maxDecimals === 0) return withSpaces;
+  const trimmedDec = decPart.replace(/0+$/, "");
+  return trimmedDec.length > 0 ? `${withSpaces},${trimmedDec}` : withSpaces;
+}
+
 function drawSiteLogo(
   doc: InstanceType<typeof jsPDF>,
-  pageWidth: number,
   margin: number,
   siteLogo?: PdfSiteLogo | null,
-): void {
+): number {
+  const defaultBottom = 6;
   try {
-    if (!siteLogo?.dataUrl || !siteLogo.format) return;
+    if (!siteLogo?.dataUrl || !siteLogo.format) return defaultBottom;
 
     const sourceWidth = Number(siteLogo.width);
     const sourceHeight = Number(siteLogo.height);
     if (!Number.isFinite(sourceWidth) || !Number.isFinite(sourceHeight) || sourceWidth <= 0 || sourceHeight <= 0) {
-      return;
+      return defaultBottom;
     }
 
     const ratio = sourceWidth / sourceHeight;
@@ -35,10 +47,10 @@ function drawSiteLogo(
       logoWidth = logoHeight * ratio;
     }
 
-    const logoX = pageWidth - margin - logoWidth;
-    doc.addImage(siteLogo.dataUrl, siteLogo.format, logoX, 6, logoWidth, logoHeight);
+    doc.addImage(siteLogo.dataUrl, siteLogo.format, margin, 6, logoWidth, logoHeight);
+    return 6 + logoHeight;
   } catch {
-    // Logo optionnel : ne pas bloquer la génération du PDF
+    return defaultBottom;
   }
 }
 
@@ -64,12 +76,10 @@ export function generateOrderPDF(
     (item.purchase_line_total as number | undefined) ??
     supplierPurchaseLineTotal(item, item.purchase_price_ht as number | null | undefined, item.box_quantity as number | null | undefined);
 
-  // PDF fournisseur : total = somme des « Prix total HT net » (hors frais de livraison)
-  const supplierProductsHT = Math.round(
-    items.reduce((sum, item) => sum + lineTotalForItem(item), 0) * 100,
-  ) / 100;
-  const tvaAmount = Math.round(supplierProductsHT * 0.2 * 100) / 100;
-  const productsTTC = Math.round(supplierProductsHT * 1.2 * 100) / 100;
+  const supplierProductsHTRaw = items.reduce((sum, item) => sum + lineTotalForItem(item), 0);
+  const supplierProductsHT = roundPdfFooterMoney(supplierProductsHTRaw);
+  const tvaAmount = roundPdfFooterMoney(supplierProductsHT * 0.2);
+  const productsTTC = roundPdfFooterMoney(supplierProductsHT * 1.2);
 
   const doc = new jsPDF({
     orientation: "landscape",
@@ -85,20 +95,23 @@ export function generateOrderPDF(
   const totalGreen: [number, number, number] = [212, 237, 218];
   const infoDarkBlue = [25, 50, 85];
 
+  const logoBottom = drawSiteLogo(doc, margin, siteLogo);
+  const dateY = logoBottom + 4;
+  const orderLabelY = dateY + 7;
+  const tableStartY = orderLabelY + 8;
+
   doc.setFontSize(11);
   doc.setFont("helvetica", "normal");
-  doc.text(dateStr, margin, 15);
-
-  drawSiteLogo(doc, pageWidth, margin, siteLogo);
-
   doc.setTextColor(0, 0, 0);
+  doc.text(dateStr, margin, dateY);
+
   doc.setFont("helvetica", "normal");
-  doc.text("commande", margin, 22);
+  doc.text("commande", margin, orderLabelY);
   doc.setFont("helvetica", "bold");
-  doc.text(orderNumber, margin + 25, 22);
+  doc.text(orderNumber, margin + 25, orderLabelY);
 
   doc.setTextColor(infoDarkBlue[0], infoDarkBlue[1], infoDarkBlue[2]);
-  doc.text(`N° clt ${customerNumber}`, pageWidth - margin, 22, { align: "right" });
+  doc.text(`N° clt ${customerNumber}`, pageWidth - margin, orderLabelY, { align: "right" });
   doc.setTextColor(0, 0, 0);
 
   const tableHeaders = [["Code", "Désignation", "Qté", "Tarif UV.", "Prix total HT net"]];
@@ -113,13 +126,13 @@ export function generateOrderPDF(
       alsafixCodeOnly(item.code_alsafix as string | undefined),
       (item.title || item.product_title || "") as string,
       String(elementQty),
-      `${tarifUv.toFixed(2)} €`,
-      `${totalItemHT.toFixed(2)} €`,
+      `${formatMoneyFr(tarifUv, 4)} €`,
+      `${formatMoneyFr(totalItemHT, 2)} €`,
     ];
   });
 
   autoTable(doc, {
-    startY: 30,
+    startY: tableStartY,
     margin: { left: margin, right: margin },
     tableWidth,
     head: tableHeaders,
@@ -169,10 +182,10 @@ export function generateOrderPDF(
   doc.setFontSize(10);
   doc.setFont("helvetica", "normal");
   doc.text("Total HT", summaryLabelX, summaryY, { align: "right" });
-  doc.text(`${supplierProductsHT.toFixed(2)} €`, summaryRight, summaryY, { align: "right" });
+  doc.text(`${formatMoneyFr(supplierProductsHT, 2)} €`, summaryRight, summaryY, { align: "right" });
   summaryY += 5;
   doc.text("TVA (20 %)", summaryLabelX, summaryY, { align: "right" });
-  doc.text(`${tvaAmount.toFixed(2)} €`, summaryRight, summaryY, { align: "right" });
+  doc.text(`${formatMoneyFr(tvaAmount, 2)} €`, summaryRight, summaryY, { align: "right" });
 
   const totalRowY = summaryY + 5;
   doc.setFillColor(totalGreen[0], totalGreen[1], totalGreen[2]);
@@ -184,7 +197,7 @@ export function generateOrderPDF(
   doc.setFontSize(11);
   doc.setFont("helvetica", "bold");
   doc.text("TOTAL TTC", tableLeft + tableDrawWidth * 0.55, totalRowY + 7);
-  doc.text(`${productsTTC.toFixed(2)} €`, summaryRight, totalRowY + 7, { align: "right" });
+  doc.text(`${formatMoneyFr(productsTTC, 2)} €`, summaryRight, totalRowY + 7, { align: "right" });
 
   const addressY = totalRowY + 20;
   doc.setFont("helvetica", "bold");
