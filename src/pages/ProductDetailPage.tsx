@@ -377,7 +377,7 @@ const ProductDetailPage = () => {
                     </span>
                     {product.box_quantity && (
                       <span className="text-sm text-muted-foreground">
-                        / boîte de {product.box_quantity} vis
+                        / boîte de {product.box_quantity} {product.box_quantity === 1 ? "unité" : "unités"}
                       </span>
                     )}
                   </div>
@@ -390,7 +390,7 @@ const ProductDetailPage = () => {
               {/* Box quantity for promo products */}
               {product.is_promo && product.box_quantity && (
                 <p className="text-sm text-muted-foreground">
-                  Boîte de {product.box_quantity} vis
+                  Boîte de {product.box_quantity} {product.box_quantity === 1 ? "unité" : "unités"}
                 </p>
               )}
 
