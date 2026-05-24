@@ -51,6 +51,16 @@ export async function enrichItemsWithAlsafixCodes(
     const code = (productId && alsafixCodeOnly(product?.code_alsafix)) ||
       alsafixCodeOnly(item.code_alsafix as string | undefined) ||
       "";
+    const variantId = String(item.variant_id ?? item.variantId ?? "");
+    const isUnitPurchase = variantId.endsWith("-unit");
+    if (!isUnitPurchase) {
+      if (product?.box_quantity == null || product.box_quantity <= 0) {
+        console.warn("[PDF-SUPPLIER] box_quantity manquant", { productId, code });
+      }
+      if (product?.purchase_price_ht == null || product.purchase_price_ht <= 0) {
+        console.warn("[PDF-SUPPLIER] purchase_price_ht manquant", { productId, code });
+      }
+    }
     return enrichItemSupplierPricing(
       { ...item, code_alsafix: code },
       product?.purchase_price_ht,
