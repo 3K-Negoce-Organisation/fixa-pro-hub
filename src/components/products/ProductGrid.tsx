@@ -18,9 +18,10 @@ export function ProductGrid({ products, isLoading }: ProductGridProps) {
         variantId: product.variantId,
         handle: product.handle,
         title: product.title,
-        variantTitle: "Default",
+        variantTitle: product.variantTitle || "Unité",
         priceHT: product.priceHT,
         image: product.image,
+        boxQuantity: product.boxQuantity ?? null,
         promoGiftProductId: product.promoGiftProductId || undefined,
         promoGiftQuantity: product.promoGiftQuantity || undefined,
       });

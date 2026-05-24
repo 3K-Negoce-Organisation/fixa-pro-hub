@@ -22,6 +22,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { splitOrderTotalsFromItems } from "@/lib/shipping";
+import { BoxQuantityHint } from "@/components/cart/BoxQuantityHint";
 
 // Download document via fetch to avoid ad-blocker issues
 const downloadDocument = async (url: string, fileName: string) => {
@@ -73,6 +74,7 @@ interface OrderItem {
   quantity: number;
   unit_price_ht: number;
   unit_price_ttc: number;
+  box_quantity?: number | null;
 }
 
 interface OrderDocument {
@@ -99,6 +101,23 @@ interface Order {
   updated_at: string;
   order_items: OrderItem[];
   documents: OrderDocument[];
+}
+
+async function enrichOrderItemsWithBoxQuantity(items: OrderItem[]): Promise<OrderItem[]> {
+  const productIds = [...new Set(items.map((i) => i.product_id).filter(Boolean))];
+  if (productIds.length === 0) return items;
+
+  const { data: products } = await supabase
+    .from("products")
+    .select("id, box_quantity")
+    .in("id", productIds);
+
+  const boxById = new Map((products || []).map((p) => [p.id, p.box_quantity]));
+
+  return items.map((item) => ({
+    ...item,
+    box_quantity: boxById.get(item.product_id) ?? item.box_quantity ?? null,
+  }));
 }
 
 const statusConfig: Record<OrderStatus, { label: string; color: string; icon: React.ReactNode; step: number }> = {
@@ -300,7 +319,7 @@ const OrderTrackingPage = () => {
     setOrder({
       ...orderData,
       status: orderData.status as OrderStatus,
-      order_items: itemsData || [],
+      order_items: await enrichOrderItemsWithBoxQuantity(itemsData || []),
       documents,
     });
 
@@ -353,7 +372,7 @@ const OrderTrackingPage = () => {
     setOrder({
       ...(orderData as unknown as Order),
       status: orderData.status as OrderStatus,
-      order_items: (itemsData || []) as unknown as OrderItem[],
+      order_items: await enrichOrderItemsWithBoxQuantity((itemsData || []) as unknown as OrderItem[]),
       documents,
     });
     setOrderFromGuestLookup(true);
@@ -808,6 +827,10 @@ const OrderTrackingPage = () => {
                                 {item.variant_title}
                               </p>
                             )}
+                            <BoxQuantityHint
+                              boxQuantity={item.box_quantity}
+                              variantTitle={item.variant_title}
+                            />
                             <div className="flex items-center justify-between mt-1">
                               <span className="text-xs text-muted-foreground">Qté: {item.quantity}</span>
                               <span className="text-sm font-medium">{formatPriceHT(item.unit_price_ht * item.quantity)}</span>
@@ -849,6 +872,10 @@ const OrderTrackingPage = () => {
                                         {item.variant_title}
                                       </p>
                                     )}
+                                    <BoxQuantityHint
+                                      boxQuantity={item.box_quantity}
+                                      variantTitle={item.variant_title}
+                                    />
                                   </div>
                                 </div>
                               </TableCell>

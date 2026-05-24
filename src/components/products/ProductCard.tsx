@@ -30,6 +30,8 @@ export interface DisplayProduct {
   promoGiftTitle?: string | null;
   promoGiftHandle?: string | null;
   promoGiftImage?: string | null;
+  variantTitle?: string;
+  boxQuantity?: number | null;
 }
 
 // Helper to calculate discount percentage

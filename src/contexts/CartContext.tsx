@@ -15,6 +15,7 @@ export interface CartItem {
   giftFromProductId?: string | null;
   promoGiftProductId?: string;
   promoGiftQuantity?: number;
+  boxQuantity?: number | null;
 }
 
 interface CartContextType {
@@ -78,7 +79,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     if (!giftProductId || quantity <= 0) return;
     const { data, error } = await supabase
       .from("products")
-      .select("id, handle, title, images")
+      .select("id, handle, title, images, box_quantity")
       .eq("id", giftProductId)
       .maybeSingle();
     if (error || !data) return;
@@ -110,8 +111,33 @@ export function CartProvider({ children }: { children: ReactNode }) {
           quantity,
           isGift: true,
           giftFromProductId: null,
+          boxQuantity: data.box_quantity ?? null,
         },
       ];
+    });
+  }, []);
+
+  const hydrateBoxQuantities = useCallback(async (cartItems: CartItem[]): Promise<CartItem[]> => {
+    const missingIds = [
+      ...new Set(
+        cartItems
+          .filter((i) => !i.isGift && (i.boxQuantity == null || i.boxQuantity === undefined))
+          .map((i) => i.id),
+      ),
+    ];
+    if (missingIds.length === 0) return cartItems;
+
+    const { data: products } = await supabase
+      .from("products")
+      .select("id, box_quantity")
+      .in("id", missingIds);
+
+    const boxById = new Map((products || []).map((p) => [p.id, p.box_quantity]));
+
+    return cartItems.map((item) => {
+      if (item.isGift || item.boxQuantity != null) return item;
+      const boxQuantity = boxById.get(item.id);
+      return boxQuantity != null ? { ...item, boxQuantity } : item;
     });
   }, []);
 
@@ -213,12 +239,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
         // Merge local cart with Supabase cart (local takes priority for new items)
         if (localCart.items.length > 0 && supabaseCart.length === 0) {
-          // User had local cart, save it to Supabase
-          setItems(localCart.items);
-          await saveCartToSupabase(currentUser.id, localCart.items);
+          const hydrated = await hydrateBoxQuantities(localCart.items);
+          setItems(hydrated);
+          await saveCartToSupabase(currentUser.id, hydrated);
         } else if (supabaseCart.length > 0) {
-          // Use Supabase cart
-          setItems(supabaseCart);
+          setItems(await hydrateBoxQuantities(supabaseCart));
         } else {
           setItems([]);
         }
@@ -229,7 +254,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       } else {
         // Load from localStorage for guests
         const localCart = loadLocalCart();
-        setItems(localCart.items);
+        setItems(await hydrateBoxQuantities(localCart.items));
         setRemovedItems(localCart.removedItems);
       }
 
@@ -266,9 +291,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
                 }
               }
 
-              setItems(mergedItems);
-              if (mergedItems.length > 0) {
-                await saveCartToSupabase(newUser.id, mergedItems);
+              const hydratedMerged = await hydrateBoxQuantities(mergedItems);
+              setItems(hydratedMerged);
+              if (hydratedMerged.length > 0) {
+                await saveCartToSupabase(newUser.id, hydratedMerged);
               }
               localStorage.removeItem(CART_STORAGE_KEY);
             } else if (event === "SIGNED_OUT") {
@@ -286,7 +312,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     return () => {
       subscription.unsubscribe();
     };
-  }, [loadCartFromSupabase, loadLocalCart, saveCartToSupabase]);
+  }, [loadCartFromSupabase, loadLocalCart, saveCartToSupabase, hydrateBoxQuantities]);
 
   // Save cart changes (debounced for performance)
   useEffect(() => {

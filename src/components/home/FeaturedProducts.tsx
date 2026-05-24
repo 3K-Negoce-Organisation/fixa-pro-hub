@@ -23,6 +23,8 @@ function mapProductToDisplay(product: Product): DisplayProduct {
     drive_type: product.drive_type,
     stock: product.stock ?? 0,
     inStock: (product.stock ?? 0) > 0,
+    variantTitle: "Unité",
+    boxQuantity: product.box_quantity ?? null,
   };
 }
 
@@ -43,9 +45,10 @@ export function FeaturedProducts() {
         variantId: product.variantId,
         handle: product.handle,
         title: product.title,
-        variantTitle: "Unité",
+        variantTitle: product.variantTitle || "Unité",
         priceHT: product.priceHT,
         image: product.image,
+        boxQuantity: product.boxQuantity ?? null,
       });
       toast.success("Produit ajouté au panier", {
         description: product.title,

@@ -129,6 +129,7 @@ const ProductDetailPage = () => {
         image: productImage,
         promoGiftProductId: (product as any).promo_gift_product_id || undefined,
         promoGiftQuantity: (product as any).promo_gift_quantity || undefined,
+        boxQuantity: product.box_quantity ?? null,
       },
       quantity
     );
