@@ -21,7 +21,11 @@ export function generateOrderPDF(
 ): string {
   const date = new Date();
   const dateStr = `${String(date.getMonth() + 1).padStart(2, "0")}/${String(date.getDate()).padStart(2, "0")}/${String(date.getFullYear()).slice(-2)}`;
-  const { shippingHT } = splitOrderTotals(items, totalHT);
+  const { productsHT, shippingHT } = splitOrderTotals(items, totalHT);
+  // PDF fournisseur : produits uniquement (pas de ligne ni montant frais de port)
+  const shippingTTC = Math.round(shippingHT * 1.2 * 100) / 100;
+  const productsTTC = Math.round((totalTTC - shippingTTC) * 100) / 100;
+  const tvaAmount = Math.round((productsTTC - productsHT) * 100) / 100;
 
   const doc = new jsPDF({
     orientation: "landscape",
@@ -66,16 +70,6 @@ export function generateOrderPDF(
     ];
   });
 
-  if (shippingHT > 0) {
-    tableData.push([
-      "",
-      "Frais de livraison",
-      "1",
-      `${shippingHT.toFixed(2)} €`,
-      `${shippingHT.toFixed(2)} €`,
-    ]);
-  }
-
   autoTable(doc, {
     startY: 30,
     margin: { left: margin, right: margin },
@@ -117,12 +111,11 @@ export function generateOrderPDF(
   const summaryRight = tableLeft + tableDrawWidth - 10;
   const summaryLabelX = tableLeft + tableDrawWidth - 55;
   let summaryY = finalY + 6;
-  const tvaAmount = Math.round((totalTTC - totalHT) * 100) / 100;
 
   doc.setFontSize(10);
   doc.setFont("helvetica", "normal");
   doc.text("Total HT", summaryLabelX, summaryY, { align: "right" });
-  doc.text(`${totalHT.toFixed(2)} €`, summaryRight, summaryY, { align: "right" });
+  doc.text(`${productsHT.toFixed(2)} €`, summaryRight, summaryY, { align: "right" });
   summaryY += 5;
   doc.text("TVA (20 %)", summaryLabelX, summaryY, { align: "right" });
   doc.text(`${tvaAmount.toFixed(2)} €`, summaryRight, summaryY, { align: "right" });
@@ -137,7 +130,7 @@ export function generateOrderPDF(
   doc.setFontSize(11);
   doc.setFont("helvetica", "bold");
   doc.text("TOTAL TTC", tableLeft + tableDrawWidth * 0.55, totalRowY + 7);
-  doc.text(`${totalTTC.toFixed(2)} €`, summaryRight, totalRowY + 7, { align: "right" });
+  doc.text(`${productsTTC.toFixed(2)} €`, summaryRight, totalRowY + 7, { align: "right" });
 
   const addressY = totalRowY + 20;
   doc.setFont("helvetica", "bold");

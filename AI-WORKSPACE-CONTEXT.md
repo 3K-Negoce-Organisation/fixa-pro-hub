@@ -4,7 +4,7 @@
 
 **Emplacement canonique :** versionné à la **racine de ce dépôt** (`AI-WORKSPACE-CONTEXT.md`). Workspace multi-dépôts local : scripts partagés `../scripts/`, admin `../admin-hub-central/`, docs transverses `../docs/`.
 
-**Last updated:** 2026-05-23 (PDF commande — code Alsafix, alignement tableau, TVA, total TTC)
+**Last updated:** 2026-05-23 (PDF fournisseur sans frais de port)
 
 ---
 
@@ -509,13 +509,14 @@ Génération centralisée : **`supabase/functions/_shared/generate-order-pdf.ts`
 | Zone | Contenu |
 |------|---------|
 | **En-tête** | Date, n° commande, **`N° clt …`** (sans libellé `clt NOM CLIENT`) |
-| **Tableau (bleu)** | Colonnes : Code, Désignation, Qté, Prix au conditionnement, Prix total HT net — **largeur pleine** (`tableWidth = page − marges`), **alignée** avec la barre verte du total |
+| **Tableau (bleu)** | Colonnes : Code, Désignation, Qté, Prix au conditionnement, Prix total HT net — **produits uniquement** (pas de ligne « Frais de livraison ») ; largeur pleine, alignée avec la barre verte |
 | **Colonne Code** | **`products.code_alsafix`** uniquement (référence Alsafix) — **jamais** l’UUID produit en repli ; cellule **vide** si le code n’est pas renseigné en admin |
-| **Ligne livraison** | « Frais de livraison » si `shippingHT > 0` |
-| **Synthèse sous le tableau** | Total HT → TVA (20 %) → barre verte **TOTAL TTC** (montant payé client, ex. 26,55 €) |
+| **Synthèse sous le tableau** | Total HT / TVA (20 %) / **TOTAL TTC** sur le **seul montant produits** (hors frais de port boutique) |
 | **Pied** | Adresse de livraison, mention « Livraison direct sans BL chiffré » |
 
-**Exemple chiffré (commande type) :** produit 12,13 € HT + port 10,00 € HT → Total HT 22,13 € + TVA 4,42 € → **TOTAL TTC 26,55 €**.
+**Exemple chiffré (commande type) :** produit **12,13 € HT** → Total HT 12,13 € + TVA 2,43 € → **TOTAL TTC 14,56 €** sur le PDF fournisseur. Les **frais de port** (ex. 10 € HT / 12 € TTC) restent côté boutique (panier, suivi client, email Resend) — **absents** du PDF n8n/Alsafix.
+
+**PDF fournisseur vs client :** le PDF joint au webhook **n8n** (`pdf_file` dans `stripe-webhook` / `simulate-order-webhook`) est destiné au **fournisseur** ; l’**email client** Resend (`send-order-confirmation-email.ts`) continue d’afficher produits + frais de port + total commande payée.
 
 ### Code Alsafix (`code_alsafix`)
 
@@ -571,6 +572,7 @@ Depuis **admin-hub-central** → **Commandes** → action **Renvoyer** : appelle
 
 | Date       | Change                                                                                                                                                                                                                                                                                       |
 | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-05-23 | **fixa-pro-hub — PDF fournisseur :** retrait ligne et totaux **frais de port** du bon de commande n8n/Alsafix (`generate-order-pdf.ts` — montants produits seuls) ; email client et suivi boutique inchangés. |
 | 2026-05-23 | **fixa-pro-hub — PDF commande :** module `_shared/generate-order-pdf.ts` + `_shared/alsafix-code.ts` ; colonne **Code = `code_alsafix` uniquement** (pas d’UUID) ; tableau pleine largeur aligné sur barre **TOTAL TTC** ; lignes **Total HT / TVA 20 % / TOTAL TTC** ; enrichissement Alsafix via `product_id`. **Git** `432b122` → merge `main` `75aae7a`. **Edge prod** deploy. |
 | 2026-05-23 | **fixa-pro-hub — totaux commande :** montant **principal en TTC** (suivi, mon compte, PDF barre verte, email confirmation) ; détail **TVA** sous le tableau PDF. **Git** `3bf6c8c` / `5c8009b` → merge `main` `df710c8` / `d7b65d7`. |
 | 2026-05-23 | **Docs :** `AI-WORKSPACE-CONTEXT.md` versionné à la **racine du dépôt fixa-pro-hub** (source de vérité assistants) ; section commande payée / frais de port / PDF / email ; changelog 2026-05-23. |
