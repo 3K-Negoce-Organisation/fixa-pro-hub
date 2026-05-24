@@ -1,4 +1,4 @@
-import { supplierElementQuantity } from "./order-supplier-quantity.ts";
+import { enrichItemSupplierPricing } from "./order-supplier-quantity.ts";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -23,19 +23,24 @@ export async function enrichItemsWithAlsafixCodes(
   ] as string[];
 
   if (productIds.length === 0) {
-    return items.map((item) => ({
-      ...item,
-      code_alsafix: alsafixCodeOnly(item.code_alsafix as string | undefined),
-      element_quantity: supplierElementQuantity(item, item.box_quantity as number | null | undefined),
-    }));
+    return items.map((item) =>
+      enrichItemSupplierPricing({
+        ...item,
+        code_alsafix: alsafixCodeOnly(item.code_alsafix as string | undefined),
+      }),
+    );
   }
 
   const { data: products } = await supabaseAdmin
     .from("products")
-    .select("id, code_alsafix, box_quantity")
+    .select("id, code_alsafix, box_quantity, purchase_price_ht")
     .in("id", productIds);
 
-  const productById = new Map<string, { code_alsafix?: string | null; box_quantity?: number | null }>();
+  const productById = new Map<string, {
+    code_alsafix?: string | null;
+    box_quantity?: number | null;
+    purchase_price_ht?: number | null;
+  }>();
   for (const product of products || []) {
     productById.set(product.id, product);
   }
@@ -46,11 +51,10 @@ export async function enrichItemsWithAlsafixCodes(
     const code = (productId && alsafixCodeOnly(product?.code_alsafix)) ||
       alsafixCodeOnly(item.code_alsafix as string | undefined) ||
       "";
-    return {
-      ...item,
-      code_alsafix: code,
-      box_quantity: product?.box_quantity ?? item.box_quantity ?? null,
-      element_quantity: supplierElementQuantity(item, product?.box_quantity),
-    };
+    return enrichItemSupplierPricing(
+      { ...item, code_alsafix: code },
+      product?.purchase_price_ht,
+      product?.box_quantity,
+    );
   });
 }
