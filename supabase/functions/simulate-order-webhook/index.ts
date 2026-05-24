@@ -4,6 +4,7 @@ import { splitOrderTotals } from "../_shared/order-totals.ts";
 import { sendOrderConfirmationEmail } from "../_shared/send-order-confirmation-email.ts";
 import { enrichItemsWithAlsafixCodes } from "../_shared/alsafix-code.ts";
 import { generateOrderPDF } from "../_shared/generate-order-pdf.ts";
+import { loadSiteLogoForOrderPdf } from "../_shared/site-logo.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -134,6 +135,7 @@ serve(async (req) => {
     }
 
     // Generate PDF file
+    const siteLogo = await loadSiteLogoForOrderPdf(supabaseAdmin, order.site_id);
     const pdfBase64 = generateOrderPDF(
       order.order_number,
       displayName,
@@ -147,6 +149,7 @@ serve(async (req) => {
         postal_code: order.shipping_postal_code || undefined,
       },
       profile?.phone || null,
+      siteLogo,
     );
 
     logStep("PDF file generated", { size: pdfBase64.length, preview_only: !!preview_only });

@@ -6,6 +6,31 @@ import {
   supplierPurchaseLineTotal,
   supplierTarifUv,
 } from "./order-supplier-quantity.ts";
+import type { PdfSiteLogo } from "./site-logo.ts";
+
+const LOGO_MAX_WIDTH_MM = 45;
+const LOGO_MAX_HEIGHT_MM = 14;
+
+function drawSiteLogo(
+  doc: InstanceType<typeof jsPDF>,
+  pageWidth: number,
+  margin: number,
+  siteLogo?: PdfSiteLogo | null,
+): void {
+  if (!siteLogo) return;
+
+  const ratio = siteLogo.width / siteLogo.height;
+  let logoWidth = LOGO_MAX_WIDTH_MM;
+  let logoHeight = logoWidth / ratio;
+
+  if (logoHeight > LOGO_MAX_HEIGHT_MM) {
+    logoHeight = LOGO_MAX_HEIGHT_MM;
+    logoWidth = logoHeight * ratio;
+  }
+
+  const logoX = pageWidth - margin - logoWidth;
+  doc.addImage(siteLogo.dataUrl, siteLogo.format, logoX, 6, logoWidth, logoHeight);
+}
 
 export function generateOrderPDF(
   orderNumber: string,
@@ -21,6 +46,7 @@ export function generateOrderPDF(
     postal_code?: string;
   } | null,
   customerPhone?: string | null,
+  siteLogo?: PdfSiteLogo | null,
 ): string {
   const date = new Date();
   const dateStr = `${String(date.getMonth() + 1).padStart(2, "0")}/${String(date.getDate()).padStart(2, "0")}/${String(date.getFullYear()).slice(-2)}`;
@@ -52,6 +78,8 @@ export function generateOrderPDF(
   doc.setFontSize(11);
   doc.setFont("helvetica", "normal");
   doc.text(dateStr, margin, 15);
+
+  drawSiteLogo(doc, pageWidth, margin, siteLogo);
 
   doc.setTextColor(0, 0, 0);
   doc.setFont("helvetica", "normal");
