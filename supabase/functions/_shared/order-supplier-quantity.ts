@@ -20,19 +20,38 @@ function cartQuantity(item: Record<string, unknown>): number {
   return Number.isFinite(cartQty) && cartQty > 0 ? cartQty : 1;
 }
 
-function resolveBoxQuantity(item: Record<string, unknown>, boxQuantity?: number | null): number {
-  const perBox = Number(boxQuantity ?? item.box_quantity ?? 0);
-  return Number.isFinite(perBox) && perBox > 0 ? perBox : 0;
+/** Valeurs issues exclusivement de la table products (enrichissement). */
+export function resolveProductBoxQuantity(item: Record<string, unknown>, boxQuantity?: number | null): number {
+  const perBox = Number(boxQuantity ?? item.product_box_quantity ?? item.box_quantity ?? 0);
+  return Number.isFinite(perBox) && perBox > 0 ? perBox : 1;
 }
 
-function resolvePurchasePrice(item: Record<string, unknown>, purchasePriceHt?: number | null): number {
-  const purchase = Number(purchasePriceHt ?? item.purchase_price_ht ?? 0);
+export function resolveProductPurchasePrice(
+  item: Record<string, unknown>,
+  purchasePriceHt?: number | null,
+): number {
+  const purchase = Number(purchasePriceHt ?? item.product_purchase_price_ht ?? item.purchase_price_ht ?? 0);
   return Number.isFinite(purchase) && purchase > 0 ? purchase : 0;
 }
 
 /**
+ * Prix d'achat HT par unité (products.purchase_price_ht / products.box_quantity si box_quantity > 1).
+ */
+export function supplierUnitPurchasePrice(
+  purchasePriceHt: number,
+  boxQuantity?: number | null,
+): number {
+  if (purchasePriceHt <= 0) return 0;
+  const boxQty = Number(boxQuantity ?? 0);
+  if (Number.isFinite(boxQty) && boxQty > 1) {
+    return purchasePriceHt / boxQty;
+  }
+  return purchasePriceHt;
+}
+
+/**
  * Quantité en éléments pour le PDF / le fournisseur :
- * - boîte : nb boîtes × quantité par boîte (ex. 4 × 1000 = 4000)
+ * - boîte : nb boîtes × box_quantity (ex. 4 × 1000 = 4000)
  * - unité (-unit) : quantité achetée telle quelle
  */
 export function supplierElementQuantity(
@@ -42,47 +61,54 @@ export function supplierElementQuantity(
   const safeCartQty = cartQuantity(item);
   if (isSupplierUnitPurchase(item)) return safeCartQty;
 
-  const perBox = resolveBoxQuantity(item, boxQuantity);
-  if (perBox > 0) return safeCartQty * perBox;
+  const perBox = resolveProductBoxQuantity(item, boxQuantity);
+  if (perBox > 1) return safeCartQty * perBox;
 
   return safeCartQty;
 }
 
 /**
- * Tarif UV = prix d'achat ramené à 100 unités.
- * Ex. PA boîte 55 € pour 1000 vis → 55 / 1000 × 100 = 5,50 €.
+ * Tarif UV = prix pour 100 unités = prix unitaire × 100.
+ * Si box_quantity > 1 : (purchase_price_ht / box_quantity) × 100.
  */
 export function supplierTarifUv(
   item: Record<string, unknown>,
   purchasePriceHt?: number | null,
   boxQuantity?: number | null,
 ): number {
-  const purchase = resolvePurchasePrice(item, purchasePriceHt);
+  const purchase = resolveProductPurchasePrice(item, purchasePriceHt);
   if (purchase <= 0) return 0;
 
-  const perBox = resolveBoxQuantity(item, boxQuantity);
-  if (perBox > 0) return (purchase / perBox) * UV_BATCH;
-
-  return purchase * UV_BATCH;
+  const boxQty = resolveProductBoxQuantity(item, boxQuantity);
+  return supplierUnitPurchasePrice(purchase, boxQty) * UV_BATCH;
 }
 
-/** Total HT net fournisseur pour la ligne (PA boîte × nb boîtes ou PA unitaire × qté). */
+/**
+ * Prix total HT net :
+ * - achat unitaire : qté unités × (purchase_price_ht / box_quantity)
+ * - achat boîte : nb boîtes × purchase_price_ht
+ * (équivalent à qté unités × prix unitaire)
+ */
 export function supplierPurchaseLineTotal(
   item: Record<string, unknown>,
   purchasePriceHt?: number | null,
   boxQuantity?: number | null,
 ): number {
-  const safeCartQty = cartQuantity(item);
-  const purchase = resolvePurchasePrice(item, purchasePriceHt);
+  const purchase = resolveProductPurchasePrice(item, purchasePriceHt);
   if (purchase <= 0) return 0;
 
+  const boxQty = resolveProductBoxQuantity(item, boxQuantity);
+  const unitPrice = supplierUnitPurchasePrice(purchase, boxQty);
+
   if (isSupplierUnitPurchase(item)) {
-    const perBox = resolveBoxQuantity(item, boxQuantity);
-    const unitPurchase = perBox > 0 ? purchase / perBox : purchase;
-    return safeCartQty * unitPurchase;
+    return cartQuantity(item) * unitPrice;
   }
 
-  return safeCartQty * purchase;
+  if (boxQty > 1) {
+    return cartQuantity(item) * purchase;
+  }
+
+  return supplierElementQuantity(item, boxQty) * unitPrice;
 }
 
 export function enrichItemSupplierPricing(
@@ -90,15 +116,22 @@ export function enrichItemSupplierPricing(
   purchasePriceHt?: number | null,
   boxQuantity?: number | null,
 ): Record<string, unknown> {
-  const boxQty = boxQuantity ?? item.box_quantity ?? null;
-  const purchase = purchasePriceHt ?? item.purchase_price_ht ?? null;
-  return {
+  const productPurchase = purchasePriceHt ?? null;
+  const productBoxQty = boxQuantity ?? null;
+
+  const enrichedItem = {
     ...item,
-    purchase_price_ht: purchase,
-    box_quantity: boxQty,
-    element_quantity: supplierElementQuantity(item, boxQty as number | null | undefined),
-    tarif_uv: supplierTarifUv(item, purchase as number | null | undefined, boxQty as number | null | undefined),
-    purchase_line_total: supplierPurchaseLineTotal(item, purchase as number | null | undefined, boxQty as number | null | undefined),
+    product_purchase_price_ht: productPurchase,
+    product_box_quantity: productBoxQty,
+    purchase_price_ht: productPurchase,
+    box_quantity: productBoxQty,
+  };
+
+  return {
+    ...enrichedItem,
+    element_quantity: supplierElementQuantity(enrichedItem, productBoxQty),
+    tarif_uv: supplierTarifUv(enrichedItem, productPurchase, productBoxQty),
+    purchase_line_total: supplierPurchaseLineTotal(enrichedItem, productPurchase, productBoxQty),
   };
 }
 

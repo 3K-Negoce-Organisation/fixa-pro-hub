@@ -12,15 +12,21 @@ import type { PdfSiteLogo } from "./site-logo.ts";
 const LOGO_MAX_WIDTH_MM = 45;
 const LOGO_MAX_HEIGHT_MM = 14;
 
-function formatMoneyFr(value: number, maxDecimals = 2): string {
+function formatMoneyFr(value: number, maxDecimals = 2, minDecimals = 2): string {
   const factor = 10 ** maxDecimals;
   const rounded = Math.round(value * factor) / factor;
-  const fixed = rounded.toFixed(maxDecimals);
-  const [intPart, decPart] = fixed.split(".");
+  let fixed = rounded.toFixed(maxDecimals);
+  if (minDecimals < maxDecimals) {
+    const [intPart, decPart = ""] = fixed.split(".");
+    const trimmedDec = decPart.replace(/0+$/, "");
+    fixed = trimmedDec.length >= minDecimals
+      ? `${intPart}.${trimmedDec}`
+      : `${intPart}.${trimmedDec.padEnd(minDecimals, "0")}`;
+  }
+  const [intPart, decPart = ""] = fixed.split(".");
   const withSpaces = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, " ");
-  if (maxDecimals === 0) return withSpaces;
-  const trimmedDec = decPart.replace(/0+$/, "");
-  return trimmedDec.length > 0 ? `${withSpaces},${trimmedDec}` : withSpaces;
+  if (maxDecimals === 0 || !decPart) return withSpaces;
+  return `${withSpaces},${decPart}`;
 }
 
 function drawSiteLogo(
@@ -73,8 +79,11 @@ export function generateOrderPDF(
   const date = new Date();
   const dateStr = `${String(date.getMonth() + 1).padStart(2, "0")}/${String(date.getDate()).padStart(2, "0")}/${String(date.getFullYear()).slice(-2)}`;
   const lineTotalForItem = (item: Record<string, unknown>) =>
-    (item.purchase_line_total as number | undefined) ??
-    supplierPurchaseLineTotal(item, item.purchase_price_ht as number | null | undefined, item.box_quantity as number | null | undefined);
+    supplierPurchaseLineTotal(
+      item,
+      item.product_purchase_price_ht as number | null | undefined,
+      item.product_box_quantity as number | null | undefined,
+    );
 
   const supplierProductsHTRaw = items.reduce((sum, item) => sum + lineTotalForItem(item), 0);
   const supplierProductsHT = roundPdfFooterMoney(supplierProductsHTRaw);
@@ -117,17 +126,17 @@ export function generateOrderPDF(
   const tableHeaders = [["Code", "Désignation", "Qté", "Tarif UV.", "Prix total HT net"]];
 
   const tableData = items.map((item) => {
-    const elementQty = (item.element_quantity as number | undefined) ??
-      supplierElementQuantity(item, item.box_quantity as number | null | undefined);
-    const tarifUv = (item.tarif_uv as number | undefined) ??
-      supplierTarifUv(item, item.purchase_price_ht as number | null | undefined, item.box_quantity as number | null | undefined);
+    const productPurchase = item.product_purchase_price_ht as number | null | undefined;
+    const productBoxQty = item.product_box_quantity as number | null | undefined;
+    const elementQty = supplierElementQuantity(item, productBoxQty);
+    const tarifUv = supplierTarifUv(item, productPurchase, productBoxQty);
     const totalItemHT = lineTotalForItem(item);
     return [
       alsafixCodeOnly(item.code_alsafix as string | undefined),
       (item.title || item.product_title || "") as string,
       String(elementQty),
-      `${formatMoneyFr(tarifUv, 4)} €`,
-      `${formatMoneyFr(totalItemHT, 2)} €`,
+      `${formatMoneyFr(tarifUv, 4, 2)} €`,
+      `${formatMoneyFr(totalItemHT, 2, 2)} €`,
     ];
   });
 
