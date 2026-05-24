@@ -1,8 +1,11 @@
 import { jsPDF } from "https://esm.sh/jspdf@2.5.1";
 import autoTable from "https://esm.sh/jspdf-autotable@3.8.2";
-import { splitOrderTotals } from "./order-totals.ts";
 import { alsafixCodeOnly } from "./alsafix-code.ts";
-import { supplierElementQuantity } from "./order-supplier-quantity.ts";
+import {
+  supplierElementQuantity,
+  supplierPurchaseLineTotal,
+  supplierTarifUv,
+} from "./order-supplier-quantity.ts";
 
 export function generateOrderPDF(
   orderNumber: string,
@@ -22,11 +25,16 @@ export function generateOrderPDF(
 ): string {
   const date = new Date();
   const dateStr = `${String(date.getMonth() + 1).padStart(2, "0")}/${String(date.getDate()).padStart(2, "0")}/${String(date.getFullYear()).slice(-2)}`;
-  const { productsHT, shippingHT } = splitOrderTotals(items, totalHT);
-  // PDF fournisseur : produits uniquement (pas de ligne ni montant frais de port)
-  const shippingTTC = Math.round(shippingHT * 1.2 * 100) / 100;
-  const productsTTC = Math.round((totalTTC - shippingTTC) * 100) / 100;
-  const tvaAmount = Math.round((productsTTC - productsHT) * 100) / 100;
+  // PDF fournisseur : totaux basés sur prix d'achat (pas prix vente client)
+  const supplierProductsHT = Math.round(
+    items.reduce((sum, item) => {
+      const lineTotal = (item.purchase_line_total as number | undefined) ??
+        supplierPurchaseLineTotal(item, item.purchase_price_ht as number | null | undefined, item.box_quantity as number | null | undefined);
+      return sum + lineTotal;
+    }, 0) * 100,
+  ) / 100;
+  const tvaAmount = Math.round(supplierProductsHT * 0.2 * 100) / 100;
+  const productsTTC = Math.round(supplierProductsHT * 1.2 * 100) / 100;
 
   const doc = new jsPDF({
     orientation: "landscape",
@@ -56,19 +64,20 @@ export function generateOrderPDF(
   doc.text(`N° clt ${customerNumber}`, pageWidth - margin, 22, { align: "right" });
   doc.setTextColor(0, 0, 0);
 
-  const tableHeaders = [["Code", "Désignation", "Qté", "Prix au conditionnement", "Prix total HT net"]];
+  const tableHeaders = [["Code", "Désignation", "Qté", "Tarif UV.", "Prix total HT net"]];
 
   const tableData = items.map((item) => {
-    const priceHT = (item.priceHT ?? item.unit_price_ht ?? 0) as number;
-    const cartQty = (item.quantity ?? item.q ?? 1) as number;
     const elementQty = (item.element_quantity as number | undefined) ??
       supplierElementQuantity(item, item.box_quantity as number | null | undefined);
-    const totalItemHT = priceHT * cartQty;
+    const tarifUv = (item.tarif_uv as number | undefined) ??
+      supplierTarifUv(item, item.purchase_price_ht as number | null | undefined, item.box_quantity as number | null | undefined);
+    const totalItemHT = (item.purchase_line_total as number | undefined) ??
+      supplierPurchaseLineTotal(item, item.purchase_price_ht as number | null | undefined, item.box_quantity as number | null | undefined);
     return [
       alsafixCodeOnly(item.code_alsafix as string | undefined),
       (item.title || item.product_title || "") as string,
       String(elementQty),
-      `${priceHT.toFixed(2)} €`,
+      `${tarifUv.toFixed(2)} €`,
       `${totalItemHT.toFixed(2)} €`,
     ];
   });
@@ -118,7 +127,7 @@ export function generateOrderPDF(
   doc.setFontSize(10);
   doc.setFont("helvetica", "normal");
   doc.text("Total HT", summaryLabelX, summaryY, { align: "right" });
-  doc.text(`${productsHT.toFixed(2)} €`, summaryRight, summaryY, { align: "right" });
+  doc.text(`${supplierProductsHT.toFixed(2)} €`, summaryRight, summaryY, { align: "right" });
   summaryY += 5;
   doc.text("TVA (20 %)", summaryLabelX, summaryY, { align: "right" });
   doc.text(`${tvaAmount.toFixed(2)} €`, summaryRight, summaryY, { align: "right" });
