@@ -273,6 +273,7 @@ serve(async (req) => {
       logStep("Generated order number", { orderNumber });
 
       // Create order in Supabase
+      const stripeModeFromMetadata = metadata.stripe_mode === "test" ? "test" : "live";
       const insertPayload: Record<string, unknown> = {
         order_number: orderNumber,
         user_id: userId,
@@ -286,7 +287,7 @@ serve(async (req) => {
         shipping_city: shippingAddress?.city || null,
         shipping_postal_code: shippingAddress?.postal_code || null,
         shipping_name: customerName,
-        notes: `Stripe PaymentIntent: ${paymentIntent.id}`,
+        notes: `Stripe PaymentIntent: ${paymentIntent.id} | stripe_mode:${stripeModeFromMetadata}`,
       };
       if (orderSiteId) insertPayload.site_id = orderSiteId;
 
@@ -461,6 +462,7 @@ serve(async (req) => {
       const customerEmail = fullSession.customer_details?.email || fullSession.customer_email || null;
 
       // Create order in Supabase
+      const stripeModeFromSession = metadata.stripe_mode === "test" ? "test" : "live";
       const sessionInsert: Record<string, unknown> = {
         order_number: orderNumber,
         user_id: userId,
@@ -473,7 +475,7 @@ serve(async (req) => {
           : null,
         shipping_city: shippingAddress?.city || null,
         shipping_postal_code: shippingAddress?.postal_code || null,
-        notes: `Stripe Session: ${session.id}`,
+        notes: `Stripe Session: ${session.id} | stripe_mode:${stripeModeFromSession}`,
       };
       if (sessionOrderSiteId) sessionInsert.site_id = sessionOrderSiteId;
 

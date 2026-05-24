@@ -46,6 +46,7 @@ interface CheckoutFormInnerProps extends CheckoutFormProps {
   totalHT: number;
   setUserEmail: (email: string) => void;
   userProfile: UserProfile | null;
+  stripeMode: SiteStripeMode;
 }
 
 const ELEMENTS_READY_TIMEOUT_MS = 20000; // 20 seconds for elements to load
@@ -55,7 +56,7 @@ interface CheckoutFormInnerPropsWithFallback extends CheckoutFormInnerProps {
   fallbackLoading: boolean;
 }
 
-const CheckoutForm = ({ totalTTC, userEmail, isGuest, onSuccess, onCancel, items, totalHT, setUserEmail, onFallbackToCheckout, fallbackLoading, userProfile }: CheckoutFormInnerPropsWithFallback) => {
+const CheckoutForm = ({ totalTTC, userEmail, isGuest, onSuccess, onCancel, items, totalHT, setUserEmail, onFallbackToCheckout, fallbackLoading, userProfile, stripeMode }: CheckoutFormInnerPropsWithFallback) => {
   const { theme } = useTheme();
   const stripe = useStripe();
   const elements = useElements();
@@ -270,7 +271,7 @@ const CheckoutForm = ({ totalTTC, userEmail, isGuest, onSuccess, onCancel, items
             shipping_address: shippingAddress,
             shipping_city: shippingCity,
             shipping_postal_code: shippingPostalCode,
-            notes: `Payment Intent: ${paymentIntent.id}`,
+            notes: `Payment Intent: ${paymentIntent.id} | stripe_mode:${stripeMode}`,
             ...(orderSiteId ? { site_id: orderSiteId } : {}),
           })
           .select()
@@ -962,6 +963,7 @@ export const StripePaymentForm = ({ items, totalTTC, totalHT, onSuccess, onCance
         totalTTC={totalTTC}
         totalHT={totalHT}
         items={items}
+        stripeMode={stripeMode}
         userEmail={userEmail}
         isGuest={isGuest}
         setUserEmail={setUserEmail}
