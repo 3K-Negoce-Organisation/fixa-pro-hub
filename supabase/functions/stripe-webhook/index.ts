@@ -34,7 +34,7 @@ async function fetchProductDetails(supabaseAdmin: any, productIds: string[]): Pr
   
   const { data: products, error } = await supabaseAdmin
     .from('products')
-    .select('id, title, handle, images, code_alsafix')
+    .select('id, title, handle, images, code_alsafix, box_quantity')
     .in('id', productIds);
   
   if (error) {
@@ -243,6 +243,7 @@ serve(async (req) => {
           handle: product?.handle || '',
           image: product?.images?.[0]?.url || '',
           code_alsafix: alsafixCodeOnly(product?.code_alsafix),
+          box_quantity: product?.box_quantity ?? null,
           variantTitle: 'Default',
         };
       });
@@ -253,6 +254,7 @@ serve(async (req) => {
       // We'll try to get it from the associated charges
       let shippingAddress: any = null;
       let customerName: string | null = null;
+      let customerPhone: string | null = null;
 
       // Try to get shipping from the latest charge
       if (paymentIntent.latest_charge) {
@@ -262,6 +264,10 @@ serve(async (req) => {
             shippingAddress = charge.shipping.address;
             customerName = charge.shipping.name;
             logStep("Got shipping from charge", { address: shippingAddress, name: customerName });
+          }
+          customerPhone = charge.billing_details?.phone || null;
+          if (customerPhone) {
+            logStep("Got phone from charge billing details", { phone: customerPhone });
           }
         } catch (e) {
           logStep("Could not retrieve charge shipping", { error: String(e) });
@@ -338,7 +344,7 @@ serve(async (req) => {
           paymentIntent.id,
           customerName,
           userEmail,
-          null, // phone
+          customerPhone,
           shippingAddress,
           cartItems,
           totalHT,
@@ -589,6 +595,23 @@ async function sendToN8n(
 
     const enrichedCartItems = await enrichItemsWithAlsafixCodes(supabaseAdmin, cartItems);
 
+    let resolvedPhone = customerPhone?.trim() || null;
+    if (!resolvedPhone && orderId) {
+      const { data: orderRow } = await supabaseAdmin
+        .from("orders")
+        .select("user_id")
+        .eq("id", orderId)
+        .maybeSingle();
+      if (orderRow?.user_id) {
+        const { data: profile } = await supabaseAdmin
+          .from("profiles")
+          .select("phone")
+          .eq("user_id", orderRow.user_id)
+          .maybeSingle();
+        resolvedPhone = profile?.phone?.trim() || null;
+      }
+    }
+
     // Generate PDF recap file (replaces Excel for Deno Edge compatibility)
     const pdfBase64 = generateOrderPDF(
       orderNumber,
@@ -596,15 +619,14 @@ async function sendToN8n(
       customerEmail || '',
       customerNumber,
       enrichedCartItems,
-      totalHT,
-      totalTTC,
       shippingAddress ? {
         name: shippingAddress.name || customerName || undefined,
         line1: shippingAddress.line1 || undefined,
         line2: shippingAddress.line2 || undefined,
         city: shippingAddress.city || undefined,
         postal_code: shippingAddress.postal_code || undefined,
-      } : null
+      } : null,
+      resolvedPhone,
     );
 
     logStep("PDF file generated", { size: pdfBase64.length });
@@ -629,6 +651,7 @@ async function sendToN8n(
           variantTitle: item.variantTitle || item.variant_title || null,
           quantity: item.quantity || item.q || 1,
           unit_price_ht: item.priceHT || item.unit_price_ht || 0,
+          boxQuantity: (item.box_quantity ?? item.boxQuantity ?? null) as number | null,
         })),
         productsHT,
         shippingHT,
