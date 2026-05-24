@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { ensureFrenchStripeCustomer } from "../_shared/stripe-customer-fr.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -159,18 +160,11 @@ serve(async (req) => {
     const emailToUse = userEmail || guestEmail;
     
     if (emailToUse) {
-      const customers = await stripe.customers.list({ email: emailToUse, limit: 1 });
-      if (customers.data.length > 0) {
-        customerId = customers.data[0].id;
-        logStep("Found existing Stripe customer", { customerId });
-      } else {
-        const customer = await stripe.customers.create({
-          email: emailToUse,
-          metadata: userId ? { user_id: userId } : { guest: "true" },
-        });
-        customerId = customer.id;
-        logStep("Created new Stripe customer", { customerId, isGuest: !userId });
-      }
+      customerId = await ensureFrenchStripeCustomer(stripe, emailToUse, {
+        userId,
+        isGuest: !userId,
+      });
+      logStep("Stripe customer ready (fr)", { customerId, isGuest: !userId });
     }
 
     // Create PaymentIntent

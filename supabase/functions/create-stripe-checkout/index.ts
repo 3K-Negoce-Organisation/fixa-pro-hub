@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { ensureFrenchStripeCustomer } from "../_shared/stripe-customer-fr.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -137,14 +138,13 @@ serve(async (req) => {
 
     const emailForCheckout = userEmail || (guestEmail && guestEmail.includes("@") ? guestEmail : undefined);
 
-    // Check if customer exists
     let customerId: string | undefined;
     if (emailForCheckout) {
-      const customers = await stripe.customers.list({ email: emailForCheckout, limit: 1 });
-      if (customers.data.length > 0) {
-        customerId = customers.data[0].id;
-        logStep("Found existing Stripe customer", { customerId });
-      }
+      customerId = await ensureFrenchStripeCustomer(stripe, emailForCheckout, {
+        userId,
+        isGuest: !userId,
+      });
+      logStep("Stripe customer ready (fr)", { customerId });
     }
 
     // Build line items with dynamic pricing (price_data)
@@ -186,6 +186,7 @@ serve(async (req) => {
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       customer_email: customerId ? undefined : emailForCheckout,
+      locale: "fr",
       line_items: lineItems,
       mode: "payment",
       success_url: `${origin}/confirmation?session_id={CHECKOUT_SESSION_ID}`,
