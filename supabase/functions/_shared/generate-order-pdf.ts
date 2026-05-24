@@ -2,6 +2,7 @@ import { jsPDF } from "https://esm.sh/jspdf@2.5.1";
 import autoTable from "https://esm.sh/jspdf-autotable@3.8.2";
 import { splitOrderTotals } from "./order-totals.ts";
 import { alsafixCodeOnly } from "./alsafix-code.ts";
+import { supplierElementQuantity } from "./order-supplier-quantity.ts";
 
 export function generateOrderPDF(
   orderNumber: string,
@@ -59,12 +60,14 @@ export function generateOrderPDF(
 
   const tableData = items.map((item) => {
     const priceHT = (item.priceHT ?? item.unit_price_ht ?? 0) as number;
-    const qty = (item.quantity ?? item.q ?? 1) as number;
-    const totalItemHT = priceHT * qty;
+    const cartQty = (item.quantity ?? item.q ?? 1) as number;
+    const elementQty = (item.element_quantity as number | undefined) ??
+      supplierElementQuantity(item, item.box_quantity as number | null | undefined);
+    const totalItemHT = priceHT * cartQty;
     return [
       alsafixCodeOnly(item.code_alsafix as string | undefined),
       (item.title || item.product_title || "") as string,
-      String(qty),
+      String(elementQty),
       `${priceHT.toFixed(2)} €`,
       `${totalItemHT.toFixed(2)} €`,
     ];
