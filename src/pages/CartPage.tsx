@@ -7,6 +7,7 @@ import { Header } from "@/components/layout/Header";
 import { PageBackground } from "@/components/layout/PageBackground";
 import { Footer } from "@/components/layout/Footer";
 import { useCart } from "@/contexts/CartContext";
+import { BoxQuantityHint } from "@/components/cart/BoxQuantityHint";
 import { formatPriceHT, formatPrice, calculateTTC } from "@/lib/products";
 import {
   FREE_SHIPPING_THRESHOLD_TTC,
@@ -118,6 +119,12 @@ const CartPage = () => {
                           <p className="text-xs sm:text-sm text-muted-foreground truncate">
                             {item.variantTitle}
                           </p>
+                          {!item.isGift && (
+                            <BoxQuantityHint
+                              boxQuantity={item.boxQuantity}
+                              variantTitle={item.variantTitle}
+                            />
+                          )}
                           <p className="text-sm font-semibold mt-1 sm:hidden">
                             {formatPrice(calculateTTC(item.priceHT))}
                           </p>
@@ -229,6 +236,12 @@ const CartPage = () => {
                           <p className="text-xs text-muted-foreground">
                             {item.variantTitle} × {item.quantity}
                           </p>
+                          {!item.isGift && (
+                            <BoxQuantityHint
+                              boxQuantity={item.boxQuantity}
+                              variantTitle={item.variantTitle}
+                            />
+                          )}
                         </div>
                         <Button
                           variant="outline"

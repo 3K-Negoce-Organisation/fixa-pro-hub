@@ -1,3 +1,5 @@
+import { getBoxQuantityLabel } from "./box-quantity.ts";
+
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 
 export interface OrderConfirmationItem {
@@ -5,6 +7,7 @@ export interface OrderConfirmationItem {
   variantTitle?: string | null;
   quantity: number;
   unit_price_ht: number;
+  boxQuantity?: number | null;
 }
 
 export interface OrderConfirmationEmailParams {
@@ -38,9 +41,13 @@ function buildOrderConfirmationHtml(params: OrderConfirmationEmailParams): strin
         ? `${item.title} (${item.variantTitle})`
         : item.title;
       const lineHT = item.unit_price_ht * item.quantity;
+      const boxLabel = getBoxQuantityLabel(item.boxQuantity, item.variantTitle);
+      const articleCell = boxLabel
+        ? `${escapeHtml(label)}<br/><span style="color:#777;font-size:12px;">${escapeHtml(boxLabel)}</span>`
+        : escapeHtml(label);
       return `
         <tr>
-          <td style="padding:8px 0;border-bottom:1px solid #eee;">${escapeHtml(label)}</td>
+          <td style="padding:8px 0;border-bottom:1px solid #eee;">${articleCell}</td>
           <td style="padding:8px 0;border-bottom:1px solid #eee;text-align:center;">${item.quantity}</td>
           <td style="padding:8px 0;border-bottom:1px solid #eee;text-align:right;">${lineHT.toFixed(2)} € HT</td>
         </tr>`;

@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { Trash2, Plus, Minus, RotateCcw, ShoppingCart } from "lucide-react";
 import { useCart } from "@/contexts/CartContext";
+import { BoxQuantityHint } from "@/components/cart/BoxQuantityHint";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -91,6 +92,12 @@ export function CartDrawer() {
                           {item.variantTitle}
                         </p>
                       )}
+                      {!item.isGift && (
+                        <BoxQuantityHint
+                          boxQuantity={item.boxQuantity}
+                          variantTitle={item.variantTitle}
+                        />
+                      )}
                       <p className="text-sm font-semibold text-primary mt-1">
                         {item.isGift ? "Offert" : `${item.priceHT.toFixed(2)} € HT`}
                       </p>
@@ -149,6 +156,13 @@ export function CartDrawer() {
                             <p className="text-xs truncate opacity-70">
                               {item.variantTitle}
                             </p>
+                          )}
+                          {!item.isGift && (
+                            <BoxQuantityHint
+                              boxQuantity={item.boxQuantity}
+                              variantTitle={item.variantTitle}
+                              className="truncate opacity-70"
+                            />
                           )}
                         </div>
                         <button

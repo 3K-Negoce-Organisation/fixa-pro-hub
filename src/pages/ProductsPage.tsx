@@ -171,6 +171,8 @@ const ProductsPage = () => {
         promoGiftProductId: isPromo ? ((product as any).promo_gift_product_id ?? null) : null,
         promoGiftQuantity: isPromo ? ((product as any).promo_gift_quantity ?? null) : null,
         promoLabel: isPromo ? ((product as any).promo_label ?? null) : null,
+        variantTitle: firstVariant?.title || "Unité",
+        boxQuantity: product.box_quantity ?? null,
       };
     });
   }, [products]);

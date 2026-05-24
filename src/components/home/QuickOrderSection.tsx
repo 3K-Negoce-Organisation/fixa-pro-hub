@@ -22,6 +22,7 @@ export function QuickOrderSection() {
     priceHT: product.price_ht,
     priceTTC: product.price_ttc,
     image: getProductImage(product),
+    boxQuantity: product.box_quantity ?? null,
   }));
 
   const handleAddToCart = (product: typeof recentProducts[0]) => {
@@ -33,6 +34,7 @@ export function QuickOrderSection() {
       variantTitle: "Unité",
       priceHT: product.priceHT,
       image: product.image,
+      boxQuantity: product.boxQuantity ?? null,
     }, 1);
     toast({
       title: "Produit ajouté",

@@ -102,6 +102,8 @@ const PromosPage = () => {
           promoGiftTitle: product._giftMeta?.title ?? null,
           promoGiftHandle: product._giftMeta?.handle ?? null,
           promoGiftImage: product._giftMeta?.image ?? null,
+          variantTitle: firstVariant?.title || "Unité",
+          boxQuantity: product.box_quantity ?? null,
         };
       });
   }, [products]);
