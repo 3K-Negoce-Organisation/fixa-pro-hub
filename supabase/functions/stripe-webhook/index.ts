@@ -5,6 +5,7 @@ import { splitOrderTotals } from "../_shared/order-totals.ts";
 import { sendOrderConfirmationEmail } from "../_shared/send-order-confirmation-email.ts";
 import { alsafixCodeOnly, enrichItemsWithAlsafixCodes } from "../_shared/alsafix-code.ts";
 import { generateOrderPDF } from "../_shared/generate-order-pdf.ts";
+import { loadSiteLogoForOrderPdf } from "../_shared/site-logo.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -596,13 +597,15 @@ async function sendToN8n(
     const enrichedCartItems = await enrichItemsWithAlsafixCodes(supabaseAdmin, cartItems);
 
     let resolvedPhone = customerPhone?.trim() || null;
-    if (!resolvedPhone && orderId) {
+    let orderSiteId: string | null = null;
+    if (orderId) {
       const { data: orderRow } = await supabaseAdmin
         .from("orders")
-        .select("user_id")
+        .select("user_id, site_id")
         .eq("id", orderId)
         .maybeSingle();
-      if (orderRow?.user_id) {
+      orderSiteId = orderRow?.site_id ?? null;
+      if (!resolvedPhone && orderRow?.user_id) {
         const { data: profile } = await supabaseAdmin
           .from("profiles")
           .select("phone")
@@ -611,6 +614,8 @@ async function sendToN8n(
         resolvedPhone = profile?.phone?.trim() || null;
       }
     }
+
+    const siteLogo = await loadSiteLogoForOrderPdf(supabaseAdmin, orderSiteId);
 
     // Generate PDF recap file (replaces Excel for Deno Edge compatibility)
     const pdfBase64 = generateOrderPDF(
@@ -627,6 +632,7 @@ async function sendToN8n(
         postal_code: shippingAddress.postal_code || undefined,
       } : null,
       resolvedPhone,
+      siteLogo,
     );
 
     logStep("PDF file generated", { size: pdfBase64.length });
