@@ -140,14 +140,13 @@ serve(async (req) => {
       customerEmail,
       customerNumber,
       enrichedItems,
-      order.total_ht,
-      order.total_ttc,
       {
         name: order.shipping_name || undefined,
         line1: order.shipping_address || undefined,
         city: order.shipping_city || undefined,
         postal_code: order.shipping_postal_code || undefined,
-      }
+      },
+      profile?.phone || null,
     );
 
     logStep("PDF file generated", { size: pdfBase64.length, preview_only: !!preview_only });
@@ -183,6 +182,7 @@ serve(async (req) => {
           variantTitle: item.variant_title || null,
           quantity: item.quantity,
           unit_price_ht: item.unit_price_ht || 0,
+          boxQuantity: (item.box_quantity ?? item.boxQuantity ?? null) as number | null,
         })),
         productsHT,
         shippingHT,

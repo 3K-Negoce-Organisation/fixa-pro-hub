@@ -13,8 +13,6 @@ export function generateOrderPDF(
   _customerEmail: string,
   customerNumber: string,
   items: Array<Record<string, unknown>>,
-  totalHT: number,
-  totalTTC: number,
   shippingAddress: {
     name?: string;
     line1?: string;
@@ -22,16 +20,17 @@ export function generateOrderPDF(
     city?: string;
     postal_code?: string;
   } | null,
+  customerPhone?: string | null,
 ): string {
   const date = new Date();
   const dateStr = `${String(date.getMonth() + 1).padStart(2, "0")}/${String(date.getDate()).padStart(2, "0")}/${String(date.getFullYear()).slice(-2)}`;
-  // PDF fournisseur : totaux basés sur prix d'achat (pas prix vente client)
+  const lineTotalForItem = (item: Record<string, unknown>) =>
+    (item.purchase_line_total as number | undefined) ??
+    supplierPurchaseLineTotal(item, item.purchase_price_ht as number | null | undefined, item.box_quantity as number | null | undefined);
+
+  // PDF fournisseur : total = somme des « Prix total HT net » (hors frais de livraison)
   const supplierProductsHT = Math.round(
-    items.reduce((sum, item) => {
-      const lineTotal = (item.purchase_line_total as number | undefined) ??
-        supplierPurchaseLineTotal(item, item.purchase_price_ht as number | null | undefined, item.box_quantity as number | null | undefined);
-      return sum + lineTotal;
-    }, 0) * 100,
+    items.reduce((sum, item) => sum + lineTotalForItem(item), 0) * 100,
   ) / 100;
   const tvaAmount = Math.round(supplierProductsHT * 0.2 * 100) / 100;
   const productsTTC = Math.round(supplierProductsHT * 1.2 * 100) / 100;
@@ -71,8 +70,7 @@ export function generateOrderPDF(
       supplierElementQuantity(item, item.box_quantity as number | null | undefined);
     const tarifUv = (item.tarif_uv as number | undefined) ??
       supplierTarifUv(item, item.purchase_price_ht as number | null | undefined, item.box_quantity as number | null | undefined);
-    const totalItemHT = (item.purchase_line_total as number | undefined) ??
-      supplierPurchaseLineTotal(item, item.purchase_price_ht as number | null | undefined, item.box_quantity as number | null | undefined);
+    const totalItemHT = lineTotalForItem(item);
     return [
       alsafixCodeOnly(item.code_alsafix as string | undefined),
       (item.title || item.product_title || "") as string,
@@ -170,6 +168,12 @@ export function generateOrderPDF(
       doc.text(`${shippingAddress.postal_code || ""} ${shippingAddress.city || ""}`.trim(), margin + 10, currentY);
       currentY += 5;
     }
+  }
+
+  const phone = customerPhone?.trim();
+  if (phone) {
+    doc.text(`Tél. ${phone}`, margin + 10, currentY);
+    currentY += 5;
   }
 
   currentY += 10;
