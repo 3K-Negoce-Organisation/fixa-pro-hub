@@ -22,6 +22,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { splitOrderTotalsFromItems } from "@/lib/shipping";
+import { getDisplayVariantTitle } from "@/lib/products";
 import { BoxQuantityHint } from "@/components/cart/BoxQuantityHint";
 
 // Download document via fetch to avoid ad-blocker issues
@@ -822,9 +823,9 @@ const OrderTrackingPage = () => {
                             <p className="font-medium text-foreground text-sm line-clamp-2">
                               {item.product_title}
                             </p>
-                            {item.variant_title && (
+                            {getDisplayVariantTitle(item.variant_title) && (
                               <p className="text-xs text-muted-foreground">
-                                {item.variant_title}
+                                {getDisplayVariantTitle(item.variant_title)}
                               </p>
                             )}
                             <BoxQuantityHint
@@ -867,9 +868,9 @@ const OrderTrackingPage = () => {
                                     <p className="font-medium text-foreground">
                                       {item.product_title}
                                     </p>
-                                    {item.variant_title && (
+                                    {getDisplayVariantTitle(item.variant_title) && (
                                       <p className="text-sm text-muted-foreground">
-                                        {item.variant_title}
+                                        {getDisplayVariantTitle(item.variant_title)}
                                       </p>
                                     )}
                                     <BoxQuantityHint

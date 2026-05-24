@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { Trash2, Plus, Minus, RotateCcw, ShoppingCart } from "lucide-react";
 import { useCart } from "@/contexts/CartContext";
+import { getDisplayVariantTitle } from "@/lib/products";
 import { BoxQuantityHint } from "@/components/cart/BoxQuantityHint";
 import { Button } from "@/components/ui/button";
 import {
@@ -87,9 +88,9 @@ export function CartDrawer() {
                       {item.isGift && (
                         <p className="text-[11px] text-emerald-600">Article offert</p>
                       )}
-                      {item.variantTitle && (
+                      {getDisplayVariantTitle(item.variantTitle) && (
                         <p className="text-xs text-muted-foreground truncate">
-                          {item.variantTitle}
+                          {getDisplayVariantTitle(item.variantTitle)}
                         </p>
                       )}
                       {!item.isGift && (
@@ -152,9 +153,9 @@ export function CartDrawer() {
                       >
                         <div className="flex-1 min-w-0">
                           <p className="text-xs truncate">{item.title}</p>
-                          {item.variantTitle && (
+                          {getDisplayVariantTitle(item.variantTitle) && (
                             <p className="text-xs truncate opacity-70">
-                              {item.variantTitle}
+                              {getDisplayVariantTitle(item.variantTitle)}
                             </p>
                           )}
                           {!item.isGift && (

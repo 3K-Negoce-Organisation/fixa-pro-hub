@@ -8,7 +8,7 @@ import { PageBackground } from "@/components/layout/PageBackground";
 import { Footer } from "@/components/layout/Footer";
 import { useCart } from "@/contexts/CartContext";
 import { BoxQuantityHint } from "@/components/cart/BoxQuantityHint";
-import { formatPriceHT, formatPrice, calculateTTC } from "@/lib/products";
+import { formatPriceHT, formatPrice, calculateTTC, getDisplayVariantTitle } from "@/lib/products";
 import {
   FREE_SHIPPING_THRESHOLD_TTC,
   orderGrandTotals,
@@ -116,9 +116,11 @@ const CartPage = () => {
                           {item.isGift && (
                             <p className="text-xs text-emerald-600">Article offert</p>
                           )}
-                          <p className="text-xs sm:text-sm text-muted-foreground truncate">
-                            {item.variantTitle}
-                          </p>
+                          {getDisplayVariantTitle(item.variantTitle) && (
+                            <p className="text-xs sm:text-sm text-muted-foreground truncate">
+                              {getDisplayVariantTitle(item.variantTitle)}
+                            </p>
+                          )}
                           {!item.isGift && (
                             <BoxQuantityHint
                               boxQuantity={item.boxQuantity}
@@ -233,9 +235,16 @@ const CartPage = () => {
                           <p className="text-sm text-muted-foreground line-clamp-1">
                             {item.title}
                           </p>
-                          <p className="text-xs text-muted-foreground">
-                            {item.variantTitle} × {item.quantity}
-                          </p>
+                          {(() => {
+                            const variantLabel = getDisplayVariantTitle(item.variantTitle);
+                            return variantLabel ? (
+                              <p className="text-xs text-muted-foreground">
+                                {variantLabel} × {item.quantity}
+                              </p>
+                            ) : (
+                              <p className="text-xs text-muted-foreground">Qté : {item.quantity}</p>
+                            );
+                          })()}
                           {!item.isGift && (
                             <BoxQuantityHint
                               boxQuantity={item.boxQuantity}

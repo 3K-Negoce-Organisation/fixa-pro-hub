@@ -41,18 +41,24 @@ const OrderConfirmationPage = () => {
             Merci pour votre commande. Vous recevrez un email de confirmation avec les détails de votre achat.
           </p>
 
-          {orderNumber && (
-            <p className="text-sm text-muted-foreground">
-              Numéro de commande :{" "}
-              <code className="bg-muted px-2 py-1 rounded font-mono">{orderNumber}</code>
-            </p>
-          )}
-
-          {sessionId && (
-            <p className="text-sm text-muted-foreground">
-              Référence de paiement :{" "}
-              <code className="bg-muted px-2 py-1 rounded">{sessionId.slice(0, 20)}…</code>
-            </p>
+          {(orderNumber || sessionId) && (
+            <div className="rounded-lg border border-border bg-card px-4 py-3">
+              {orderNumber ? (
+                <>
+                  <p className="text-sm text-muted-foreground">Numéro de commande</p>
+                  <p className="mt-1 font-mono text-xl font-bold text-foreground tracking-wide">
+                    {orderNumber}
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm text-muted-foreground">Paiement enregistré</p>
+                  <p className="mt-1 text-sm text-foreground">
+                    Votre numéro de commande vous sera confirmé par email sous peu.
+                  </p>
+                </>
+              )}
+            </div>
           )}
 
           <div className="bg-card border border-border rounded-lg p-6 space-y-4">

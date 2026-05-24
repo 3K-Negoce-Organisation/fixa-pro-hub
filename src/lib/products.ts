@@ -21,6 +21,20 @@ export interface ProductVariant {
   quantity: number;
 }
 
+const GENERIC_VARIANT_TITLES = new Set(["default", "unité", "unite"]);
+
+export function normalizeVariantTitle(title: string | undefined): string {
+  const t = (title || "").trim();
+  if (!t || GENERIC_VARIANT_TITLES.has(t.toLowerCase())) return "Unité";
+  return t;
+}
+
+export function getDisplayVariantTitle(title: string | null | undefined): string | null {
+  const t = (title || "").trim();
+  if (!t || GENERIC_VARIANT_TITLES.has(t.toLowerCase())) return null;
+  return t;
+}
+
 // Fetch all active products (with joined category)
 export async function fetchProducts(searchQuery?: string) {
   let query = supabase
@@ -76,7 +90,7 @@ export function parseVariants(product: Product): ProductVariant[] {
 
   return (product.variants as any[]).map((v, index) => ({
     id: v.id || `${product.id}-${index}`,
-    title: v.title || "Unité",
+    title: normalizeVariantTitle(v.title),
     price_ht: v.price_ht ?? product.price_ht,
     price_ttc: v.price_ttc ?? product.price_ttc,
     available: (v.stock ?? product.stock ?? 0) > 0,
