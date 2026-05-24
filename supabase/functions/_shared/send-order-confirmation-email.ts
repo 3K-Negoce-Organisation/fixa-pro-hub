@@ -1,4 +1,5 @@
 import { getBoxQuantityLabel } from "./box-quantity.ts";
+import { getDisplayVariantTitle } from "./variant-title.ts";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 
@@ -37,8 +38,9 @@ function escapeHtml(value: string): string {
 function buildOrderConfirmationHtml(params: OrderConfirmationEmailParams): string {
   const itemsRows = params.items
     .map((item) => {
-      const label = item.variantTitle && item.variantTitle !== "Unité"
-        ? `${item.title} (${item.variantTitle})`
+      const displayVariant = getDisplayVariantTitle(item.variantTitle);
+      const label = displayVariant
+        ? `${item.title} (${displayVariant})`
         : item.title;
       const lineHT = item.unit_price_ht * item.quantity;
       const boxLabel = getBoxQuantityLabel(item.boxQuantity, item.variantTitle);
