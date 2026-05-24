@@ -9,5 +9,7 @@ export function getBoxQuantityLabel(
     if (vt.includes(String(boxQuantity))) return null;
   }
 
-  return `Boîte de ${boxQuantity} vis`;
+  return boxQuantity === 1
+    ? "Boîte de 1 unité"
+    : `Boîte de ${boxQuantity} unités`;
 }
