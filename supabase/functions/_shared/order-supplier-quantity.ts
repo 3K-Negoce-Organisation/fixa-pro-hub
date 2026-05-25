@@ -10,10 +10,10 @@ export function isSupplierUnitPurchase(item: Record<string, unknown>): boolean {
   return variantId.endsWith("-unit");
 }
 
-/** Kit Alsafix : code article préfixé KIT- (tarif UV = purchase_price_ht, pas de logique boîte/UV). */
+/** Kit Alsafix : code_alsafix commence par KIT (ex. KIT08822, KIT-VBF60). Tarif UV = purchase_price_ht. */
 export function isSupplierKit(item: Record<string, unknown>): boolean {
   const code = String(item.code_alsafix ?? item.codeAlsafix ?? "").trim().toUpperCase();
-  return code.startsWith("KIT-");
+  return code.startsWith("KIT");
 }
 
 /** @deprecated Utiliser isSupplierUnitPurchase pour le PDF fournisseur. */

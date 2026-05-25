@@ -60,10 +60,10 @@ Deno.test("achat boîte box_quantity=1: nb boîtes × purchase_price_ht", () => 
   assertEqual(supplierPurchaseLineTotal(item, 23.7, 1), 47.4, "purchase_line_total");
 });
 
-Deno.test("kit KIT-*: tarif_uv = purchase_price_ht, ignore box_quantity erroné", () => {
+Deno.test("kit KIT*: tarif_uv = purchase_price_ht, ignore box_quantity erroné", () => {
   const item = {
     quantity: 2,
-    code_alsafix: "KIT-VBF60",
+    code_alsafix: "KIT08822",
     variant_id: "prod-kit",
     product_purchase_price_ht: 61.99,
     product_box_quantity: 2,
