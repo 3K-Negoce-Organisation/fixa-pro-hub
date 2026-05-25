@@ -1,4 +1,5 @@
 import {
+  isSupplierKit,
   isSupplierUnitPurchase,
   supplierElementQuantity,
   supplierPurchaseLineTotal,
@@ -57,4 +58,19 @@ Deno.test("achat boîte box_quantity=1: nb boîtes × purchase_price_ht", () => 
 
   assertEqual(supplierTarifUv(item, 23.7, 1), 2370, "tarif_uv");
   assertEqual(supplierPurchaseLineTotal(item, 23.7, 1), 47.4, "purchase_line_total");
+});
+
+Deno.test("kit KIT-*: tarif_uv = purchase_price_ht, ignore box_quantity erroné", () => {
+  const item = {
+    quantity: 2,
+    code_alsafix: "KIT-VBF60",
+    variant_id: "prod-kit",
+    product_purchase_price_ht: 61.99,
+    product_box_quantity: 2,
+  };
+
+  assertEqual(isSupplierKit(item), true, "is_kit");
+  assertEqual(supplierElementQuantity(item, 2), 2, "element_quantity");
+  assertEqual(supplierTarifUv(item, 61.99, 2), 61.99, "tarif_uv");
+  assertEqual(supplierPurchaseLineTotal(item, 61.99, 2), 123.98, "purchase_line_total");
 });
