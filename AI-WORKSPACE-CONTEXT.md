@@ -4,7 +4,7 @@
 
 **Emplacement canonique :** versionné à la **racine de ce dépôt** (`AI-WORKSPACE-CONTEXT.md`). Workspace multi-dépôts local : scripts partagés `../scripts/`, admin `../admin-hub-central/`, docs transverses `../docs/`.
 
-**Last updated:** 2026-05-23 (simulation admin, calculs PDF kits KIT*)
+**Last updated:** 2026-05-23 (simulation admin : catégorie, box_quantity, kits KIT*)
 
 ---
 
@@ -36,7 +36,7 @@
 
 **Périmètre (GitHub + Railway) :** tout ce qui est décrit ici concerne uniquement l’organisation `**3K-Negoce-Organisation`** sur GitHub et le **workspace Railway `3k-negoce_workspace`** (projet `7e8dc729-5d6f-4558-acc4-1c683169493d`). Ce n’est **pas** le workspace personnel « pimimac » ni les dépôts/projets **luceka** — ne pas les mélanger pour les CLI, tokens ou liens dashboard.
 
-**Note:** The admin repo is sometimes called *admin-central-hub* in conversation; in this workspace the folder name is `**admin-hub-central`**.
+**Note:** The admin repo is sometimes called *admin-central-hub* or **admin-pro-hub** in conversation; in this workspace the folder name is **`admin-hub-central`**. Doc admin dédiée : **`admin-hub-central/AI-WORKSPACE-CONTEXT.md`** (routes, pages) ; **infra / Supabase / déploiement** = ce fichier.
 
 **Note:** There is no `admin-pro-hub` directory here; the admin app is `**admin-hub-central`**. Both are separate git repos; they share the **same logical Postgres schema** (aligned `supabase/migrations/` history).
 
@@ -557,10 +557,11 @@ Données prix / conditionnement : **`products.purchase_price_ht`** et **`product
 |---------|--------|
 | **Dépôt** | `admin-hub-central` — route **`/simulation-commande`**, menu « Simulation commande » |
 | **Edge Function** | **`preview-supplier-order-pdf`** (déployée depuis **fixa-pro-hub**) — auth admin (`verify-admin.ts`) |
-| **Comportement** | Panier test : recherche produits, **pas de choix boîte/unité** — conditionnement déduit de `products.box_quantity` (comme la vitrine : `variant_id` = `product_id`, jamais `-unit` en simulation), champs client/livraison ; **Calculer** / **Générer PDF** |
+| **Comportement** | Catalogue : **filtre catégorie** (`categories` du site) + recherche texte (code, titre, catégorie) ; panier sans choix boîte/unité — conditionnement via **`products.box_quantity`** (`simulationVariantForProduct` dans `supplierPdf.ts` : `variant_id` = `product_id`, pas de suffixe `-unit`) ; champs client/livraison ; **Calculer** / **Générer PDF** |
 | **Exclusions** | Pas de Stripe, pas d’email Resend, pas de webhook n8n, pas d’insertion `orders` |
-| **UI détail** | Colonnes BDD **`purchase_price_ht`** et **`box_quantity`** encadrées vert foncé ; badge **(kit)** si code `KIT*` |
-| **Utils front** | `admin-hub-central/src/utils/supplierPdf.ts` — `buildSimulationPayload`, types breakdown |
+| **UI détail** | Tableau calculs : colonnes BDD **`purchase_price_ht`** et **`box_quantity`** (encadré vert foncé) ; badge **(kit)** si `code_alsafix` commence par **`KIT`** |
+| **Fichiers admin** | `src/pages/SimulationCommande.tsx`, `src/utils/supplierPdf.ts`, route `App.tsx`, menu `AdminSidebar.tsx` |
+| **Config Edge** | `supabase/config.toml` — entrée `[functions.preview-supplier-order-pdf]` (JWT admin) |
 
 **Déploiement :** après modification de `_shared/order-supplier-quantity.ts` ou `generate-order-pdf.ts`, redéployer sur **staging + prod** : `preview-supplier-order-pdf`, `simulate-order-webhook`, `stripe-webhook` (voir `./scripts/3k.sh deploy-edge-staging-prod` ou commandes dans *À retenir CLI*).
 
@@ -613,6 +614,8 @@ Depuis **admin-hub-central** → **Commandes** → action **Renvoyer** : appelle
 
 | Date       | Change                                                                                                                                                                                                                                                                                       |
 | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-05-23 | **admin-hub-central — simulation :** filtre **catégorie** sur le catalogue (`categories` + `category_id`) ; retrait sélecteur boîte/unité — conditionnement auto **`box_quantity`** ; docs `AI-WORKSPACE-CONTEXT.md` admin. **Git** admin `239eeac`, `6c85186`, `e5dc8a4` (**main**). |
+| 2026-05-23 | **fixa-pro-hub — kits PDF :** détection **`KIT`** (sans tiret, ex. `KIT08822`) → Tarif UV = `purchase_price_ht` ; docs + changelog. **Git** fixa `ff5e6d1`/`ee376de` (**main**). **Edge** redeploy `preview-supplier-order-pdf`, `simulate-order-webhook`, `stripe-webhook` staging + prod. |
 | 2026-05-23 | **fixa-pro-hub + admin-hub-central — simulation commande :** page admin `/simulation-commande` ; Edge **`preview-supplier-order-pdf`** (panier → calculs + PDF sans paiement/mail/n8n). **Calculs PDF kits :** `code_alsafix` préfixe **`KIT`** → Tarif UV = `purchase_price_ht` (pas ×100). Modules `_shared/order-supplier-quantity.ts`, téléphone/logo PDF. **Git** fixa `6fa6540`/`b959ffd`, admin `3353ca2`/`632a547`. **Edge** deploy staging + prod : `preview-supplier-order-pdf`, `simulate-order-webhook`, `stripe-webhook`. |
 | 2026-05-23 | **fixa-pro-hub — conditionnement boîte (client) :** affichage « Boîte de N vis » dans panier (drawer + page), suivi commande et email confirmation Resend ; `boxQuantity` sur `CartItem` + enrichissement `products.box_quantity` (Edge `_shared/box-quantity.ts`). **Git** staging → merge **main**. **Edge** deploy `stripe-webhook` + `simulate-order-webhook` staging puis prod. |
 | 2026-05-23 | **fixa-pro-hub — PDF fournisseur :** retrait ligne et totaux **frais de port** du bon de commande n8n/Alsafix (`generate-order-pdf.ts` — montants produits seuls) ; email client et suivi boutique inchangés. |

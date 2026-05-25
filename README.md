@@ -1,5 +1,7 @@
 ## Welcome
 
+**Assistants / déploiement 3K :** lire **[`AI-WORKSPACE-CONTEXT.md`](AI-WORKSPACE-CONTEXT.md)** (source de vérité — Supabase, Railway, PDF fournisseur, simulation admin, kits `KIT*`). Admin : **[`../admin-hub-central/AI-WORKSPACE-CONTEXT.md`](../admin-hub-central/AI-WORKSPACE-CONTEXT.md)**.
+
 ### Stripe (paiement vitrine)
 
 - **Mode live / test** : colonne `sites.stripe_mode` (`live` | `test`), modifiable depuis **Admin Hub Central → Paramètres du site**.
