@@ -10,6 +10,12 @@ export function isSupplierUnitPurchase(item: Record<string, unknown>): boolean {
   return variantId.endsWith("-unit");
 }
 
+/** Kit Alsafix : code article préfixé KIT- (tarif UV = purchase_price_ht, pas de logique boîte/UV). */
+export function isSupplierKit(item: Record<string, unknown>): boolean {
+  const code = String(item.code_alsafix ?? item.codeAlsafix ?? "").trim().toUpperCase();
+  return code.startsWith("KIT-");
+}
+
 /** @deprecated Utiliser isSupplierUnitPurchase pour le PDF fournisseur. */
 export function isUnitVariant(item: Record<string, unknown>): boolean {
   return isSupplierUnitPurchase(item);
@@ -59,7 +65,7 @@ export function supplierElementQuantity(
   boxQuantity?: number | null,
 ): number {
   const safeCartQty = cartQuantity(item);
-  if (isSupplierUnitPurchase(item)) return safeCartQty;
+  if (isSupplierKit(item) || isSupplierUnitPurchase(item)) return safeCartQty;
 
   const perBox = resolveProductBoxQuantity(item, boxQuantity);
   if (perBox > 1) return safeCartQty * perBox;
@@ -68,8 +74,9 @@ export function supplierElementQuantity(
 }
 
 /**
- * Tarif UV = prix pour 100 unités = prix unitaire × 100.
- * Si box_quantity > 1 : (purchase_price_ht / box_quantity) × 100.
+ * Tarif UV :
+ * - kit (KIT-*) : purchase_price_ht tel quel
+ * - boîte / unité : prix pour 100 unités = prix unitaire × 100
  */
 export function supplierTarifUv(
   item: Record<string, unknown>,
@@ -78,6 +85,8 @@ export function supplierTarifUv(
 ): number {
   const purchase = resolveProductPurchasePrice(item, purchasePriceHt);
   if (purchase <= 0) return 0;
+
+  if (isSupplierKit(item)) return purchase;
 
   const boxQty = resolveProductBoxQuantity(item, boxQuantity);
   return supplierUnitPurchasePrice(purchase, boxQty) * UV_BATCH;
@@ -96,6 +105,10 @@ export function supplierPurchaseLineTotal(
 ): number {
   const purchase = resolveProductPurchasePrice(item, purchasePriceHt);
   if (purchase <= 0) return 0;
+
+  if (isSupplierKit(item)) {
+    return cartQuantity(item) * purchase;
+  }
 
   const boxQty = resolveProductBoxQuantity(item, boxQuantity);
   const unitPrice = supplierUnitPurchasePrice(purchase, boxQty);
@@ -129,6 +142,7 @@ export function enrichItemSupplierPricing(
 
   return {
     ...enrichedItem,
+    is_kit: isSupplierKit(enrichedItem),
     element_quantity: supplierElementQuantity(enrichedItem, productBoxQty),
     tarif_uv: supplierTarifUv(enrichedItem, productPurchase, productBoxQty),
     purchase_line_total: supplierPurchaseLineTotal(enrichedItem, productPurchase, productBoxQty),
