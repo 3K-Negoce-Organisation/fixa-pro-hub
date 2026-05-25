@@ -557,7 +557,7 @@ Données prix / conditionnement : **`products.purchase_price_ht`** et **`product
 |---------|--------|
 | **Dépôt** | `admin-hub-central` — route **`/simulation-commande`**, menu « Simulation commande » |
 | **Edge Function** | **`preview-supplier-order-pdf`** (déployée depuis **fixa-pro-hub**) — auth admin (`verify-admin.ts`) |
-| **Comportement** | Panier test : recherche produits, mode Boîte / Unité (`variant_id` + suffixe `-unit` comme le site), champs client/livraison ; **Calculer** (détail lignes) / **Générer PDF** (même `generateOrderPDF` + logo que la prod) |
+| **Comportement** | Panier test : recherche produits, **pas de choix boîte/unité** — conditionnement déduit de `products.box_quantity` (comme la vitrine : `variant_id` = `product_id`, jamais `-unit` en simulation), champs client/livraison ; **Calculer** / **Générer PDF** |
 | **Exclusions** | Pas de Stripe, pas d’email Resend, pas de webhook n8n, pas d’insertion `orders` |
 | **UI détail** | Colonnes BDD **`purchase_price_ht`** et **`box_quantity`** encadrées vert foncé ; badge **(kit)** si code `KIT*` |
 | **Utils front** | `admin-hub-central/src/utils/supplierPdf.ts` — `buildSimulationPayload`, types breakdown |
