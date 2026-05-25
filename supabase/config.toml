@@ -21,5 +21,8 @@ verify_jwt = false
 [functions.simulate-order-webhook]
 verify_jwt = true
 
+[functions.preview-supplier-order-pdf]
+verify_jwt = true
+
 [functions.send-contact-email]
 verify_jwt = false
