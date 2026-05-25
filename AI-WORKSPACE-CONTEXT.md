@@ -4,7 +4,7 @@
 
 **Emplacement canonique :** versionné à la **racine de ce dépôt** (`AI-WORKSPACE-CONTEXT.md`). Workspace multi-dépôts local : scripts partagés `../scripts/`, admin `../admin-hub-central/`, docs transverses `../docs/`.
 
-**Last updated:** 2026-05-23 (PDF fournisseur sans frais de port)
+**Last updated:** 2026-05-23 (simulation admin, calculs PDF kits KIT*)
 
 ---
 
@@ -45,6 +45,8 @@
 **Flux commande (panier → Stripe → webhook → n8n → livraison) :** `[../docs/ORDER_FLOW.md](../docs/ORDER_FLOW.md)` — inclut vérification production (`lqsbsinycyewdvdtbruy`), secrets `ORDER_UPDATE_API_KEY` / `VAB_API_KEY`, et liens vers le code.
 
 **Commande payée — totaux, PDF, emails client (fixa-pro-hub, 2026-05-23) :** voir section **[Commande payée — frais de port, PDF et emails](#commande-payée--frais-de-port-pdf-et-emails)** ci-dessous.
+
+**Simulation panier / PDF fournisseur (admin-hub-central, 2026-05-23) :** page **`/simulation-commande`** — voir **[Simulation commande (admin)](#simulation-commande-admin)** et **[PDF fournisseur — calculs Qté / Tarif UV](#pdf-fournisseur--calculs-qté--tarif-uv)**.
 
 **Diagrammes acteurs (Mermaid, présentation) :** `[../docs/ORDER_WORKFLOW_ACTORS.md](../docs/ORDER_WORKFLOW_ACTORS.md)` — vue d’ensemble, séquence commande payée → fournisseur → client, chemins admin vs n8n.
 
@@ -403,8 +405,9 @@ Set in **each** Supabase project as needed for deployed functions.
 
 - `STRIPE_SECRET_KEY_LIVE` / `STRIPE_SECRET_KEY_TEST` (recommandé ; repli `STRIPE_SECRET_KEY`) et **`STRIPE_WEBHOOK_SECRET_LIVE`** / `_TEST` (repli `STRIPE_WEBHOOK_SECRET`) — voir impl. **`stripe-webhook`** / **`create-payment-intent`**
 - `RESEND_API_KEY` — domaine d’envoi **`mail.vis-a-bois.com`** **vérifié** chez Resend (2026-05) ; vérifier séparément que les **`from`** utilisés par les Edge (ex. `contact@vis-a-bois.com` pour `send-contact-email`) sont bien des identités / domaines **autorisés** dans Resend.
-- `N8N_WEBHOOK_URL` — **per environment** (points at that env’s n8n webhook)
+- `N8N_WEBHOOK_URL` — **per environment** (points at that env’s n8n webhook) ; **`simulate-order-webhook`** en mode **`preview_only`** ne l’exige pas (PDF / email test admin sans repost n8n)
 - `ORDER_UPDATE_API_KEY` — see below
+- **`preview-supplier-order-pdf`** : JWT utilisateur + rôle admin (`verify-admin.ts`) — pas de secret dédié
 
 ### admin-hub-central
 
@@ -509,7 +512,9 @@ Génération centralisée : **`supabase/functions/_shared/generate-order-pdf.ts`
 | Zone | Contenu |
 |------|---------|
 | **En-tête** | Date, n° commande, **`N° clt …`** (sans libellé `clt NOM CLIENT`) |
-| **Tableau (bleu)** | Colonnes : Code, Désignation, Qté, Prix au conditionnement, Prix total HT net — **produits uniquement** (pas de ligne « Frais de livraison ») ; largeur pleine, alignée avec la barre verte |
+| **Tableau (bleu)** | Colonnes : Code, Désignation, Qté, **Tarif UV.**, Prix total HT net — **produits uniquement** (pas de ligne « Frais de livraison ») ; largeur pleine, alignée avec la barre verte |
+| **Logo** | Chargé via `_shared/site-logo.ts` (bucket `site-logos`, magic bytes PNG/JPEG, WebP converti) — position **gauche**, au-dessus de la date |
+| **Téléphone client** | Sous l’adresse de livraison (`Tél. …`) — `_shared/order-customer-phone.ts` (profil → Stripe `billing_details` selon `stripe_mode` dans `orders.notes`) |
 | **Colonne Code** | **`products.code_alsafix`** uniquement (référence Alsafix) — **jamais** l’UUID produit en repli ; cellule **vide** si le code n’est pas renseigné en admin |
 | **Synthèse sous le tableau** | Total HT / TVA (20 %) / **TOTAL TTC** sur le **seul montant produits** (hors frais de port boutique) |
 | **Pied** | Adresse de livraison, mention « Livraison direct sans BL chiffré » |
@@ -527,14 +532,50 @@ Génération centralisée : **`supabase/functions/_shared/generate-order-pdf.ts`
 | **Repli interdit** | Ne pas utiliser `product_id` / UUID dans la colonne Code du PDF — si absent en base, la cellule reste vide |
 | **Correction rétroactive** | Renseigner le code en admin puis **Renvoyer** la commande (`simulate-order-webhook`) |
 
+### PDF fournisseur — calculs Qté / Tarif UV
+
+Logique centralisée : **`supabase/functions/_shared/order-supplier-quantity.ts`** (utilisée par **`generate-order-pdf.ts`**, **`preview-supplier-order-pdf`**, **`stripe-webhook`**, **`simulate-order-webhook`**).
+
+Données prix / conditionnement : **`products.purchase_price_ht`** et **`products.box_quantity`** uniquement (enrichissement **`alsafix-code.ts`** par `product_id` ou `code_alsafix`).
+
+| Type produit | Détection | Qté (colonne PDF) | Tarif UV. | Prix total HT net |
+|--------------|-----------|-------------------|-----------|-------------------|
+| **Kit** | `code_alsafix` commence par **`KIT`** (ex. `KIT08822`, `KIT-VBF60`) | Qté panier | **`purchase_price_ht`** (pas de ×100) | Qté panier × `purchase_price_ht` |
+| **Boîte** | `variant_id` **sans** suffixe `-unit` et `box_quantity > 1` | Qté panier × `box_quantity` | `(purchase_price_ht / box_quantity) × 100` | Qté panier × `purchase_price_ht` |
+| **Achat unitaire** | `variant_id` se termine par **`-unit`** | Qté panier | `(purchase_price_ht / box_quantity) × 100` si `box_quantity > 1`, sinon `purchase_price_ht × 100` | Qté × prix unitaire (PA/boîte si multi) |
+| **Autre** (`box_quantity` = 1 ou absent, non kit) | défaut | Qté panier | `purchase_price_ht × 100` | Qté × `purchase_price_ht` |
+
+**Pièges documentés :**
+
+- Ne **pas** utiliser `variant_title === "Unité"` pour le PDF fournisseur — seul le suffixe **`variant_id` … `-unit`** compte (`isSupplierUnitPurchase`).
+- Un kit avec `box_quantity` renseigné en base **ne doit pas** déclencher la formule boîte : **`isSupplierKit`** prime.
+- Si `purchase_price_ht` ou `box_quantity` est faux en base, le calcul est cohérent mais le PDF affichera des montants incorrects — corriger **`products`** en admin.
+
+### Simulation commande (admin)
+
+| Élément | Détail |
+|---------|--------|
+| **Dépôt** | `admin-hub-central` — route **`/simulation-commande`**, menu « Simulation commande » |
+| **Edge Function** | **`preview-supplier-order-pdf`** (déployée depuis **fixa-pro-hub**) — auth admin (`verify-admin.ts`) |
+| **Comportement** | Panier test : recherche produits, mode Boîte / Unité (`variant_id` + suffixe `-unit` comme le site), champs client/livraison ; **Calculer** (détail lignes) / **Générer PDF** (même `generateOrderPDF` + logo que la prod) |
+| **Exclusions** | Pas de Stripe, pas d’email Resend, pas de webhook n8n, pas d’insertion `orders` |
+| **UI détail** | Colonnes BDD **`purchase_price_ht`** et **`box_quantity`** encadrées vert foncé ; badge **(kit)** si code `KIT*` |
+| **Utils front** | `admin-hub-central/src/utils/supplierPdf.ts` — `buildSimulationPayload`, types breakdown |
+
+**Déploiement :** après modification de `_shared/order-supplier-quantity.ts` ou `generate-order-pdf.ts`, redéployer sur **staging + prod** : `preview-supplier-order-pdf`, `simulate-order-webhook`, `stripe-webhook` (voir `./scripts/3k.sh deploy-edge-staging-prod` ou commandes dans *À retenir CLI*).
+
 ### Modules partagés Edge (fixa)
 
 | Fichier | Rôle |
 |---------|------|
 | `supabase/functions/_shared/order-totals.ts` | `sumItemsHT`, `splitOrderTotals(items, totalHT)` → `{ productsHT, shippingHT }` |
 | `supabase/functions/_shared/send-order-confirmation-email.ts` | Envoi Resend HTML à la confirmation |
-| `supabase/functions/_shared/generate-order-pdf.ts` | Génération PDF (tableau, TVA, total TTC, alignement) |
-| `supabase/functions/_shared/alsafix-code.ts` | `alsafixCodeOnly`, `enrichItemsWithAlsafixCodes` |
+| `supabase/functions/_shared/generate-order-pdf.ts` | Génération PDF (tableau, TVA, total TTC, logo, téléphone) |
+| `supabase/functions/_shared/alsafix-code.ts` | `alsafixCodeOnly`, `enrichItemsWithAlsafixCodes` (+ `purchase_price_ht`, `box_quantity`) |
+| `supabase/functions/_shared/order-supplier-quantity.ts` | `isSupplierKit`, `isSupplierUnitPurchase`, `supplierTarifUv`, `supplierElementQuantity`, `supplierPurchaseLineTotal` |
+| `supabase/functions/_shared/order-customer-phone.ts` | Téléphone client pour le pied de page PDF |
+| `supabase/functions/_shared/site-logo.ts` | Logo site dans le PDF |
+| `supabase/functions/preview-supplier-order-pdf/index.ts` | Simulation admin (panier → PDF + breakdown JSON) |
 
 ### Régénérer PDF / email pour une commande existante
 
@@ -572,6 +613,7 @@ Depuis **admin-hub-central** → **Commandes** → action **Renvoyer** : appelle
 
 | Date       | Change                                                                                                                                                                                                                                                                                       |
 | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-05-23 | **fixa-pro-hub + admin-hub-central — simulation commande :** page admin `/simulation-commande` ; Edge **`preview-supplier-order-pdf`** (panier → calculs + PDF sans paiement/mail/n8n). **Calculs PDF kits :** `code_alsafix` préfixe **`KIT`** → Tarif UV = `purchase_price_ht` (pas ×100). Modules `_shared/order-supplier-quantity.ts`, téléphone/logo PDF. **Git** fixa `6fa6540`/`b959ffd`, admin `3353ca2`/`632a547`. **Edge** deploy staging + prod : `preview-supplier-order-pdf`, `simulate-order-webhook`, `stripe-webhook`. |
 | 2026-05-23 | **fixa-pro-hub — conditionnement boîte (client) :** affichage « Boîte de N vis » dans panier (drawer + page), suivi commande et email confirmation Resend ; `boxQuantity` sur `CartItem` + enrichissement `products.box_quantity` (Edge `_shared/box-quantity.ts`). **Git** staging → merge **main**. **Edge** deploy `stripe-webhook` + `simulate-order-webhook` staging puis prod. |
 | 2026-05-23 | **fixa-pro-hub — PDF fournisseur :** retrait ligne et totaux **frais de port** du bon de commande n8n/Alsafix (`generate-order-pdf.ts` — montants produits seuls) ; email client et suivi boutique inchangés. |
 | 2026-05-23 | **fixa-pro-hub — PDF commande :** module `_shared/generate-order-pdf.ts` + `_shared/alsafix-code.ts` ; colonne **Code = `code_alsafix` uniquement** (pas d’UUID) ; tableau pleine largeur aligné sur barre **TOTAL TTC** ; lignes **Total HT / TVA 20 % / TOTAL TTC** ; enrichissement Alsafix via `product_id`. **Git** `432b122` → merge `main` `75aae7a`. **Edge prod** deploy. |
