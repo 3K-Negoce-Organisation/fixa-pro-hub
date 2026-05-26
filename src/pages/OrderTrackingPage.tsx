@@ -920,6 +920,11 @@ const OrderTrackingPage = () => {
                                 <p className="text-sm text-muted-foreground">
                                   Total HT: <span className="text-foreground">{formatPriceHT(order.total_ht)}</span>
                                 </p>
+                                <p className="text-xs text-muted-foreground max-w-sm pt-2">
+                                  Le PDF envoyé au fournisseur affiche les prix d&apos;achat et les quantités en
+                                  unités (éléments), pas les boîtes du panier. Le montant payé est celui indiqué
+                                  ci-dessus.
+                                </p>
                               </>
                             );
                           })()}

@@ -5,9 +5,9 @@ import { roundMoney } from "./money.ts";
 export function sumItemsHT(items: Array<{ priceHT?: number; unit_price_ht?: number; quantity?: number; q?: number }>): number {
   return roundMoney(
     items.reduce((sum, item) => {
-      const priceHT = roundMoney(item.priceHT ?? item.unit_price_ht ?? 0);
+      const unit = roundMoney(item.priceHT ?? item.unit_price_ht ?? 0);
       const qty = item.quantity ?? item.q ?? 1;
-      return sum + priceHT * qty;
+      return sum + roundMoney(unit * qty);
     }, 0),
   );
 }

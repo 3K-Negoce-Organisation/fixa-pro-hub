@@ -12,6 +12,25 @@ import type { PdfSiteLogo } from "./site-logo.ts";
 
 const LOGO_MAX_WIDTH_MM = 45;
 const LOGO_MAX_HEIGHT_MM = 14;
+const PAGE_BOTTOM_MARGIN_MM = 12;
+
+export type CustomerOrderTotals = {
+  totalHT: number;
+  totalTTC: number;
+};
+
+function pageHeightMm(doc: InstanceType<typeof jsPDF>): number {
+  return doc.internal.pageSize.getHeight();
+}
+
+/** Passe à une nouvelle page si le bloc à dessiner dépasse le bas de page. */
+function ensureY(doc: InstanceType<typeof jsPDF>, y: number, neededHeight: number): number {
+  if (y + neededHeight > pageHeightMm(doc) - PAGE_BOTTOM_MARGIN_MM) {
+    doc.addPage();
+    return PAGE_BOTTOM_MARGIN_MM + 8;
+  }
+  return y;
+}
 
 function formatMoneyFr(value: number, maxDecimals = 2, minDecimals = 2): string {
   const factor = 10 ** maxDecimals;
@@ -76,6 +95,7 @@ export function generateOrderPDF(
   } | null,
   customerPhone?: string | null,
   siteLogo?: PdfSiteLogo | null,
+  customerOrderTotals?: CustomerOrderTotals | null,
 ): string {
   const date = new Date();
   const dateStr = `${String(date.getMonth() + 1).padStart(2, "0")}/${String(date.getDate()).padStart(2, "0")}/${String(date.getFullYear()).slice(-2)}`;
@@ -108,7 +128,8 @@ export function generateOrderPDF(
   const logoBottom = drawSiteLogo(doc, margin, siteLogo);
   const dateY = logoBottom + 4;
   const orderLabelY = dateY + 7;
-  const tableStartY = orderLabelY + 8;
+  const subtitleY = orderLabelY + 5;
+  const tableStartY = subtitleY + 5;
 
   doc.setFontSize(11);
   doc.setFont("helvetica", "normal");
@@ -124,7 +145,16 @@ export function generateOrderPDF(
   doc.text(`N° clt ${customerNumber}`, pageWidth - margin, orderLabelY, { align: "right" });
   doc.setTextColor(0, 0, 0);
 
-  const tableHeaders = [["Code", "Désignation", "Qté", "Tarif UV.", "Prix total HT net"]];
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "italic");
+  doc.text(
+    "Bon de commande fournisseur — tarifs d'achat HT (Qté = unités / éléments, pas les boîtes panier)",
+    margin,
+    subtitleY,
+  );
+  doc.setFont("helvetica", "normal");
+
+  const tableHeaders = [["Code", "Désignation", "Qté élém.", "Tarif UV.", "Prix total HT net"]];
 
   const tableData = items.map((item) => {
     const productPurchase = item.product_purchase_price_ht as number | null | undefined;
@@ -188,14 +218,21 @@ export function generateOrderPDF(
 
   const summaryRight = tableLeft + tableDrawWidth - 10;
   const summaryLabelX = tableLeft + tableDrawWidth - 55;
-  let summaryY = finalY + 6;
+  const hasClientTotals = Boolean(
+    customerOrderTotals &&
+      Number.isFinite(customerOrderTotals.totalHT) &&
+      Number.isFinite(customerOrderTotals.totalTTC) &&
+      customerOrderTotals.totalHT > 0,
+  );
+  const footerBlockHeight = 28 + (hasClientTotals ? 14 : 0) + 45;
+  let summaryY = ensureY(doc, finalY + 6, footerBlockHeight);
 
   doc.setFontSize(10);
   doc.setFont("helvetica", "normal");
-  doc.text("Total HT", summaryLabelX, summaryY, { align: "right" });
+  doc.text("Total achat fournisseur HT", summaryLabelX, summaryY, { align: "right" });
   doc.text(`${formatMoneyFr(supplierProductsHT, 2)} €`, summaryRight, summaryY, { align: "right" });
   summaryY += 5;
-  doc.text("TVA (20 %)", summaryLabelX, summaryY, { align: "right" });
+  doc.text("TVA achat (20 %)", summaryLabelX, summaryY, { align: "right" });
   doc.text(`${formatMoneyFr(tvaAmount, 2)} €`, summaryRight, summaryY, { align: "right" });
 
   const totalRowY = summaryY + 5;
@@ -207,10 +244,27 @@ export function generateOrderPDF(
 
   doc.setFontSize(11);
   doc.setFont("helvetica", "bold");
-  doc.text("TOTAL TTC", tableLeft + tableDrawWidth * 0.55, totalRowY + 7);
+  doc.text("TOTAL ACHAT FOURNISSEUR TTC", tableLeft + 8, totalRowY + 7);
   doc.text(`${formatMoneyFr(productsTTC, 2)} €`, summaryRight, totalRowY + 7, { align: "right" });
 
-  const addressY = totalRowY + 20;
+  let blockBottomY = totalRowY + 12;
+  if (hasClientTotals && customerOrderTotals) {
+    blockBottomY = ensureY(doc, blockBottomY, 14);
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "bold");
+    doc.text("Montant client payé (catalogue)", summaryLabelX, blockBottomY, { align: "right" });
+    blockBottomY += 4;
+    doc.setFont("helvetica", "normal");
+    doc.text(
+      `HT ${formatMoneyFr(customerOrderTotals.totalHT, 2)} €  ·  TTC ${formatMoneyFr(customerOrderTotals.totalTTC, 2)} €`,
+      summaryRight,
+      blockBottomY,
+      { align: "right" },
+    );
+    blockBottomY += 6;
+  }
+
+  const addressY = ensureY(doc, blockBottomY + 8, 40);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10);
   doc.text("Adresse de livraison", margin, addressY);
@@ -244,7 +298,7 @@ export function generateOrderPDF(
     currentY += 5;
   }
 
-  currentY += 10;
+  currentY = ensureY(doc, currentY + 6, 12);
   doc.setFont("helvetica", "bold");
   doc.text("Livraison direct sans BL chiffré", margin, currentY);
 

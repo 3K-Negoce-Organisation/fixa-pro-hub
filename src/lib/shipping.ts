@@ -47,7 +47,10 @@ export function splitOrderTotalsFromItems(
   totalHT: number,
 ): { productsHT: number; shippingHT: number } {
   const productsHT = roundMoney(
-    items.reduce((sum, item) => sum + roundMoney(item.unit_price_ht) * item.quantity, 0),
+    items.reduce(
+      (sum, item) => sum + roundMoney(roundMoney(item.unit_price_ht) * item.quantity),
+      0,
+    ),
   );
   const shippingHT = roundMoney(Math.max(0, roundMoney(totalHT) - productsHT));
   return { productsHT, shippingHT };

@@ -633,6 +633,7 @@ async function sendToN8n(
       } : null,
       resolvedPhone,
       siteLogo,
+      { totalHT, totalTTC },
     );
 
     logStep("PDF file generated", { size: pdfBase64.length });

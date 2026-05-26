@@ -169,6 +169,10 @@ serve(async (req) => {
       },
       profile?.phone || customerPhone || null,
       siteLogo,
+      {
+        totalHT: Number(order.total_ht) || 0,
+        totalTTC: Number(order.total_ttc) || 0,
+      },
     );
 
     logStep("PDF file generated", { size: pdfBase64.length, preview_only: !!preview_only });
