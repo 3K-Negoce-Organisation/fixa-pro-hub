@@ -17,16 +17,22 @@ function lineUnitTTC(item: CheckoutLine): number {
   return roundMoney(roundMoney(item.priceHT ?? 0) * (1 + TVA_RATE));
 }
 
-function lineUnitHT(item: CheckoutLine): number {
-  return roundMoney(lineUnitTTC(item) / (1 + TVA_RATE));
+function clientLineTotalTtc(priceTtc: number, quantity: number): number {
+  return roundMoney(roundMoney(priceTtc) * quantity);
 }
 
 export function computeCheckoutTotals(items: CheckoutLine[]) {
   const productsTTC = roundMoney(
-    items.reduce((sum, item) => sum + lineUnitTTC(item) * item.quantity, 0),
+    items.reduce(
+      (sum, item) => sum + clientLineTotalTtc(lineUnitTTC(item), item.quantity),
+      0,
+    ),
   );
   const productsHT = roundMoney(
-    items.reduce((sum, item) => sum + lineUnitHT(item) * item.quantity, 0),
+    items.reduce((sum, item) => {
+      const unitTtc = lineUnitTTC(item);
+      return sum + roundMoney(unitTtc / (1 + TVA_RATE)) * item.quantity;
+    }, 0),
   );
   const subtotalTTC = productsTTC;
   const shippingTTC = subtotalTTC >= FREE_SHIPPING_THRESHOLD_TTC ? 0 : SHIPPING_FEE_TTC;

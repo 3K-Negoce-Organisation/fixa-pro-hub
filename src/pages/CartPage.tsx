@@ -8,13 +8,12 @@ import { PageBackground } from "@/components/layout/PageBackground";
 import { Footer } from "@/components/layout/Footer";
 import { useCart } from "@/contexts/CartContext";
 import { BoxQuantityHint } from "@/components/cart/BoxQuantityHint";
-import { lineUnitTTC } from "@/lib/cartPricing";
+import { clientLineTotalTtc, lineUnitTTC } from "@/lib/cartPricing";
 import { formatPriceHT, formatPrice, getDisplayVariantTitle } from "@/lib/products";
 import {
   FREE_SHIPPING_THRESHOLD_TTC,
   orderGrandTotals,
 } from "@/lib/shipping";
-import { roundMoney } from "@/lib/utils";
 import { StripePaymentForm } from "@/components/checkout/StripePaymentForm";
 
 const CartPage = () => {
@@ -177,7 +176,7 @@ const CartPage = () => {
 
                         <div className="flex items-center gap-2">
                           <p className="text-sm font-bold hidden sm:block">
-                            {formatPrice(roundMoney(lineUnitTTC(item) * item.quantity))}
+                            {formatPrice(clientLineTotalTtc(lineUnitTTC(item), item.quantity))}
                           </p>
                           <Button
                             variant="ghost"

@@ -1,9 +1,11 @@
 import { createContext, useContext, useState, useEffect, useRef, useCallback, ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
-import { cartProductsHT, cartProductsTTC, lineUnitHT, lineUnitTTC } from "@/lib/cartPricing";
-import { roundMoney } from "@/lib/utils";
-
+import {
+  cartProductsHT,
+  cartProductsTTC,
+  normalizeCartLinePricing,
+} from "@/lib/cartPricing";
 export interface CartItem {
   id: string;
   variantId: string;
@@ -123,45 +125,26 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const hydrateCartItems = useCallback(async (cartItems: CartItem[]): Promise<CartItem[]> => {
-    const needsHydration = cartItems.filter(
-      (i) =>
-        !i.isGift &&
-        (i.boxQuantity == null ||
-          i.boxQuantity === undefined ||
-          i.priceTTC == null ||
-          i.priceTTC <= 0),
-    );
-    const missingIds = [...new Set(needsHydration.map((i) => i.id))];
-    if (missingIds.length === 0) return cartItems;
+    const productIds = [...new Set(cartItems.filter((i) => !i.isGift).map((i) => i.id))];
+    if (productIds.length === 0) return cartItems;
 
     const { data: products } = await supabase
       .from("products")
       .select("id, box_quantity, price_ht, price_ttc")
-      .in("id", missingIds);
+      .in("id", productIds);
 
     const byId = new Map((products || []).map((p) => [p.id, p]));
 
     return cartItems.map((item) => {
       if (item.isGift) return item;
       const product = byId.get(item.id);
-      if (!product) return item;
-
-      let next = item;
-      if (item.boxQuantity == null && product.box_quantity != null) {
-        next = { ...next, boxQuantity: product.box_quantity };
-      }
-      if (item.priceTTC == null || item.priceTTC <= 0) {
-        const priceTTC =
-          product.price_ttc != null && product.price_ttc > 0
-            ? roundMoney(product.price_ttc)
-            : lineUnitTTC({ priceHT: item.priceHT, priceTTC: 0 });
-        const priceHT =
-          product.price_ht != null && product.price_ht > 0
-            ? roundMoney(product.price_ht)
-            : lineUnitHT({ priceHT: item.priceHT, priceTTC });
-        next = { ...next, priceTTC, priceHT };
-      }
-      return next;
+      const { priceHT, priceTTC } = normalizeCartLinePricing(item, product ?? undefined);
+      return {
+        ...item,
+        priceHT,
+        priceTTC,
+        boxQuantity: item.boxQuantity ?? product?.box_quantity ?? null,
+      };
     });
   }, []);
 
@@ -372,13 +355,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, [removedItems]);
 
   const addItem = (item: Omit<CartItem, "quantity">, quantity = 1) => {
+    const { priceHT, priceTTC } = normalizeCartLinePricing(item);
     const normalized: Omit<CartItem, "quantity"> = {
       ...item,
-      priceHT: roundMoney(item.priceHT),
-      priceTTC:
-        item.priceTTC != null && item.priceTTC > 0
-          ? roundMoney(item.priceTTC)
-          : lineUnitTTC(item),
+      priceHT,
+      priceTTC,
     };
 
     // Remove from removed items if it was there
