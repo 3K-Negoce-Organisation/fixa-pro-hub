@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Trash2, Plus, Minus, ShoppingBag, ArrowLeft, RotateCcw, X, ChevronRight, Home } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,7 @@ import { PageBackground } from "@/components/layout/PageBackground";
 import { Footer } from "@/components/layout/Footer";
 import { useCart } from "@/contexts/CartContext";
 import { BoxQuantityHint } from "@/components/cart/BoxQuantityHint";
-import { clientLineTotalTtc, lineUnitTTC } from "@/lib/cartPricing";
+import { clientLineTotalTtc, lineUnitTTC, payableCartItems } from "@/lib/cartPricing";
 import { formatPriceHT, formatPrice, getDisplayVariantTitle } from "@/lib/products";
 import {
   FREE_SHIPPING_THRESHOLD_TTC,
@@ -22,6 +22,30 @@ const CartPage = () => {
 
   const { subtotalTTC, shippingTTC, grandTotalTTC, grandTotalHT } = orderGrandTotals(totalTTC, totalHT);
   const totalVatAmount = grandTotalTTC - grandTotalHT;
+
+  const cartSignature = useMemo(
+    () =>
+      JSON.stringify(
+        payableCartItems(items).map((item) => ({
+          id: item.id,
+          variantId: item.variantId,
+          q: item.quantity,
+          t: item.priceTTC,
+        })),
+      ),
+    [items],
+  );
+
+  const prevCartSignatureRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (
+      prevCartSignatureRef.current !== null &&
+      prevCartSignatureRef.current !== cartSignature
+    ) {
+      setShowPaymentForm(false);
+    }
+    prevCartSignatureRef.current = cartSignature;
+  }, [cartSignature]);
 
   const handleCheckout = () => {
     setShowPaymentForm(true);

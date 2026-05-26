@@ -8,6 +8,11 @@ export type CartPricedLine = {
   isGift?: boolean;
 };
 
+/** Lignes facturables (hors cadeaux promo). */
+export function payableCartItems<T extends CartPricedLine>(items: T[]): T[] {
+  return items.filter((item) => !item.isGift && item.quantity > 0);
+}
+
 export type CatalogPrices = {
   price_ht?: number | null;
   price_ttc?: number | null;

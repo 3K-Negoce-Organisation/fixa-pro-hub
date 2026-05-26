@@ -8,6 +8,10 @@ import { roundMoney } from "../_shared/money.ts";
 import { generateOrderPDF } from "../_shared/generate-order-pdf.ts";
 import { loadSiteLogoForOrderPdf } from "../_shared/site-logo.ts";
 import { resolveOrderCustomerPhone } from "../_shared/order-customer-phone.ts";
+import {
+  compactItemsToOrderLines,
+  parseCompactItemsFromMetadata,
+} from "../_shared/stripe-cart-metadata.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -211,32 +215,16 @@ serve(async (req) => {
       const userEmail = metadata.user_email || null;
       const totalHT = parseFloat(metadata.total_ht || "0");
       const totalTTC = parseFloat(metadata.total_ttc || "0");
-      const itemsCompact = metadata.items_compact;
-
       logStep("PaymentIntent metadata", { userId, userEmail, totalHT, totalTTC });
 
       const orderSiteId = await resolveOrderSiteId(supabaseAdmin, metadata);
       logStep("Resolved order site_id", { orderSiteId });
 
-      // Parse compact items from metadata
+      // Parse compact items from metadata (single key or chunked)
       let cartItems: any[] = [];
       try {
-        const compactItems = JSON.parse(itemsCompact || "[]");
-        // Compact format: { i: id, q: quantity, p: priceHT, t: priceTTC }
-        cartItems = compactItems.map((item: any) => {
-          const priceTTC =
-            item.t != null && item.t > 0
-              ? roundMoney(item.t)
-              : roundMoney(roundMoney(item.p ?? 0) * 1.2);
-          const priceHT =
-            item.p != null && item.p > 0 ? roundMoney(item.p) : roundMoney(priceTTC / 1.2);
-          return {
-            id: item.i,
-            quantity: item.q,
-            priceHT,
-            priceTTC,
-          };
-        });
+        const compactItems = parseCompactItemsFromMetadata(metadata);
+        cartItems = compactItemsToOrderLines(compactItems);
         logStep("Parsed compact items", { count: cartItems.length });
       } catch (e) {
         logStep("Failed to parse items_compact", { error: String(e) });
@@ -440,31 +428,37 @@ serve(async (req) => {
       const userId = metadata.user_id;
       const totalHT = parseFloat(metadata.total_ht || "0");
       const totalTTC = parseFloat(metadata.total_ttc || "0");
-      const itemsJson = metadata.items_json;
-
       logStep("Session metadata", { userId, totalHT, totalTTC });
 
       const sessionOrderSiteId = await resolveOrderSiteId(supabaseAdmin, metadata as Record<string, string | undefined>);
       logStep("Resolved order site_id (checkout session)", { sessionOrderSiteId });
 
-      // Parse cart items from metadata
+      // Parse cart items from metadata (compact/chunked, or legacy items_json)
       let cartItems: any[] = [];
       try {
-        cartItems = JSON.parse(itemsJson || "[]");
+        const compactItems = parseCompactItemsFromMetadata(metadata as Record<string, string | undefined>);
+        if (compactItems.length > 0) {
+          cartItems = compactItemsToOrderLines(compactItems);
+        } else if (metadata.items_json) {
+          cartItems = JSON.parse(metadata.items_json);
+        }
       } catch (e) {
-        logStep("Failed to parse items_json", { error: String(e) });
+        logStep("Failed to parse checkout session items", { error: String(e) });
       }
 
-      // Fetch full product details to get code_alsafix
-      const productIds = cartItems.map(item => item.id);
+      const productIds = cartItems.map((item) => item.id);
       const productMap = await fetchProductDetails(supabaseAdmin, productIds);
-      
-      // Enrich cart items with code_alsafix
-      cartItems = cartItems.map(item => {
+
+      cartItems = cartItems.map((item) => {
         const product = productMap.get(item.id);
         return {
           ...item,
+          title: item.title || product?.title || `Product ${item.id}`,
+          handle: item.handle || product?.handle || "",
+          image: item.image || product?.images?.[0]?.url || "",
+          variantTitle: item.variantTitle || "Default",
           code_alsafix: alsafixCodeOnly(product?.code_alsafix),
+          box_quantity: product?.box_quantity ?? null,
         };
       });
 

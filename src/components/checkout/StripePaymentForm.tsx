@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, type ReactNode } from "react";
+import { useState, useEffect, useMemo, useRef, type ReactNode } from "react";
 import type { Stripe } from "@stripe/stripe-js";
 import {
   Elements,
@@ -15,7 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { useCart, CartItem } from "@/contexts/CartContext";
-import { lineUnitHT, lineUnitTTC } from "@/lib/cartPricing";
+import { lineUnitHT, lineUnitTTC, payableCartItems } from "@/lib/cartPricing";
 import { formatPrice } from "@/lib/products";
 import { roundMoney } from "@/lib/utils";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -544,7 +544,36 @@ interface StripePaymentFormProps {
 
 const LOADING_TIMEOUT_MS = 20000; // 20 seconds timeout
 
+async function readInvokeErrorMessage(
+  invokeError: { message?: string; context?: Response } | null,
+  data: { error?: string } | null,
+): Promise<string> {
+  if (data?.error) return data.error;
+  if (invokeError?.context) {
+    try {
+      const body = (await invokeError.context.json()) as { error?: string };
+      if (body?.error) return body.error;
+    } catch {
+      /* ignore */
+    }
+  }
+  return invokeError?.message || "Erreur lors de la création du paiement";
+}
+
 export const StripePaymentForm = ({ items, totalTTC, totalHT, onSuccess, onCancel }: StripePaymentFormProps) => {
+  const payableItems = useMemo(() => payableCartItems(items), [items]);
+  const cartSignature = useMemo(
+    () =>
+      JSON.stringify(
+        payableItems.map((item) => ({
+          id: item.id,
+          variantId: item.variantId,
+          q: item.quantity,
+          t: lineUnitTTC(item),
+        })),
+      ),
+    [payableItems],
+  );
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string>("");
   const [guestGateEmail, setGuestGateEmail] = useState("");
@@ -585,11 +614,11 @@ export const StripePaymentForm = ({ items, totalTTC, totalHT, onSuccess, onCance
         user?.email ?? (isGuest ? userEmail : undefined);
 
       const { data, error: invokeError } = await supabase.functions.invoke("create-stripe-checkout", {
-        body: { items, guestEmail: guestEmailBody },
+        body: { items: payableItems, guestEmail: guestEmailBody },
       });
 
       if (invokeError || data?.error) {
-        throw new Error(data?.error || invokeError?.message || "Erreur lors de la création du paiement");
+        throw new Error(await readInvokeErrorMessage(invokeError, data));
       }
 
       if (data?.url) {
@@ -692,6 +721,13 @@ export const StripePaymentForm = ({ items, totalTTC, totalHT, onSuccess, onCance
     });
   }, [stripeMode]);
 
+  // Panier ou total modifié → nouvelle intention de paiement
+  useEffect(() => {
+    setClientSecret(null);
+    setError(null);
+    setPaymentEpoch((e) => e + 1);
+  }, [cartSignature, totalTTC]);
+
   // Create payment intent once Stripe + session + (guest email if applicable) are ready
   useEffect(() => {
     if (stripeMode === null || stripeLoaded !== true || !sessionResolved || !pastGuestGate) {
@@ -719,7 +755,7 @@ export const StripePaymentForm = ({ items, totalTTC, totalHT, onSuccess, onCance
 
         console.log("[STRIPE] Calling create-payment-intent edge function...");
         const { data, error: invokeError } = await supabase.functions.invoke("create-payment-intent", {
-          body: { items, guestEmail: guestEmailPayload },
+          body: { items: payableItems, guestEmail: guestEmailPayload },
         });
 
         if (timeoutRef.current) {
@@ -736,13 +772,7 @@ export const StripePaymentForm = ({ items, totalTTC, totalHT, onSuccess, onCance
         });
 
         if (invokeError || data?.error) {
-          const details = invokeError && "details" in invokeError ? (invokeError as { details?: string }).details : undefined;
-          const hint = invokeError && "hint" in invokeError ? (invokeError as { hint?: string }).hint : undefined;
-          const composed =
-            data?.error ||
-            [invokeError?.message, details, hint].filter(Boolean).join(" - ") ||
-            "Erreur lors de la création du paiement";
-          throw new Error(composed);
+          throw new Error(await readInvokeErrorMessage(invokeError, data));
         }
 
         setClientSecret(data.clientSecret);
@@ -776,7 +806,19 @@ export const StripePaymentForm = ({ items, totalTTC, totalHT, onSuccess, onCance
         timeoutRef.current = null;
       }
     };
-  }, [stripeLoaded, stripeMode, sessionResolved, pastGuestGate, isGuest, userEmail, retryCount, paymentEpoch]);
+  }, [
+    stripeLoaded,
+    stripeMode,
+    sessionResolved,
+    pastGuestGate,
+    isGuest,
+    userEmail,
+    retryCount,
+    paymentEpoch,
+    cartSignature,
+    totalTTC,
+    payableItems,
+  ]);
 
   const submitGuestEmailGate = (e: React.FormEvent) => {
     e.preventDefault();
@@ -793,13 +835,14 @@ export const StripePaymentForm = ({ items, totalTTC, totalHT, onSuccess, onCance
     setGuestGatePassed(true);
   };
 
-  // Auto-trigger fallback when Stripe Elements fails to load (only after we attempted PI flow)
+  // Redirection Checkout hébergé seulement si Stripe.js / Elements ne charge pas (pas sur erreur API)
   const shouldFallback =
     stripeMode !== null &&
     sessionResolved &&
     pastGuestGate &&
     !isLoading &&
-    (Boolean(error) || !clientSecret || stripeLoaded === false);
+    !error &&
+    (stripeLoaded === false || !clientSecret);
 
   useEffect(() => {
     if (shouldFallback && !fallbackLoading) {
@@ -878,7 +921,30 @@ export const StripePaymentForm = ({ items, totalTTC, totalHT, onSuccess, onCance
     );
   }
 
-  // Error state - auto-fallback to Stripe Checkout
+  if (error) {
+    return withStripeTestBanner(
+      <div className="text-center py-8 space-y-4">
+        <AlertTriangle className="h-12 w-12 text-destructive mx-auto" />
+        <p className="font-medium text-foreground">Impossible de préparer le paiement</p>
+        <p className="text-sm text-muted-foreground max-w-md mx-auto">{error}</p>
+        <div className="flex flex-col sm:flex-row gap-3 justify-center">
+          <Button variant="outline" onClick={onCancel}>
+            Retour au panier
+          </Button>
+          <Button variant="outline" onClick={handleRetry} className="gap-2">
+            <RefreshCw className="h-4 w-4" />
+            Réessayer
+          </Button>
+          <Button onClick={handleFallbackToCheckout} disabled={fallbackLoading} className="gap-2">
+            {fallbackLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lock className="h-4 w-4" />}
+            Page Stripe
+          </Button>
+        </div>
+      </div>,
+    );
+  }
+
+  // Stripe.js indisponible → redirection Checkout hébergé
   if (shouldFallback) {
     return withStripeTestBanner(
       <div className="text-center py-8 space-y-4">

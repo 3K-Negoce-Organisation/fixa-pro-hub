@@ -4,6 +4,11 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { ensureFrenchStripeCustomer } from "../_shared/stripe-customer-fr.ts";
 import { computeCheckoutTotals } from "../_shared/checkout-totals.ts";
 import { roundMoney } from "../_shared/money.ts";
+import {
+  filterPayableCartLines,
+  stripeMetadataForCompactItems,
+  toCompactCartItems,
+} from "../_shared/stripe-cart-metadata.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -24,6 +29,7 @@ interface CartItem {
   priceTTC?: number;
   image: string;
   quantity: number;
+  isGift?: boolean;
 }
 
 function resolveStripeSecretKey(mode: "live" | "test"): string {
@@ -88,7 +94,8 @@ serve(async (req) => {
     const { items, guestEmail } = await req.json() as { items: CartItem[]; guestEmail?: string };
     logStep("Received cart items", { itemCount: items.length, isGuest: !userId, guestEmail });
 
-    if (!items || items.length === 0) {
+    const payableItems = filterPayableCartLines(items ?? []);
+    if (payableItems.length === 0) {
       throw new Error("Cart is empty");
     }
 
@@ -141,7 +148,7 @@ serve(async (req) => {
     assertSecretMatchesStripeMode(stripeMode, stripeKey);
     logStep("Stripe key resolved", { stripeMode });
 
-    const roundedItems = items.map((item) => {
+    const roundedItems = payableItems.map((item) => {
       const priceTTC =
         item.priceTTC != null && item.priceTTC > 0
           ? roundMoney(item.priceTTC)
@@ -152,6 +159,8 @@ serve(async (req) => {
     });
     const { productsHT, subtotalTTC, shippingTTC, shippingHT, totalHT, totalTTC } =
       computeCheckoutTotals(roundedItems);
+    const compactItems = toCompactCartItems(roundedItems);
+    const itemsMetadata = stripeMetadataForCompactItems(compactItems);
     const amountInCents = Math.round(totalTTC * 100);
     logStep("Calculated totals", { productsHT, subtotalTTC, shippingTTC, totalHT, totalTTC, amountInCents });
 
@@ -188,14 +197,7 @@ serve(async (req) => {
         total_ttc: totalTTC.toFixed(2),
         site_id: resolvedSiteId || "",
         stripe_mode: stripeMode,
-        // Store only essential item data (id, quantity, price) to stay under 500 char limit
-        items_compact: JSON.stringify(roundedItems.map(i => ({
-          i: i.id,
-          q: i.quantity,
-          p: i.priceHT,
-          t: i.priceTTC,
-        }))),
-        items_count: items.length.toString(),
+        ...itemsMetadata,
       },
     });
 

@@ -4,6 +4,11 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { ensureFrenchStripeCustomer } from "../_shared/stripe-customer-fr.ts";
 import { computeCheckoutTotals } from "../_shared/checkout-totals.ts";
 import { roundMoney } from "../_shared/money.ts";
+import {
+  filterPayableCartLines,
+  stripeMetadataForCompactItems,
+  toCompactCartItems,
+} from "../_shared/stripe-cart-metadata.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -24,6 +29,7 @@ interface CartItem {
   priceTTC?: number;
   image: string;
   quantity: number;
+  isGift?: boolean;
 }
 
 function resolveStripeSecretKey(mode: "live" | "test"): string {
@@ -81,7 +87,8 @@ serve(async (req) => {
     const guestEmail = (rawGuestEmail ?? "").trim().toLowerCase();
     logStep("Received cart items", { itemCount: items.length, hasGuestEmail: !!guestEmail });
 
-    if (!items || items.length === 0) {
+    const payableItems = filterPayableCartLines(items ?? []);
+    if (payableItems.length === 0) {
       throw new Error("Cart is empty");
     }
 
@@ -124,7 +131,7 @@ serve(async (req) => {
 
     const checkoutSiteId = site?.id ?? "";
 
-    const roundedItems = items.map((item) => {
+    const roundedItems = payableItems.map((item) => {
       const priceTTC =
         item.priceTTC != null && item.priceTTC > 0
           ? roundMoney(item.priceTTC)
@@ -136,6 +143,7 @@ serve(async (req) => {
     const { productsHT, subtotalTTC, shippingTTC, shippingHT, totalHT, totalTTC } =
       computeCheckoutTotals(roundedItems);
     logStep("Calculated totals", { productsHT, subtotalTTC, shippingTTC, totalHT, totalTTC });
+    const itemsMetadata = stripeMetadataForCompactItems(toCompactCartItems(roundedItems));
 
     // Initialize Stripe
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
@@ -208,16 +216,7 @@ serve(async (req) => {
         total_ttc: totalTTC.toFixed(2),
         site_id: checkoutSiteId,
         stripe_mode: stripeMode,
-        items_json: JSON.stringify(roundedItems.map(i => ({
-          id: i.id,
-          variantId: i.variantId,
-          title: i.title,
-          variantTitle: i.variantTitle,
-          priceHT: i.priceHT,
-          priceTTC: i.priceTTC,
-          quantity: i.quantity,
-          image: i.image,
-        }))),
+        ...itemsMetadata,
       },
     });
 

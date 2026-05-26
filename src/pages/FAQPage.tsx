@@ -7,6 +7,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { FREE_SHIPPING_THRESHOLD_TTC, SHIPPING_FEE_TTC } from "@/lib/shipping";
 
 const FAQPage = () => {
   const faqCategories = [
@@ -15,7 +16,7 @@ const FAQPage = () => {
       questions: [
         {
           question: "Comment passer une commande ?",
-          answer: "Pour passer une commande, parcourez notre catalogue de produits, ajoutez les articles souhaités à votre panier, puis suivez les étapes de validation. Vous devrez être connecté à votre compte pour finaliser votre achat."
+          answer: "Parcourez notre catalogue, ajoutez les articles à votre panier, puis validez depuis la page panier. Vous pouvez vous connecter, créer un compte, ou commander en tant qu'invité en indiquant votre email au moment du paiement."
         },
         {
           question: "Quels moyens de paiement acceptez-vous ?",
@@ -40,7 +41,7 @@ const FAQPage = () => {
         },
         {
           question: "Quels sont les frais de livraison ?",
-          answer: "Les frais de livraison sont calculés en fonction du poids de votre commande et de l'adresse de livraison. Ils sont affichés avant la validation finale de votre commande."
+          answer: `La livraison est gratuite lorsque le montant de vos produits (hors frais de port) atteint ${FREE_SHIPPING_THRESHOLD_TTC} € TTC. En dessous de ce seuil, des frais forfaitaires de ${SHIPPING_FEE_TTC} € TTC s'affichent dans le récapitulatif du panier avant le paiement.`
         },
         {
           question: "Comment suivre ma commande ?",
@@ -78,7 +79,7 @@ const FAQPage = () => {
       questions: [
         {
           question: "Comment créer un compte ?",
-          answer: "L'accès à notre boutique est réservé aux professionnels. Pour créer un compte, contactez-nous avec vos informations professionnelles (SIRET, coordonnées) et nous vous créerons un accès personnalisé."
+          answer: "Rendez-vous sur la page Connexion / Inscription, onglet « Inscription », et créez votre compte avec votre adresse email. Vous recevrez un email de confirmation : cliquez sur le lien pour activer votre compte. La boutique est ouverte à tous ; un compte vous permet de retrouver vos commandes et de gagner du temps lors de vos prochains achats."
         },
         {
           question: "Comment modifier mes informations personnelles ?",
