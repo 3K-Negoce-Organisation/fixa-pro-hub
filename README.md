@@ -10,6 +10,12 @@
 
 Documentation détaillée : [`docs/STRIPE_SITE_PROMPT.md`](docs/STRIPE_SITE_PROMPT.md).
 
+### Prix monétaires (arrondi 2 décimales)
+
+- Utilitaires : [`src/lib/utils.ts`](src/lib/utils.ts) (`roundMoney`, `normalizeProductMoneyFields`)
+- Nettoyage données + paniers serveur : [`docs/DATA_CLEANUP_PRICES_CARTS.md`](docs/DATA_CLEANUP_PRICES_CARTS.md)
+- Secrets CI / SQL : [`docs/AGENT_SECRETS_FROM_IMAC.md`](docs/AGENT_SECRETS_FROM_IMAC.md)
+
 ## Project info
 
 to be completed

@@ -27,4 +27,5 @@ The environment secrets `TEST_LOGIN_USERNAME` and `TEST_LOGIN_PASSWORD` contain 
 - **No automated tests**: The project has no test framework or test files configured.
 - **Lint exits non-zero**: ESLint reports pre-existing `@typescript-eslint/no-explicit-any` errors and `react-hooks/exhaustive-deps` warnings throughout the codebase. This is expected.
 - **Supabase Edge Functions**: 11 Deno-based edge functions live in `supabase/functions/`; they run on the remote Supabase instance, not locally.
+- **Prix monétaires**: utiliser `roundMoney` / `roundMoneyOrNull` depuis `src/lib/utils.ts` à l’écriture (admin, import Excel, panier). Edge : `supabase/functions/_shared/money.ts`. Voir [`docs/DATA_CLEANUP_PRICES_CARTS.md`](docs/DATA_CLEANUP_PRICES_CARTS.md).
 - **Path alias**: `@/` maps to `./src/` (configured in `tsconfig.json` and `vite.config.ts`).

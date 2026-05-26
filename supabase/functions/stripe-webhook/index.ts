@@ -4,6 +4,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { splitOrderTotals } from "../_shared/order-totals.ts";
 import { sendOrderConfirmationEmail } from "../_shared/send-order-confirmation-email.ts";
 import { alsafixCodeOnly, enrichItemsWithAlsafixCodes } from "../_shared/alsafix-code.ts";
+import { roundMoney } from "../_shared/money.ts";
 import { generateOrderPDF } from "../_shared/generate-order-pdf.ts";
 import { loadSiteLogoForOrderPdf } from "../_shared/site-logo.ts";
 import { resolveOrderCustomerPhone } from "../_shared/order-customer-phone.ts";
@@ -225,7 +226,7 @@ serve(async (req) => {
         cartItems = compactItems.map((item: any) => ({
           id: item.i,
           quantity: item.q,
-          priceHT: item.p,
+          priceHT: roundMoney(item.p),
         }));
         logStep("Parsed compact items", { count: cartItems.length });
       } catch (e) {
@@ -321,8 +322,8 @@ serve(async (req) => {
           variant_title: item.variantTitle || 'Default',
           product_image: item.image || null,
           quantity: item.quantity,
-          unit_price_ht: item.priceHT,
-          unit_price_ttc: item.priceHT * 1.20,
+          unit_price_ht: roundMoney(item.priceHT),
+          unit_price_ttc: roundMoney(item.priceHT * 1.20),
         }));
 
         const { error: itemsError } = await supabaseAdmin
@@ -509,8 +510,8 @@ serve(async (req) => {
           variant_title: item.variantTitle,
           product_image: item.image,
           quantity: item.quantity,
-          unit_price_ht: item.priceHT,
-          unit_price_ttc: item.priceHT * 1.20,
+          unit_price_ht: roundMoney(item.priceHT),
+          unit_price_ttc: roundMoney(item.priceHT * 1.20),
         }));
 
         const { error: itemsError } = await supabaseAdmin
@@ -652,7 +653,7 @@ async function sendToN8n(
           title: item.title || item.product_title || "",
           variantTitle: item.variantTitle || item.variant_title || null,
           quantity: item.quantity || item.q || 1,
-          unit_price_ht: item.priceHT || item.unit_price_ht || 0,
+          unit_price_ht: roundMoney(item.priceHT || item.unit_price_ht || 0),
           boxQuantity: (item.box_quantity ?? item.boxQuantity ?? null) as number | null,
         })),
         productsHT,
@@ -761,8 +762,8 @@ async function sendToN8n(
         title: item.title || item.product_title,
         variant_title: item.variantTitle || 'Default',
         quantity: item.quantity || item.q || 1,
-        unit_price_ht: item.priceHT || item.unit_price_ht || 0,
-        unit_price_ttc: (item.priceHT || item.unit_price_ht || 0) * 1.20,
+        unit_price_ht: roundMoney(item.priceHT || item.unit_price_ht || 0),
+        unit_price_ttc: roundMoney((item.priceHT || item.unit_price_ht || 0) * 1.20),
       })),
       totals: {
         ht: totalHT,

@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useRef, useCallback, ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
+import { roundMoney } from "@/lib/utils";
 
 export interface CartItem {
   id: string;
@@ -448,7 +449,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const closeCart = () => setIsOpen(false);
 
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
-  const totalHT = items.reduce((sum, item) => sum + item.priceHT * item.quantity, 0);
+  const totalHT = roundMoney(
+    items.reduce((sum, item) => sum + roundMoney(item.priceHT) * item.quantity, 0),
+  );
 
   return (
     <CartContext.Provider

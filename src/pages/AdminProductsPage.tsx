@@ -43,6 +43,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
+import { roundMoney } from "@/lib/utils";
 import { 
   Plus, 
   Edit, 
@@ -216,24 +217,31 @@ const AdminProductsPage = () => {
   const computePromoPriceHT = (data: ProductFormData): number | null => {
     if (!data.is_promo) return null;
     if (data.promo_discount_percent > 0 && data.price_ht > 0) {
-      return Math.round(data.price_ht * (1 - data.promo_discount_percent / 100) * 100) / 100;
+      return roundMoney(data.price_ht * (1 - data.promo_discount_percent / 100));
     }
-    if (data.promo_price_ht > 0) return data.promo_price_ht;
+    if (data.promo_price_ht > 0) return roundMoney(data.promo_price_ht);
     return null;
   };
+
+  const roundedMoneyFields = (data: ProductFormData) => ({
+    price_ht: roundMoney(data.price_ht),
+    price_ttc: roundMoney(data.price_ttc),
+    purchase_price_ht: data.purchase_price_ht > 0 ? roundMoney(data.purchase_price_ht) : null,
+  });
 
   // Create product mutation
   const createMutation = useMutation({
     mutationFn: async (data: ProductFormData) => {
       const computedPromoPriceHT = computePromoPriceHT(data);
+      const money = roundedMoneyFields(data);
       const { error } = await supabase
         .from('products')
         .insert({
           title: data.title,
           handle: data.handle || data.title.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''),
           description: data.description,
-          price_ht: data.price_ht,
-          price_ttc: data.price_ttc,
+          price_ht: money.price_ht,
+          price_ttc: money.price_ttc,
           category_id: data.category_id || null,
           stock: data.stock,
           is_active: data.is_active,
@@ -249,7 +257,7 @@ const AdminProductsPage = () => {
           code_alsafix: data.code_alsafix || null,
           designation_fr: data.designation_fr || null,
           box_quantity: data.box_quantity || null,
-          purchase_price_ht: data.purchase_price_ht || null,
+          purchase_price_ht: money.purchase_price_ht,
           box_weight: data.box_weight || null,
           diameter_mm: data.diameter_mm || null,
           length_mm: data.length_mm || null,
@@ -278,14 +286,15 @@ const AdminProductsPage = () => {
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: ProductFormData }) => {
       const computedPromoPriceHT = computePromoPriceHT(data);
+      const money = roundedMoneyFields(data);
       const { error } = await supabase
         .from('products')
         .update({
           title: data.title,
           handle: data.handle,
           description: data.description,
-          price_ht: data.price_ht,
-          price_ttc: data.price_ttc,
+          price_ht: money.price_ht,
+          price_ttc: money.price_ttc,
           category_id: data.category_id || null,
           stock: data.stock,
           is_active: data.is_active,
@@ -301,7 +310,7 @@ const AdminProductsPage = () => {
           code_alsafix: data.code_alsafix || null,
           designation_fr: data.designation_fr || null,
           box_quantity: data.box_quantity || null,
-          purchase_price_ht: data.purchase_price_ht || null,
+          purchase_price_ht: money.purchase_price_ht,
           box_weight: data.box_weight || null,
           diameter_mm: data.diameter_mm || null,
           length_mm: data.length_mm || null,
@@ -404,7 +413,7 @@ const AdminProductsPage = () => {
       
       // Update each product with calculated promo price
       for (const product of productsToUpdate || []) {
-        const promoPrice = Math.round(product.price_ht * (1 - discount / 100) * 100) / 100;
+        const promoPrice = roundMoney(product.price_ht * (1 - discount / 100));
         const { error } = await supabase
           .from('products')
           .update({ 
@@ -565,10 +574,11 @@ const AdminProductsPage = () => {
 
   // Auto-calculate TTC from HT
   const handlePriceHTChange = (value: number) => {
+    const priceHT = roundMoney(value);
     setFormData({
       ...formData,
-      price_ht: value,
-      price_ttc: Math.round(value * 1.2 * 100) / 100,
+      price_ht: priceHT,
+      price_ttc: roundMoney(priceHT * 1.2),
     });
   };
 

@@ -3,6 +3,7 @@ import * as XLSX from "xlsx";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { roundMoney } from "@/lib/utils";
 import { Upload, FileSpreadsheet, Loader2, Check, AlertCircle, RefreshCw, Plus } from "lucide-react";
 import {
   Dialog,
@@ -171,11 +172,14 @@ export const ProductExcelImport = ({ onImportComplete }: ProductExcelImportProps
         
         // Fallback: compute from purchase price if not provided
         if (!priceHT && purchasePrice) {
-          priceHT = Math.round(purchasePrice * 1.5 * 100) / 100;
+          priceHT = roundMoney(purchasePrice * 1.5);
         }
         if (!priceTTC && priceHT) {
-          priceTTC = Math.round(priceHT * 1.2 * 100) / 100;
+          priceTTC = roundMoney(priceHT * 1.2);
         }
+        const roundedPurchase = purchasePrice > 0 ? roundMoney(purchasePrice) : 0;
+        const roundedPriceHT = roundMoney(priceHT);
+        const roundedPriceTTC = roundMoney(priceTTC);
 
         return {
           code_alsafix: code,
@@ -186,7 +190,7 @@ export const ProductExcelImport = ({ onImportComplete }: ProductExcelImportProps
           box_quantity: parseNumber(
             getCol(row, "Quantité dans la boite", "Quantite dans la boite", "Qté / Boite", "box_quantity")
           ),
-          purchase_price_ht: purchasePrice || null,
+          purchase_price_ht: roundedPurchase > 0 ? roundedPurchase : null,
           box_weight: parseNumber(
             getCol(row, "Poids de la boite", "Poids / Boite", "box_weight")
           ),
@@ -209,8 +213,8 @@ export const ProductExcelImport = ({ onImportComplete }: ProductExcelImportProps
             getCol(row, "Diamètre de la tête (mm)", "Diametre de la tete (mm)", "head_diameter_mm")
           ),
           handle: generateHandle(code, designation),
-          price_ht: priceHT,
-          price_ttc: priceTTC,
+          price_ht: roundedPriceHT,
+          price_ttc: roundedPriceTTC,
           status: "new" as const,
         };
       }).filter(p => p.code_alsafix || p.designation_fr || p.title);

@@ -1,5 +1,7 @@
 /** TVA incluse dans les prix affichés et les seuils ci-dessous */
 
+import { roundMoney } from "@/lib/utils";
+
 export const TVA_RATE = 0.2;
 
 /** Livraison offerte à partir de ce montant TTC (produits uniquement, hors frais de port) */
@@ -9,7 +11,7 @@ export const FREE_SHIPPING_THRESHOLD_TTC = 150;
 export const SHIPPING_FEE_TTC = 12;
 
 export function cartSubtotalTTC(productsHT: number): number {
-  return productsHT * (1 + TVA_RATE);
+  return roundMoney(roundMoney(productsHT) * (1 + TVA_RATE));
 }
 
 export function shippingFeeTTC(subtotalTTC: number): number {
@@ -17,15 +19,16 @@ export function shippingFeeTTC(subtotalTTC: number): number {
 }
 
 export function shippingFeeHT(subtotalTTC: number): number {
-  return shippingFeeTTC(subtotalTTC) / (1 + TVA_RATE);
+  return roundMoney(shippingFeeTTC(subtotalTTC) / (1 + TVA_RATE));
 }
 
 export function orderGrandTotals(productsHT: number) {
-  const subtotalTTC = cartSubtotalTTC(productsHT);
+  const roundedProductsHT = roundMoney(productsHT);
+  const subtotalTTC = cartSubtotalTTC(roundedProductsHT);
   const shippingTTC = shippingFeeTTC(subtotalTTC);
-  const grandTotalTTC = subtotalTTC + shippingTTC;
+  const grandTotalTTC = roundMoney(subtotalTTC + shippingTTC);
   const shippingHT = shippingFeeHT(subtotalTTC);
-  const grandTotalHT = productsHT + shippingHT;
+  const grandTotalHT = roundMoney(roundedProductsHT + shippingHT);
   return {
     subtotalTTC,
     shippingTTC,
@@ -39,9 +42,9 @@ export function splitOrderTotalsFromItems(
   items: Array<{ unit_price_ht: number; quantity: number }>,
   totalHT: number,
 ): { productsHT: number; shippingHT: number } {
-  const productsHT = Math.round(
-    items.reduce((sum, item) => sum + item.unit_price_ht * item.quantity, 0) * 100,
-  ) / 100;
-  const shippingHT = Math.round(Math.max(0, totalHT - productsHT) * 100) / 100;
+  const productsHT = roundMoney(
+    items.reduce((sum, item) => sum + roundMoney(item.unit_price_ht) * item.quantity, 0),
+  );
+  const shippingHT = roundMoney(Math.max(0, roundMoney(totalHT) - productsHT));
   return { productsHT, shippingHT };
 }

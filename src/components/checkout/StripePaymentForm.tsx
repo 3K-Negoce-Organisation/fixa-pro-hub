@@ -16,6 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { useCart, CartItem } from "@/contexts/CartContext";
 import { formatPrice } from "@/lib/products";
+import { roundMoney } from "@/lib/utils";
 import { useTheme } from "@/contexts/ThemeContext";
 import {
   resolvePublishableKey,
@@ -294,8 +295,8 @@ const CheckoutForm = ({ totalTTC, userEmail, isGuest, onSuccess, onCancel, items
           product_image: item.image,
           variant_title: item.variantTitle,
           quantity: item.quantity,
-          unit_price_ht: item.priceHT,
-          unit_price_ttc: item.priceHT * 1.20,
+          unit_price_ht: roundMoney(item.priceHT),
+          unit_price_ttc: roundMoney(item.priceHT * 1.20),
         }));
 
         const { error: itemsError } = await supabase

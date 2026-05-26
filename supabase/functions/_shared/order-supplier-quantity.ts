@@ -1,8 +1,6 @@
-const UV_BATCH = 100;
+import { roundMoney } from "./money.ts";
 
-function roundMoney(value: number): number {
-  return Math.round(value * 100) / 100;
-}
+const UV_BATCH = 100;
 
 /** Achat unitaire PDF fournisseur : uniquement si variant_id se termine par "-unit". */
 export function isSupplierUnitPurchase(item: Record<string, unknown>): boolean {
@@ -50,9 +48,9 @@ export function supplierUnitPurchasePrice(
   if (purchasePriceHt <= 0) return 0;
   const boxQty = Number(boxQuantity ?? 0);
   if (Number.isFinite(boxQty) && boxQty > 1) {
-    return purchasePriceHt / boxQty;
+    return roundMoney(purchasePriceHt / boxQty);
   }
-  return purchasePriceHt;
+  return roundMoney(purchasePriceHt);
 }
 
 /**
@@ -86,10 +84,10 @@ export function supplierTarifUv(
   const purchase = resolveProductPurchasePrice(item, purchasePriceHt);
   if (purchase <= 0) return 0;
 
-  if (isSupplierKit(item)) return purchase;
+  if (isSupplierKit(item)) return roundMoney(purchase);
 
   const boxQty = resolveProductBoxQuantity(item, boxQuantity);
-  return supplierUnitPurchasePrice(purchase, boxQty) * UV_BATCH;
+  return roundMoney(supplierUnitPurchasePrice(purchase, boxQty) * UV_BATCH);
 }
 
 /**
@@ -107,21 +105,21 @@ export function supplierPurchaseLineTotal(
   if (purchase <= 0) return 0;
 
   if (isSupplierKit(item)) {
-    return cartQuantity(item) * purchase;
+    return roundMoney(cartQuantity(item) * purchase);
   }
 
   const boxQty = resolveProductBoxQuantity(item, boxQuantity);
   const unitPrice = supplierUnitPurchasePrice(purchase, boxQty);
 
   if (isSupplierUnitPurchase(item)) {
-    return cartQuantity(item) * unitPrice;
+    return roundMoney(cartQuantity(item) * unitPrice);
   }
 
   if (boxQty > 1) {
-    return cartQuantity(item) * purchase;
+    return roundMoney(cartQuantity(item) * purchase);
   }
 
-  return supplierElementQuantity(item, boxQty) * unitPrice;
+  return roundMoney(supplierElementQuantity(item, boxQty) * unitPrice);
 }
 
 export function enrichItemSupplierPricing(
@@ -144,12 +142,14 @@ export function enrichItemSupplierPricing(
     ...enrichedItem,
     is_kit: isSupplierKit(enrichedItem),
     element_quantity: supplierElementQuantity(enrichedItem, productBoxQty),
-    tarif_uv: supplierTarifUv(enrichedItem, productPurchase, productBoxQty),
-    purchase_line_total: supplierPurchaseLineTotal(enrichedItem, productPurchase, productBoxQty),
+    tarif_uv: roundMoney(supplierTarifUv(enrichedItem, productPurchase, productBoxQty)),
+    purchase_line_total: roundMoney(
+      supplierPurchaseLineTotal(enrichedItem, productPurchase, productBoxQty),
+    ),
   };
 }
 
-/** Arrondi monétaire pour les totaux pied de page PDF uniquement. */
+/** Arrondi monétaire pour les totaux pied de page PDF. */
 export function roundPdfFooterMoney(value: number): number {
   return roundMoney(value);
 }

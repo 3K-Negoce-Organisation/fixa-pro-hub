@@ -33,6 +33,9 @@ Configurer dans **Settings → Secrets and variables → Actions** :
 | Secret | Description |
 |--------|-------------|
 | `RAILWAY_TOKEN` | Token API Railway (depuis Railway Dashboard → Account → Tokens) |
+| `SUPABASE_ACCESS_TOKEN` | PAT Supabase org 3K (workflow **Run SQL migration**) |
+| `SUPABASE_REF_STAGING` | Optionnel — repli `lhrwjnieojuempxjbgql` |
+| `SUPABASE_REF_PRODUCTION` | Optionnel — repli `lqsbsinycyewdvdtbruy` |
 
 #### Environnement `staging`
 | Secret | Description |

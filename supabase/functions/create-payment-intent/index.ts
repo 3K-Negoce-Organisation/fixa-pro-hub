@@ -2,6 +2,8 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { ensureFrenchStripeCustomer } from "../_shared/stripe-customer-fr.ts";
+import { computeCheckoutTotals } from "../_shared/checkout-totals.ts";
+import { roundMoney } from "../_shared/money.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -138,17 +140,12 @@ serve(async (req) => {
     assertSecretMatchesStripeMode(stripeMode, stripeKey);
     logStep("Stripe key resolved", { stripeMode });
 
-    // Totaux : sous-total produits TTC, puis frais de port 12 EUR TTC si sous-total < 150 EUR TTC
-    const TVA_RATE = 0.20;
-    const FREE_SHIPPING_THRESHOLD_TTC = 150;
-    const SHIPPING_FEE_TTC = 12;
-
-    const productsHT = items.reduce((sum, item) => sum + (item.priceHT * item.quantity), 0);
-    const subtotalTTC = productsHT * (1 + TVA_RATE);
-    const shippingTTC = subtotalTTC >= FREE_SHIPPING_THRESHOLD_TTC ? 0 : SHIPPING_FEE_TTC;
-    const shippingHT = shippingTTC > 0 ? SHIPPING_FEE_TTC / (1 + TVA_RATE) : 0;
-    const totalHT = productsHT + shippingHT;
-    const totalTTC = subtotalTTC + shippingTTC;
+    const roundedItems = items.map((item) => ({
+      ...item,
+      priceHT: roundMoney(item.priceHT),
+    }));
+    const { productsHT, subtotalTTC, shippingTTC, shippingHT, totalHT, totalTTC } =
+      computeCheckoutTotals(roundedItems);
     const amountInCents = Math.round(totalTTC * 100);
     logStep("Calculated totals", { productsHT, subtotalTTC, shippingTTC, totalHT, totalTTC, amountInCents });
 
@@ -186,7 +183,7 @@ serve(async (req) => {
         site_id: resolvedSiteId || "",
         stripe_mode: stripeMode,
         // Store only essential item data (id, quantity, price) to stay under 500 char limit
-        items_compact: JSON.stringify(items.map(i => ({
+        items_compact: JSON.stringify(roundedItems.map(i => ({
           i: i.id,
           q: i.quantity,
           p: i.priceHT,
