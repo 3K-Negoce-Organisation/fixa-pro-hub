@@ -21,6 +21,7 @@ interface CartItem {
   title: string;
   variantTitle: string;
   priceHT: number;
+  priceTTC?: number;
   image: string;
   quantity: number;
 }
@@ -140,10 +141,15 @@ serve(async (req) => {
     assertSecretMatchesStripeMode(stripeMode, stripeKey);
     logStep("Stripe key resolved", { stripeMode });
 
-    const roundedItems = items.map((item) => ({
-      ...item,
-      priceHT: roundMoney(item.priceHT),
-    }));
+    const roundedItems = items.map((item) => {
+      const priceTTC =
+        item.priceTTC != null && item.priceTTC > 0
+          ? roundMoney(item.priceTTC)
+          : roundMoney(roundMoney(item.priceHT) * 1.2);
+      const priceHT =
+        item.priceHT > 0 ? roundMoney(item.priceHT) : roundMoney(priceTTC / 1.2);
+      return { ...item, priceHT, priceTTC };
+    });
     const { productsHT, subtotalTTC, shippingTTC, shippingHT, totalHT, totalTTC } =
       computeCheckoutTotals(roundedItems);
     const amountInCents = Math.round(totalTTC * 100);
@@ -187,6 +193,7 @@ serve(async (req) => {
           i: i.id,
           q: i.quantity,
           p: i.priceHT,
+          t: i.priceTTC,
         }))),
         items_count: items.length.toString(),
       },

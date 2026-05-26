@@ -10,6 +10,7 @@ export const FREE_SHIPPING_THRESHOLD_TTC = 150;
 /** Frais de port facturés en TTC si le sous-total produits TTC est strictement inférieur au seuil */
 export const SHIPPING_FEE_TTC = 12;
 
+/** @deprecated Préférer le sous-total TTC issu de `cartProductsTTC` (price_ttc). */
 export function cartSubtotalTTC(productsHT: number): number {
   return roundMoney(roundMoney(productsHT) * (1 + TVA_RATE));
 }
@@ -22,9 +23,12 @@ export function shippingFeeHT(subtotalTTC: number): number {
   return roundMoney(shippingFeeTTC(subtotalTTC) / (1 + TVA_RATE));
 }
 
-export function orderGrandTotals(productsHT: number) {
-  const roundedProductsHT = roundMoney(productsHT);
-  const subtotalTTC = cartSubtotalTTC(roundedProductsHT);
+/** Totaux commande : sous-total produits en TTC catalogue (price_ttc). */
+export function orderGrandTotals(productsTTC: number, productsHT?: number) {
+  const subtotalTTC = roundMoney(productsTTC);
+  const roundedProductsHT = roundMoney(
+    productsHT ?? roundMoney(subtotalTTC / (1 + TVA_RATE)),
+  );
   const shippingTTC = shippingFeeTTC(subtotalTTC);
   const grandTotalTTC = roundMoney(subtotalTTC + shippingTTC);
   const shippingHT = shippingFeeHT(subtotalTTC);

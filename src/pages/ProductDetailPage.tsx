@@ -126,6 +126,7 @@ const ProductDetailPage = () => {
         title: product.title,
         variantTitle: currentVariant.title,
         priceHT: currentVariant.price_ht,
+        priceTTC: currentVariant.price_ttc,
         image: productImage,
         promoGiftProductId: (product as any).promo_gift_product_id || undefined,
         promoGiftQuantity: (product as any).promo_gift_quantity || undefined,

@@ -222,12 +222,21 @@ serve(async (req) => {
       let cartItems: any[] = [];
       try {
         const compactItems = JSON.parse(itemsCompact || "[]");
-        // Compact format: { i: id, q: quantity, p: priceHT }
-        cartItems = compactItems.map((item: any) => ({
-          id: item.i,
-          quantity: item.q,
-          priceHT: roundMoney(item.p),
-        }));
+        // Compact format: { i: id, q: quantity, p: priceHT, t: priceTTC }
+        cartItems = compactItems.map((item: any) => {
+          const priceTTC =
+            item.t != null && item.t > 0
+              ? roundMoney(item.t)
+              : roundMoney(roundMoney(item.p ?? 0) * 1.2);
+          const priceHT =
+            item.p != null && item.p > 0 ? roundMoney(item.p) : roundMoney(priceTTC / 1.2);
+          return {
+            id: item.i,
+            quantity: item.q,
+            priceHT,
+            priceTTC,
+          };
+        });
         logStep("Parsed compact items", { count: cartItems.length });
       } catch (e) {
         logStep("Failed to parse items_compact", { error: String(e) });
@@ -323,7 +332,7 @@ serve(async (req) => {
           product_image: item.image || null,
           quantity: item.quantity,
           unit_price_ht: roundMoney(item.priceHT),
-          unit_price_ttc: roundMoney(item.priceHT * 1.20),
+          unit_price_ttc: roundMoney(item.priceTTC ?? item.priceHT * 1.20),
         }));
 
         const { error: itemsError } = await supabaseAdmin
@@ -511,7 +520,7 @@ serve(async (req) => {
           product_image: item.image,
           quantity: item.quantity,
           unit_price_ht: roundMoney(item.priceHT),
-          unit_price_ttc: roundMoney(item.priceHT * 1.20),
+          unit_price_ttc: roundMoney(item.priceTTC ?? item.priceHT * 1.20),
         }));
 
         const { error: itemsError } = await supabaseAdmin
@@ -763,7 +772,9 @@ async function sendToN8n(
         variant_title: item.variantTitle || 'Default',
         quantity: item.quantity || item.q || 1,
         unit_price_ht: roundMoney(item.priceHT || item.unit_price_ht || 0),
-        unit_price_ttc: roundMoney((item.priceHT || item.unit_price_ht || 0) * 1.20),
+        unit_price_ttc: roundMoney(
+          item.priceTTC ?? (item.priceHT || item.unit_price_ht || 0) * 1.20,
+        ),
       })),
       totals: {
         ht: totalHT,

@@ -33,6 +33,7 @@ export function QuickOrderSection() {
       title: product.title,
       variantTitle: "Unité",
       priceHT: product.priceHT,
+      priceTTC: product.priceTTC,
       image: product.image,
       boxQuantity: product.boxQuantity ?? null,
     }, 1);

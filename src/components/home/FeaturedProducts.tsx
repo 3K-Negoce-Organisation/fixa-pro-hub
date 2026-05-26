@@ -47,6 +47,7 @@ export function FeaturedProducts() {
         title: product.title,
         variantTitle: product.variantTitle || "Unité",
         priceHT: product.priceHT,
+        priceTTC: product.priceTTC,
         image: product.image,
         boxQuantity: product.boxQuantity ?? null,
       });

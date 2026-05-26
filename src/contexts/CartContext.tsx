@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useRef, useCallback, ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
+import { cartProductsHT, cartProductsTTC, lineUnitHT, lineUnitTTC } from "@/lib/cartPricing";
 import { roundMoney } from "@/lib/utils";
 
 export interface CartItem {
@@ -10,6 +11,7 @@ export interface CartItem {
   title: string;
   variantTitle: string;
   priceHT: number;
+  priceTTC: number;
   image: string;
   quantity: number;
   isGift?: boolean;
@@ -30,6 +32,7 @@ interface CartContextType {
   clearCart: () => void;
   totalItems: number;
   totalHT: number;
+  totalTTC: number;
   isOpen: boolean;
   toggleCart: () => void;
   openCart: () => void;
@@ -108,6 +111,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
           title: data.title,
           variantTitle: "Article offert",
           priceHT: 0,
+          priceTTC: 0,
           image: firstImage,
           quantity,
           isGift: true,
@@ -118,27 +122,46 @@ export function CartProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  const hydrateBoxQuantities = useCallback(async (cartItems: CartItem[]): Promise<CartItem[]> => {
-    const missingIds = [
-      ...new Set(
-        cartItems
-          .filter((i) => !i.isGift && (i.boxQuantity == null || i.boxQuantity === undefined))
-          .map((i) => i.id),
-      ),
-    ];
+  const hydrateCartItems = useCallback(async (cartItems: CartItem[]): Promise<CartItem[]> => {
+    const needsHydration = cartItems.filter(
+      (i) =>
+        !i.isGift &&
+        (i.boxQuantity == null ||
+          i.boxQuantity === undefined ||
+          i.priceTTC == null ||
+          i.priceTTC <= 0),
+    );
+    const missingIds = [...new Set(needsHydration.map((i) => i.id))];
     if (missingIds.length === 0) return cartItems;
 
     const { data: products } = await supabase
       .from("products")
-      .select("id, box_quantity")
+      .select("id, box_quantity, price_ht, price_ttc")
       .in("id", missingIds);
 
-    const boxById = new Map((products || []).map((p) => [p.id, p.box_quantity]));
+    const byId = new Map((products || []).map((p) => [p.id, p]));
 
     return cartItems.map((item) => {
-      if (item.isGift || item.boxQuantity != null) return item;
-      const boxQuantity = boxById.get(item.id);
-      return boxQuantity != null ? { ...item, boxQuantity } : item;
+      if (item.isGift) return item;
+      const product = byId.get(item.id);
+      if (!product) return item;
+
+      let next = item;
+      if (item.boxQuantity == null && product.box_quantity != null) {
+        next = { ...next, boxQuantity: product.box_quantity };
+      }
+      if (item.priceTTC == null || item.priceTTC <= 0) {
+        const priceTTC =
+          product.price_ttc != null && product.price_ttc > 0
+            ? roundMoney(product.price_ttc)
+            : lineUnitTTC({ priceHT: item.priceHT, priceTTC: 0 });
+        const priceHT =
+          product.price_ht != null && product.price_ht > 0
+            ? roundMoney(product.price_ht)
+            : lineUnitHT({ priceHT: item.priceHT, priceTTC });
+        next = { ...next, priceTTC, priceHT };
+      }
+      return next;
     });
   }, []);
 
@@ -240,11 +263,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
         // Merge local cart with Supabase cart (local takes priority for new items)
         if (localCart.items.length > 0 && supabaseCart.length === 0) {
-          const hydrated = await hydrateBoxQuantities(localCart.items);
+          const hydrated = await hydrateCartItems(localCart.items);
           setItems(hydrated);
           await saveCartToSupabase(currentUser.id, hydrated);
         } else if (supabaseCart.length > 0) {
-          setItems(await hydrateBoxQuantities(supabaseCart));
+          setItems(await hydrateCartItems(supabaseCart));
         } else {
           setItems([]);
         }
@@ -255,7 +278,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       } else {
         // Load from localStorage for guests
         const localCart = loadLocalCart();
-        setItems(await hydrateBoxQuantities(localCart.items));
+        setItems(await hydrateCartItems(localCart.items));
         setRemovedItems(localCart.removedItems);
       }
 
@@ -292,7 +315,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
                 }
               }
 
-              const hydratedMerged = await hydrateBoxQuantities(mergedItems);
+              const hydratedMerged = await hydrateCartItems(mergedItems);
               setItems(hydratedMerged);
               if (hydratedMerged.length > 0) {
                 await saveCartToSupabase(newUser.id, hydratedMerged);
@@ -313,7 +336,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     return () => {
       subscription.unsubscribe();
     };
-  }, [loadCartFromSupabase, loadLocalCart, saveCartToSupabase, hydrateBoxQuantities]);
+  }, [loadCartFromSupabase, loadLocalCart, saveCartToSupabase, hydrateCartItems]);
 
   // Save cart changes (debounced for performance)
   useEffect(() => {
@@ -349,6 +372,15 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, [removedItems]);
 
   const addItem = (item: Omit<CartItem, "quantity">, quantity = 1) => {
+    const normalized: Omit<CartItem, "quantity"> = {
+      ...item,
+      priceHT: roundMoney(item.priceHT),
+      priceTTC:
+        item.priceTTC != null && item.priceTTC > 0
+          ? roundMoney(item.priceTTC)
+          : lineUnitTTC(item),
+    };
+
     // Remove from removed items if it was there
     setRemovedItems((prev) => prev.filter((i) => i.variantId !== item.variantId));
     
@@ -361,7 +393,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
             : i
         );
       }
-      return [...prev, { ...item, quantity }];
+      return [...prev, { ...normalized, quantity }];
     });
 
     if (!item.isGift && item.promoGiftProductId && item.promoGiftQuantity) {
@@ -449,9 +481,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const closeCart = () => setIsOpen(false);
 
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
-  const totalHT = roundMoney(
-    items.reduce((sum, item) => sum + roundMoney(item.priceHT) * item.quantity, 0),
-  );
+  const totalTTC = cartProductsTTC(items);
+  const totalHT = cartProductsHT(items);
 
   return (
     <CartContext.Provider
@@ -466,6 +497,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         clearCart,
         totalItems,
         totalHT,
+        totalTTC,
         isOpen,
         toggleCart,
         openCart,

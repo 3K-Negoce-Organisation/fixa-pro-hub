@@ -1,6 +1,8 @@
 import { Link } from "react-router-dom";
 import { Trash2, Plus, Minus, RotateCcw, ShoppingCart } from "lucide-react";
+import { lineUnitTTC } from "@/lib/cartPricing";
 import { useCart } from "@/contexts/CartContext";
+import { roundMoney } from "@/lib/utils";
 import { getDisplayVariantTitle } from "@/lib/products";
 import { BoxQuantityHint } from "@/components/cart/BoxQuantityHint";
 import { Button } from "@/components/ui/button";
@@ -23,14 +25,13 @@ export function CartDrawer() {
     updateQuantity,
     totalItems,
     totalHT,
+    totalTTC,
     isOpen,
     toggleCart,
     closeCart,
   } = useCart();
 
-  const TVA_RATE = 0.20;
-  const totalTVA = totalHT * TVA_RATE;
-  const totalTTC = totalHT + totalTVA;
+  const totalTVA = roundMoney(totalTTC - totalHT);
 
   return (
     <Sheet open={isOpen} onOpenChange={toggleCart}>
@@ -100,7 +101,7 @@ export function CartDrawer() {
                         />
                       )}
                       <p className="text-sm font-semibold text-primary mt-1">
-                        {item.isGift ? "Offert" : `${item.priceHT.toFixed(2)} € HT`}
+                        {item.isGift ? "Offert" : `${lineUnitTTC(item).toFixed(2)} € TTC`}
                       </p>
                       
                       {/* Quantity controls */}

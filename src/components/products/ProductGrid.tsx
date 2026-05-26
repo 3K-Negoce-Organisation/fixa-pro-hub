@@ -20,6 +20,7 @@ export function ProductGrid({ products, isLoading }: ProductGridProps) {
         title: product.title,
         variantTitle: product.variantTitle || "Unité",
         priceHT: product.priceHT,
+        priceTTC: product.priceTTC,
         image: product.image,
         boxQuantity: product.boxQuantity ?? null,
         promoGiftProductId: product.promoGiftProductId || undefined,

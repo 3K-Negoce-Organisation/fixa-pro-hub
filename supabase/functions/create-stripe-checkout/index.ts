@@ -21,6 +21,7 @@ interface CartItem {
   title: string;
   variantTitle: string;
   priceHT: number;
+  priceTTC?: number;
   image: string;
   quantity: number;
 }
@@ -123,11 +124,15 @@ serve(async (req) => {
 
     const checkoutSiteId = site?.id ?? "";
 
-    const TVA_RATE = 0.20;
-    const roundedItems = items.map((item) => ({
-      ...item,
-      priceHT: roundMoney(item.priceHT),
-    }));
+    const roundedItems = items.map((item) => {
+      const priceTTC =
+        item.priceTTC != null && item.priceTTC > 0
+          ? roundMoney(item.priceTTC)
+          : roundMoney(roundMoney(item.priceHT) * 1.2);
+      const priceHT =
+        item.priceHT > 0 ? roundMoney(item.priceHT) : roundMoney(priceTTC / 1.2);
+      return { ...item, priceHT, priceTTC };
+    });
     const { productsHT, subtotalTTC, shippingTTC, shippingHT, totalHT, totalTTC } =
       computeCheckoutTotals(roundedItems);
     logStep("Calculated totals", { productsHT, subtotalTTC, shippingTTC, totalHT, totalTTC });
@@ -148,7 +153,7 @@ serve(async (req) => {
 
     // Build line items with dynamic pricing (price_data)
     const lineItems = roundedItems.map(item => {
-      const unitAmountTTC = Math.round(roundMoney(item.priceHT * (1 + TVA_RATE)) * 100);
+      const unitAmountTTC = Math.round(roundMoney(item.priceTTC ?? item.priceHT * 1.2) * 100);
       return {
         price_data: {
           currency: 'eur',
@@ -209,6 +214,7 @@ serve(async (req) => {
           title: i.title,
           variantTitle: i.variantTitle,
           priceHT: i.priceHT,
+          priceTTC: i.priceTTC,
           quantity: i.quantity,
           image: i.image,
         }))),

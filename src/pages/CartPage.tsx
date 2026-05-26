@@ -8,18 +8,20 @@ import { PageBackground } from "@/components/layout/PageBackground";
 import { Footer } from "@/components/layout/Footer";
 import { useCart } from "@/contexts/CartContext";
 import { BoxQuantityHint } from "@/components/cart/BoxQuantityHint";
-import { formatPriceHT, formatPrice, calculateTTC, getDisplayVariantTitle } from "@/lib/products";
+import { lineUnitTTC } from "@/lib/cartPricing";
+import { formatPriceHT, formatPrice, getDisplayVariantTitle } from "@/lib/products";
 import {
   FREE_SHIPPING_THRESHOLD_TTC,
   orderGrandTotals,
 } from "@/lib/shipping";
+import { roundMoney } from "@/lib/utils";
 import { StripePaymentForm } from "@/components/checkout/StripePaymentForm";
 
 const CartPage = () => {
-  const { items, removedItems, removeItem, restoreItem, clearRemovedItems, updateQuantity, clearCart, totalHT } = useCart();
+  const { items, removedItems, removeItem, restoreItem, clearRemovedItems, updateQuantity, clearCart, totalHT, totalTTC } = useCart();
   const [showPaymentForm, setShowPaymentForm] = useState(false);
 
-  const { subtotalTTC, shippingTTC, grandTotalTTC, grandTotalHT } = orderGrandTotals(totalHT);
+  const { subtotalTTC, shippingTTC, grandTotalTTC, grandTotalHT } = orderGrandTotals(totalTTC, totalHT);
   const totalVatAmount = grandTotalTTC - grandTotalHT;
 
   const handleCheckout = () => {
@@ -128,7 +130,7 @@ const CartPage = () => {
                             />
                           )}
                           <p className="text-sm font-semibold mt-1 sm:hidden">
-                            {formatPrice(calculateTTC(item.priceHT))}
+                            {formatPrice(lineUnitTTC(item))}
                           </p>
                         </div>
                       </div>
@@ -175,7 +177,7 @@ const CartPage = () => {
 
                         <div className="flex items-center gap-2">
                           <p className="text-sm font-bold hidden sm:block">
-                            {formatPrice(calculateTTC(item.priceHT * item.quantity))}
+                            {formatPrice(roundMoney(lineUnitTTC(item) * item.quantity))}
                           </p>
                           <Button
                             variant="ghost"
