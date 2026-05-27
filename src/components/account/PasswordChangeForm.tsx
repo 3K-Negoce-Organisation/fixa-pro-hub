@@ -11,17 +11,32 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 const passwordSchema = z.object({
+  currentPassword: z.string().min(1, "Le mot de passe actuel est requis"),
   newPassword: z.string().min(6, "Le mot de passe doit contenir au moins 6 caractères"),
   confirmPassword: z.string().min(6, "Le mot de passe doit contenir au moins 6 caractères"),
 }).refine((data) => data.newPassword === data.confirmPassword, {
   message: "Les mots de passe ne correspondent pas",
   path: ["confirmPassword"],
+}).refine((data) => data.currentPassword !== data.newPassword, {
+  message: "Le nouveau mot de passe doit être différent de l'actuel",
+  path: ["newPassword"],
 });
 
 type PasswordFormValues = z.infer<typeof passwordSchema>;
 
 interface PasswordChangeFormProps {
   userEmail: string;
+}
+
+function mapPasswordError(message: string): string {
+  const lower = message.toLowerCase();
+  if (lower.includes("invalid login") || lower.includes("incorrect")) {
+    return "Mot de passe actuel incorrect";
+  }
+  if (lower.includes("session") || lower.includes("jwt") || lower.includes("non autorisé")) {
+    return "Session expirée. Reconnectez-vous puis réessayez.";
+  }
+  return message;
 }
 
 export const PasswordChangeForm = ({ userEmail }: PasswordChangeFormProps) => {
@@ -33,6 +48,7 @@ export const PasswordChangeForm = ({ userEmail }: PasswordChangeFormProps) => {
   const form = useForm<PasswordFormValues>({
     resolver: zodResolver(passwordSchema),
     defaultValues: {
+      currentPassword: "",
       newPassword: "",
       confirmPassword: "",
     },
@@ -43,18 +59,57 @@ export const PasswordChangeForm = ({ userEmail }: PasswordChangeFormProps) => {
   const handleSubmit = async (values: PasswordFormValues) => {
     setIsSubmitting(true);
     try {
-      const { error } = await supabase.auth.updateUser({
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error("Session expirée. Reconnectez-vous.");
+        return;
+      }
+
+      const { data, error: invokeError } = await supabase.functions.invoke("change-own-password", {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: {
+          current_password: values.currentPassword,
+          new_password: values.newPassword,
+        },
+      });
+
+      if (invokeError) {
+        console.error("change-own-password invoke error:", invokeError, data);
+        let message = data?.error ? String(data.error) : invokeError.message;
+        const context = (invokeError as { context?: Response }).context;
+        if (!data?.error && context) {
+          try {
+            const body = await context.json();
+            if (body?.error) message = String(body.error);
+          } catch {
+            // ignore parse errors
+          }
+        }
+        toast.error(mapPasswordError(message || "Erreur lors de la modification du mot de passe"));
+        return;
+      }
+
+      if (data?.error) {
+        toast.error(mapPasswordError(String(data.error)));
+        return;
+      }
+
+      const { error: refreshError } = await supabase.auth.signInWithPassword({
+        email: userEmail,
         password: values.newPassword,
       });
 
-      if (error) {
-        console.error("Error updating password:", error);
-        toast.error("Erreur lors de la modification du mot de passe");
+      if (refreshError) {
+        console.warn("Password updated but session refresh failed:", refreshError);
+        toast.success("Mot de passe mis à jour. Reconnectez-vous avec votre nouveau mot de passe.");
       } else {
-        setPasswordUpdated(true);
-        form.reset();
         toast.success("Mot de passe mis à jour");
       }
+
+      setPasswordUpdated(true);
+      form.reset();
     } catch (err) {
       console.error("Exception updating password:", err);
       toast.error("Une erreur inattendue s'est produite");
@@ -77,7 +132,7 @@ export const PasswordChangeForm = ({ userEmail }: PasswordChangeFormProps) => {
 
       if (error) {
         console.error("Error sending reset link:", error);
-        toast.error("Impossible d'envoyer le lien de réinitialisation");
+        toast.error(error.message || "Impossible d'envoyer le lien de réinitialisation");
       } else {
         setLinkSent(true);
         toast.success("Un lien de réinitialisation a été envoyé par email");
@@ -118,13 +173,30 @@ export const PasswordChangeForm = ({ userEmail }: PasswordChangeFormProps) => {
       <Alert>
         <AlertCircle className="h-4 w-4" />
         <AlertDescription>
-          Vous pouvez définir un nouveau mot de passe directement ci-dessous, ou recevoir un lien
-          sécurisé par email si vous préférez réinitialiser depuis un autre appareil.
+          Saisissez votre mot de passe actuel pour confirmer votre identité, puis choisissez un nouveau
+          mot de passe. Vous pouvez aussi recevoir un lien sécurisé par email.
         </AlertDescription>
       </Alert>
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+          <FormField
+            control={form.control}
+            name="currentPassword"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Mot de passe actuel</FormLabel>
+                <FormControl>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input type="password" className="pl-10" autoComplete="current-password" {...field} />
+                  </div>
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
           <FormField
             control={form.control}
             name="newPassword"
