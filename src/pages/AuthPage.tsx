@@ -22,6 +22,7 @@ import { toast } from "sonner";
 import { useStorefrontPublic } from "@/hooks/useStorefrontPublic";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Info } from "lucide-react";
+import { PasswordRecoveryForm } from "@/components/auth/PasswordRecoveryForm";
 
 const loginSchema = z.object({
   email: z.string().email("Email invalide"),
@@ -47,6 +48,12 @@ const AuthPage = () => {
   const signupOpen = storefrontPublic === true;
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("login");
+  const [recoveryMode, setRecoveryMode] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [isSendingResetLink, setIsSendingResetLink] = useState(false);
+
+  const recoveryRedirectTo = `${window.location.origin}/auth?type=recovery`;
 
   const loginForm = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -59,22 +66,34 @@ const AuthPage = () => {
   });
 
   useEffect(() => {
+    if (searchParams.get("type") === "recovery") {
+      setRecoveryMode(true);
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
+    const isRecoveryUrl = searchParams.get("type") === "recovery";
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
-        if (session?.user) {
+        if (event === "PASSWORD_RECOVERY" && session?.user) {
+          setRecoveryMode(true);
+          return;
+        }
+        if (session?.user && !recoveryMode && !isRecoveryUrl) {
           navigate("/");
         }
       }
     );
 
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
+      if (session?.user && !isRecoveryUrl && !recoveryMode) {
         navigate("/");
       }
     });
 
     return () => subscription.unsubscribe();
-  }, [navigate]);
+  }, [navigate, recoveryMode, searchParams]);
 
   useEffect(() => {
     if (!signupOpen && activeTab === "signup") {
@@ -161,6 +180,40 @@ const AuthPage = () => {
     setIsLoading(false);
   };
 
+  const handleForgotPassword = async () => {
+    const email = forgotEmail.trim() || loginForm.getValues("email").trim();
+    if (!email) {
+      toast.error("Indiquez votre adresse email");
+      return;
+    }
+
+    setIsSendingResetLink(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: recoveryRedirectTo,
+      });
+
+      if (error) {
+        console.error("Forgot password error:", error);
+        toast.error("Impossible d'envoyer le lien de réinitialisation");
+      } else {
+        toast.success("Un lien de réinitialisation a été envoyé par email");
+        setShowForgotPassword(false);
+      }
+    } catch (err) {
+      console.error("Forgot password exception:", err);
+      toast.error("Une erreur inattendue s'est produite");
+    } finally {
+      setIsSendingResetLink(false);
+    }
+  };
+
+  const handleRecoverySuccess = async () => {
+    setRecoveryMode(false);
+    await supabase.auth.signOut();
+    navigate("/auth");
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <main className="flex-1 flex items-center justify-center py-12">
@@ -184,6 +237,9 @@ const AuthPage = () => {
           )}
 
           <div className="bg-card border border-border rounded-lg p-6">
+            {recoveryMode ? (
+              <PasswordRecoveryForm onSuccess={handleRecoverySuccess} />
+            ) : (
             <Tabs value={activeTab} onValueChange={setActiveTab}>
               <TabsList className={`grid w-full mb-6 ${signupOpen ? "grid-cols-2" : "grid-cols-1"}`}>
                 <TabsTrigger value="login">Connexion</TabsTrigger>
@@ -241,6 +297,42 @@ const AuthPage = () => {
                       {isLoading ? "Connexion..." : "Se connecter"}
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </Button>
+
+                    <div className="text-center">
+                      <button
+                        type="button"
+                        className="text-sm text-primary hover:underline"
+                        onClick={() => {
+                          setForgotEmail(loginForm.getValues("email"));
+                          setShowForgotPassword((prev) => !prev);
+                        }}
+                      >
+                        Mot de passe oublié ?
+                      </button>
+                    </div>
+
+                    {showForgotPassword && (
+                      <div className="rounded-md border border-border p-4 space-y-3">
+                        <p className="text-sm text-muted-foreground">
+                          Saisissez votre email pour recevoir un lien de réinitialisation.
+                        </p>
+                        <Input
+                          type="email"
+                          placeholder="contact@entreprise.fr"
+                          value={forgotEmail}
+                          onChange={(e) => setForgotEmail(e.target.value)}
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="w-full"
+                          disabled={isSendingResetLink}
+                          onClick={handleForgotPassword}
+                        >
+                          {isSendingResetLink ? "Envoi en cours..." : "Envoyer le lien"}
+                        </Button>
+                      </div>
+                    )}
                   </form>
                 </Form>
               </TabsContent>
@@ -327,6 +419,7 @@ const AuthPage = () => {
                 </Form>
               </TabsContent>
             </Tabs>
+            )}
           </div>
         </div>
       </main>
