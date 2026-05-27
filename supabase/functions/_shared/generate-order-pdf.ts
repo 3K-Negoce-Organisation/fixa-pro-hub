@@ -2,7 +2,7 @@ import { jsPDF } from "https://esm.sh/jspdf@2.5.1";
 import autoTable from "https://esm.sh/jspdf-autotable@3.8.2";
 import { alsafixCodeOnly } from "./alsafix-code.ts";
 import {
-  isSupplierKit,
+  isSupplierSingleUvTariff,
   supplierElementQuantity,
   supplierPurchaseLineTotal,
   supplierTarifUv,
@@ -149,7 +149,7 @@ export function generateOrderPDF(
     const elementQty = supplierElementQuantity(item, productBoxQty);
     const tarifUv = supplierTarifUv(item, productPurchase, productBoxQty);
     const totalItemHT = lineTotalForItem(item);
-    const tarifDecimals = isSupplierKit(item) ? 2 : 4;
+    const tarifDecimals = isSupplierSingleUvTariff(item) ? 2 : 4;
     return [
       alsafixCodeOnly(item.code_alsafix as string | undefined),
       (item.title || item.product_title || "") as string,

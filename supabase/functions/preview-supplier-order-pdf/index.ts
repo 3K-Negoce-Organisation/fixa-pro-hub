@@ -102,6 +102,8 @@ serve(async (req) => {
       product_box_quantity: item.product_box_quantity ?? item.box_quantity ?? null,
       product_purchase_price_ht: item.product_purchase_price_ht ?? item.purchase_price_ht ?? null,
       is_kit: item.is_kit === true,
+      is_accessory: item.is_accessory === true,
+      is_single_uv_tariff: item.is_single_uv_tariff === true,
       element_quantity: item.element_quantity,
       tarif_uv: item.tarif_uv,
       purchase_line_total: item.purchase_line_total,

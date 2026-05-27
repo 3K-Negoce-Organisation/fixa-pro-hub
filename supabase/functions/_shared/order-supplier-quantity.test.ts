@@ -1,5 +1,7 @@
 import {
+  isSupplierAccessory,
   isSupplierKit,
+  isSupplierSingleUvTariff,
   isSupplierUnitPurchase,
   supplierElementQuantity,
   supplierPurchaseLineTotal,
@@ -58,6 +60,22 @@ Deno.test("achat boîte box_quantity=1: nb boîtes × purchase_price_ht", () => 
 
   assertEqual(supplierTarifUv(item, 23.7, 1), 2370, "tarif_uv");
   assertEqual(supplierPurchaseLineTotal(item, 23.7, 1), 47.4, "purchase_line_total");
+});
+
+Deno.test("accessoire TOOL*: tarif_uv = purchase_price_ht, pas ×100", () => {
+  const item = {
+    quantity: 1,
+    code_alsafix: "TOOLBS3A",
+    variant_id: "prod-tool",
+    product_purchase_price_ht: 23.7,
+    product_box_quantity: 1,
+  };
+
+  assertEqual(isSupplierAccessory(item), true, "is_accessory");
+  assertEqual(isSupplierSingleUvTariff(item), true, "is_single_uv_tariff");
+  assertEqual(supplierElementQuantity(item, 1), 1, "element_quantity");
+  assertEqual(supplierTarifUv(item, 23.7, 1), 23.7, "tarif_uv");
+  assertEqual(supplierPurchaseLineTotal(item, 23.7, 1), 23.7, "purchase_line_total");
 });
 
 Deno.test("kit KIT*: tarif_uv = purchase_price_ht, ignore box_quantity erroné", () => {

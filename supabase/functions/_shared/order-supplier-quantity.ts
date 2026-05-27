@@ -8,10 +8,23 @@ export function isSupplierUnitPurchase(item: Record<string, unknown>): boolean {
   return variantId.endsWith("-unit");
 }
 
+function supplierAlsafixCode(item: Record<string, unknown>): string {
+  return String(item.code_alsafix ?? item.codeAlsafix ?? "").trim().toUpperCase();
+}
+
 /** Kit Alsafix : code_alsafix commence par KIT (ex. KIT08822, KIT-VBF60). Tarif UV = purchase_price_ht. */
 export function isSupplierKit(item: Record<string, unknown>): boolean {
-  const code = String(item.code_alsafix ?? item.codeAlsafix ?? "").trim().toUpperCase();
-  return code.startsWith("KIT");
+  return supplierAlsafixCode(item).startsWith("KIT");
+}
+
+/** Accessoire Alsafix : code_alsafix commence par TOOL (ex. TOOLBS3A). Même règle tarif UV que les kits. */
+export function isSupplierAccessory(item: Record<string, unknown>): boolean {
+  return supplierAlsafixCode(item).startsWith("TOOL");
+}
+
+/** Kits et accessoires : tarif UV = purchase_price_ht (pas ×100), qté panier telle quelle. */
+export function isSupplierSingleUvTariff(item: Record<string, unknown>): boolean {
+  return isSupplierKit(item) || isSupplierAccessory(item);
 }
 
 /** @deprecated Utiliser isSupplierUnitPurchase pour le PDF fournisseur. */
@@ -63,7 +76,7 @@ export function supplierElementQuantity(
   boxQuantity?: number | null,
 ): number {
   const safeCartQty = cartQuantity(item);
-  if (isSupplierKit(item) || isSupplierUnitPurchase(item)) return safeCartQty;
+  if (isSupplierSingleUvTariff(item) || isSupplierUnitPurchase(item)) return safeCartQty;
 
   const perBox = resolveProductBoxQuantity(item, boxQuantity);
   if (perBox > 1) return safeCartQty * perBox;
@@ -73,7 +86,7 @@ export function supplierElementQuantity(
 
 /**
  * Tarif UV :
- * - kit (KIT-*) : purchase_price_ht tel quel
+ * - kit (KIT*) / accessoire (TOOL*) : purchase_price_ht tel quel
  * - boîte / unité : prix pour 100 unités = prix unitaire × 100
  */
 export function supplierTarifUv(
@@ -84,7 +97,7 @@ export function supplierTarifUv(
   const purchase = resolveProductPurchasePrice(item, purchasePriceHt);
   if (purchase <= 0) return 0;
 
-  if (isSupplierKit(item)) return roundMoney(purchase);
+  if (isSupplierSingleUvTariff(item)) return roundMoney(purchase);
 
   const boxQty = resolveProductBoxQuantity(item, boxQuantity);
   return roundMoney(supplierUnitPurchasePrice(purchase, boxQty) * UV_BATCH);
@@ -104,7 +117,7 @@ export function supplierPurchaseLineTotal(
   const purchase = resolveProductPurchasePrice(item, purchasePriceHt);
   if (purchase <= 0) return 0;
 
-  if (isSupplierKit(item)) {
+  if (isSupplierSingleUvTariff(item)) {
     return roundMoney(cartQuantity(item) * purchase);
   }
 
@@ -141,6 +154,8 @@ export function enrichItemSupplierPricing(
   return {
     ...enrichedItem,
     is_kit: isSupplierKit(enrichedItem),
+    is_accessory: isSupplierAccessory(enrichedItem),
+    is_single_uv_tariff: isSupplierSingleUvTariff(enrichedItem),
     element_quantity: supplierElementQuantity(enrichedItem, productBoxQty),
     tarif_uv: roundMoney(supplierTarifUv(enrichedItem, productPurchase, productBoxQty)),
     purchase_line_total: roundMoney(
