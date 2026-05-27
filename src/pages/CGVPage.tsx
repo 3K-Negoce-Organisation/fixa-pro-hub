@@ -26,7 +26,7 @@ const CGVPage = () => {
               TVA intracommunautaire : FR45102662483<br />
               Siège social : 47 rue Vivienne, 75002 Paris<br />
               Email : admin@3k-negoce.com<br />
-              Téléphone : 06 08 75 28 82
+              Téléphone : 06 17 91 20 29
             </p>
             <p className="text-muted-foreground mt-2">
               Ci-après dénommée "le Vendeur", et toute personne physique ou morale passant commande sur le site vis-a-bois.fr, ci-après dénommée "le Client".

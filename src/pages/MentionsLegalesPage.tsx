@@ -21,7 +21,7 @@ const MentionsLegalesPage = () => {
               TVA intracommunautaire : FR45102662483<br />
               Siège social : 47 rue Vivienne, 75002 Paris<br />
               Immatriculée au Registre du Commerce et des Sociétés de Paris<br />
-              Téléphone : 06 08 75 28 82<br />
+              Téléphone : 06 17 91 20 29<br />
               Email : admin@3k-negoce.com
             </p>
           </section>
