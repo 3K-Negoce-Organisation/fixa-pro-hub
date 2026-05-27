@@ -107,7 +107,7 @@ const CGVPage = () => {
               Conformément à l'article L.221-18 du Code de la consommation, le Client dispose d'un délai de <strong>14 jours</strong> à compter de la réception des produits pour exercer son droit de rétractation, sans avoir à justifier de motifs ni à payer de pénalités.
             </p>
             <p className="text-muted-foreground mt-2">
-              Pour exercer ce droit, le Client doit notifier sa décision de rétractation au Vendeur par email à admin@3k-negoce.com ou par courrier à l'adresse suivante : 3K Négoce – 47 rue Vivienne, 75002 Paris, en indiquant clairement son intention de se rétracter.
+              Pour exercer ce droit, le Client doit notifier sa décision de rétractation au Vendeur par email à contact@3k-negoce.com ou par courrier à l'adresse suivante : 3K Négoce – 47 rue Vivienne, 75002 Paris, en indiquant clairement son intention de se rétracter.
             </p>
             <p className="text-muted-foreground mt-2">
               Après examen de la demande, le Vendeur adressera au Client, par email, une confirmation d'accord ainsi que toutes les informations nécessaires à l'organisation du retour (adresse de retour, modalités d'expédition, etc.).
