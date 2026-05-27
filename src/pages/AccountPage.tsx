@@ -16,6 +16,7 @@ import { Footer } from "@/components/layout/Footer";
 import { PageBackground } from "@/components/layout/PageBackground";
 import { GDPRSettings } from "@/components/account/GDPRSettings";
 import { EmailChangeForm } from "@/components/account/EmailChangeForm";
+import { PasswordChangeForm } from "@/components/account/PasswordChangeForm";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAdminError } from "@/contexts/AdminErrorContext";
@@ -416,6 +417,10 @@ const AccountPage = () => {
               {/* Email Change Section */}
               <div className="bg-card border border-border rounded-lg p-4 sm:p-6 mt-6">
                 {user && <EmailChangeForm currentEmail={user.email || ""} />}
+              </div>
+
+              <div className="bg-card border border-border rounded-lg p-4 sm:p-6 mt-6">
+                {user && <PasswordChangeForm userEmail={user.email || ""} />}
               </div>
             </TabsContent>
 
