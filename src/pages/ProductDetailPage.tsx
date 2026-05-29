@@ -28,6 +28,12 @@ type CharacteristicIconRow = {
   characteristic_key: string;
   icon_url: string | null;
   site_id: string | null;
+  picto_height_px?: number | null;
+  picto_width_px?: number | null;
+  text_placement?: string | null;
+  text_offset_x?: number | null;
+  text_offset_y?: number | null;
+  text_font_size_px?: number | null;
 };
 
 const ProductDetailPage = () => {
@@ -50,7 +56,9 @@ const ProductDetailPage = () => {
     queryFn: async () => {
       let query = supabase
         .from("product_characteristic_icons" as any)
-        .select("characteristic_key, icon_url, site_id");
+        .select(
+          "characteristic_key, icon_url, site_id, picto_height_px, picto_width_px, text_placement, text_offset_x, text_offset_y, text_font_size_px",
+        );
 
       if (siteId) {
         query = query.eq("site_id", siteId);
@@ -69,7 +77,7 @@ const ProductDetailPage = () => {
   const currentVariant = variants.find(v => v.id === selectedVariantId) || variants[0];
   const productImage = product ? getProductImage(product) : "/placeholder.svg";
   const characteristicIconMap = new Map(
-    characteristicIcons.map((item) => [item.characteristic_key, item.icon_url || ""])
+    characteristicIcons.map((item) => [item.characteristic_key, item]),
   );
 
   if (isLoading) {
@@ -269,15 +277,19 @@ const ProductDetailPage = () => {
               {/* Technical specifications as badges */}
               {technicalSpecs.length > 0 && (
                 <div className="mt-4 flex flex-wrap items-start gap-3 sm:gap-4">
-                  {technicalSpecs.map((spec) => (
+                  {technicalSpecs.map((spec) => {
+                    const iconConfig = characteristicIconMap.get(spec.key);
+                    return (
                     <CharacteristicPicto
                       key={spec.key}
-                      iconUrl={characteristicIconMap.get(spec.key)}
+                      iconUrl={iconConfig?.icon_url}
+                      display={iconConfig}
                       value={spec.value}
                       label={spec.label}
                       fallback={spec.fallback}
                     />
-                  ))}
+                    );
+                  })}
                 </div>
               )}
               
