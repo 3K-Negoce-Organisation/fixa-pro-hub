@@ -120,7 +120,12 @@ export function supplierTarifUv(
 
   const boxQty = resolveProductBoxQuantity(item, boxQuantity);
   const salesUnit = resolveUniteDeVente(item, uniteDeVente);
-  return roundMoney(supplierUnitPurchasePrice(purchase, boxQty) * salesUnit);
+  // Ne pas réutiliser supplierUnitPurchasePrice ici : roundMoney à 2 déc. sur le prix
+  // unitaire (ex. 5,50 € / 1000 → 0,0055) donnerait 0,01 € puis Tarif UV = 1,00 €.
+  if (boxQty > 1) {
+    return roundMoney((purchase / boxQty) * salesUnit);
+  }
+  return roundMoney(purchase * salesUnit);
 }
 
 /**
