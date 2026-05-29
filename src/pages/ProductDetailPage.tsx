@@ -268,7 +268,7 @@ const ProductDetailPage = () => {
               </div>
               {/* Technical specifications as badges */}
               {technicalSpecs.length > 0 && (
-                <div className="mt-4 flex flex-wrap gap-2">
+                <div className="mt-4 flex flex-wrap items-center gap-2.5">
                   {technicalSpecs.map((spec) => (
                     <CharacteristicPicto
                       key={spec.key}
