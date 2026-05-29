@@ -126,7 +126,8 @@ const ContactPage = () => {
                   </div>
                   <div>
                     <h3 className="font-semibold text-foreground">Adresse</h3>
-                    <p className="text-muted-foreground text-sm">France</p>
+                    <p className="text-muted-foreground text-sm">47 RUE VIVIENNE</p>
+                    <p className="text-muted-foreground text-sm">75002 PARIS</p>
                   </div>
                 </CardContent>
               </Card>
