@@ -15,6 +15,7 @@ type ProductPricingRow = {
   code_alsafix?: string | null;
   box_quantity?: number | null;
   purchase_price_ht?: number | null;
+  unite_de_vente?: number | null;
 };
 
 function resolveProductForItem(
@@ -58,7 +59,7 @@ export async function enrichItemsWithAlsafixCodes(
   if (productIds.length > 0) {
     const { data: productsById } = await supabaseAdmin
       .from("products")
-      .select("id, code_alsafix, box_quantity, purchase_price_ht")
+      .select("id, code_alsafix, box_quantity, purchase_price_ht, unite_de_vente")
       .in("id", productIds);
 
     for (const product of productsById || []) {
@@ -72,7 +73,7 @@ export async function enrichItemsWithAlsafixCodes(
   if (missingCodes.length > 0) {
     const { data: productsByCode } = await supabaseAdmin
       .from("products")
-      .select("id, code_alsafix, box_quantity, purchase_price_ht")
+      .select("id, code_alsafix, box_quantity, purchase_price_ht, unite_de_vente")
       .in("code_alsafix", missingCodes);
 
     for (const product of productsByCode || []) {
@@ -116,6 +117,7 @@ export async function enrichItemsWithAlsafixCodes(
       { ...item, code_alsafix: resolvedCode },
       product?.purchase_price_ht ?? null,
       product?.box_quantity ?? null,
+      product?.unite_de_vente ?? null,
     );
   });
 }

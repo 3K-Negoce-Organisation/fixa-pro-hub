@@ -193,6 +193,7 @@ export type Database = {
           promo_label: string | null
           promo_price_ht: number | null
           purchase_price_ht: number | null
+          unite_de_vente: number
           site_id: string | null
           specifications: Json | null
           stock: number | null
@@ -231,6 +232,7 @@ export type Database = {
           promo_label?: string | null
           promo_price_ht?: number | null
           purchase_price_ht?: number | null
+          unite_de_vente?: number
           site_id?: string | null
           specifications?: Json | null
           stock?: number | null
@@ -269,6 +271,7 @@ export type Database = {
           promo_label?: string | null
           promo_price_ht?: number | null
           purchase_price_ht?: number | null
+          unite_de_vente?: number
           site_id?: string | null
           specifications?: Json | null
           stock?: number | null

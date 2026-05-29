@@ -1,7 +1,7 @@
 import {
   isSupplierAccessory,
   isSupplierKit,
-  isSupplierSingleUvTariff,
+  isSupplierLowUvDecimals,
   isSupplierUnitPurchase,
   supplierElementQuantity,
   supplierPurchaseLineTotal,
@@ -27,10 +27,11 @@ Deno.test("VBF30015: 4 boîtes × 1000 — Qté 4000, Tarif 5,50, Total 220", ()
     variant_id: "prod-123",
     product_purchase_price_ht: 55,
     product_box_quantity: 1000,
+    product_unite_de_vente: 100,
   };
 
   assertEqual(supplierElementQuantity(item, 1000), 4000, "element_quantity");
-  assertEqual(supplierTarifUv(item, 55, 1000), 5.5, "tarif_uv");
+  assertEqual(supplierTarifUv(item, 55, 1000, 100), 5.5, "tarif_uv");
   assertEqual(supplierPurchaseLineTotal(item, 55, 1000), 220, "purchase_line_total");
   if (isSupplierUnitPurchase(item)) {
     throw new Error("variant_title Unité ne doit pas être traité comme achat unitaire");
@@ -43,52 +44,56 @@ Deno.test("achat unitaire (-unit): Qté 50, Total 2,75", () => {
     variant_id: "prod-123-unit",
     product_purchase_price_ht: 55,
     product_box_quantity: 1000,
+    product_unite_de_vente: 100,
   };
 
   assertEqual(supplierElementQuantity(unitItem, 1000), 50, "element_quantity");
-  assertEqual(supplierTarifUv(unitItem, 55, 1000), 5.5, "tarif_uv");
+  assertEqual(supplierTarifUv(unitItem, 55, 1000, 100), 5.5, "tarif_uv");
   assertEqual(supplierPurchaseLineTotal(unitItem, 55, 1000), 2.75, "purchase_line_total");
 });
 
-Deno.test("achat boîte box_quantity=1: nb boîtes × purchase_price_ht", () => {
+Deno.test("achat boîte box_quantity=1, unite_de_vente=100: tarif ×100", () => {
   const item = {
     quantity: 2,
     variant_id: "prod-coffret",
     product_purchase_price_ht: 23.7,
     product_box_quantity: 1,
+    product_unite_de_vente: 100,
   };
 
-  assertEqual(supplierTarifUv(item, 23.7, 1), 2370, "tarif_uv");
+  assertEqual(supplierTarifUv(item, 23.7, 1, 100), 2370, "tarif_uv");
   assertEqual(supplierPurchaseLineTotal(item, 23.7, 1), 47.4, "purchase_line_total");
 });
 
-Deno.test("accessoire TOOL*: tarif_uv = purchase_price_ht, pas ×100", () => {
+Deno.test("accessoire unite_de_vente=1: tarif_uv = purchase_price_ht", () => {
   const item = {
     quantity: 1,
     code_alsafix: "TOOLBS3A",
     variant_id: "prod-tool",
     product_purchase_price_ht: 23.7,
     product_box_quantity: 1,
+    product_unite_de_vente: 1,
   };
 
   assertEqual(isSupplierAccessory(item), true, "is_accessory");
-  assertEqual(isSupplierSingleUvTariff(item), true, "is_single_uv_tariff");
+  assertEqual(isSupplierLowUvDecimals(item, 1), true, "low_uv_decimals");
   assertEqual(supplierElementQuantity(item, 1), 1, "element_quantity");
-  assertEqual(supplierTarifUv(item, 23.7, 1), 23.7, "tarif_uv");
+  assertEqual(supplierTarifUv(item, 23.7, 1, 1), 23.7, "tarif_uv");
   assertEqual(supplierPurchaseLineTotal(item, 23.7, 1), 23.7, "purchase_line_total");
 });
 
-Deno.test("kit KIT*: tarif_uv = purchase_price_ht, ignore box_quantity erroné", () => {
+Deno.test("kit unite_de_vente=1, box_quantity=1", () => {
   const item = {
     quantity: 2,
     code_alsafix: "KIT08822",
     variant_id: "prod-kit",
     product_purchase_price_ht: 61.99,
-    product_box_quantity: 2,
+    product_box_quantity: 1,
+    product_unite_de_vente: 1,
   };
 
   assertEqual(isSupplierKit(item), true, "is_kit");
-  assertEqual(supplierElementQuantity(item, 2), 2, "element_quantity");
-  assertEqual(supplierTarifUv(item, 61.99, 2), 61.99, "tarif_uv");
-  assertEqual(supplierPurchaseLineTotal(item, 61.99, 2), 123.98, "purchase_line_total");
+  assertEqual(supplierElementQuantity(item, 1), 2, "element_quantity");
+  assertEqual(supplierTarifUv(item, 61.99, 1, 1), 61.99, "tarif_uv");
+  assertEqual(supplierPurchaseLineTotal(item, 61.99, 1), 123.98, "purchase_line_total");
 });
