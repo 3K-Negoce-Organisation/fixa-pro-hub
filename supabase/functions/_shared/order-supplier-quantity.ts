@@ -1,6 +1,6 @@
 import { roundMoney } from "./money.ts";
 
-const UV_BATCH = 100;
+const DEFAULT_UNITE_DE_VENTE = 100;
 
 /** Achat unitaire PDF fournisseur : uniquement si variant_id se termine par "-unit". */
 export function isSupplierUnitPurchase(item: Record<string, unknown>): boolean {
@@ -12,19 +12,41 @@ function supplierAlsafixCode(item: Record<string, unknown>): string {
   return String(item.code_alsafix ?? item.codeAlsafix ?? "").trim().toUpperCase();
 }
 
-/** Kit Alsafix : code_alsafix commence par KIT (ex. KIT08822, KIT-VBF60). Tarif UV = purchase_price_ht. */
+/** Kit Alsafix : code_alsafix commence par KIT (indicateur métier / admin). */
 export function isSupplierKit(item: Record<string, unknown>): boolean {
   return supplierAlsafixCode(item).startsWith("KIT");
 }
 
-/** Accessoire Alsafix : code_alsafix commence par TOOL (ex. TOOLBS3A). Même règle tarif UV que les kits. */
+/** Accessoire Alsafix : code_alsafix commence par TOOL (indicateur métier / admin). */
 export function isSupplierAccessory(item: Record<string, unknown>): boolean {
   return supplierAlsafixCode(item).startsWith("TOOL");
 }
 
-/** Kits et accessoires : tarif UV = purchase_price_ht (pas ×100), qté panier telle quelle. */
+/**
+ * Unité de vente Alsafix (products.unite_de_vente) pour le Tarif UV.
+ * Défaut 100 = lot de 100 unités (vis standard).
+ */
+export function resolveUniteDeVente(
+  item: Record<string, unknown>,
+  uniteDeVente?: number | null,
+): number {
+  const uv = Number(
+    uniteDeVente ?? item.product_unite_de_vente ?? item.unite_de_vente ?? DEFAULT_UNITE_DE_VENTE,
+  );
+  return Number.isFinite(uv) && uv > 0 ? uv : DEFAULT_UNITE_DE_VENTE;
+}
+
+/** Tarif UV affiché avec 2 décimales quand unite_de_vente = 1 (kits, accessoires, etc.). */
+export function isSupplierLowUvDecimals(
+  item: Record<string, unknown>,
+  uniteDeVente?: number | null,
+): boolean {
+  return resolveUniteDeVente(item, uniteDeVente) === 1;
+}
+
+/** @deprecated Utiliser resolveUniteDeVente / isSupplierLowUvDecimals. */
 export function isSupplierSingleUvTariff(item: Record<string, unknown>): boolean {
-  return isSupplierKit(item) || isSupplierAccessory(item);
+  return isSupplierLowUvDecimals(item);
 }
 
 /** @deprecated Utiliser isSupplierUnitPurchase pour le PDF fournisseur. */
@@ -76,7 +98,7 @@ export function supplierElementQuantity(
   boxQuantity?: number | null,
 ): number {
   const safeCartQty = cartQuantity(item);
-  if (isSupplierSingleUvTariff(item) || isSupplierUnitPurchase(item)) return safeCartQty;
+  if (isSupplierUnitPurchase(item)) return safeCartQty;
 
   const perBox = resolveProductBoxQuantity(item, boxQuantity);
   if (perBox > 1) return safeCartQty * perBox;
@@ -85,22 +107,20 @@ export function supplierElementQuantity(
 }
 
 /**
- * Tarif UV :
- * - kit (KIT*) / accessoire (TOOL*) : purchase_price_ht tel quel
- * - boîte / unité : prix pour 100 unités = prix unitaire × 100
+ * Tarif UV : (purchase_price_ht / box_quantity) × unite_de_vente
  */
 export function supplierTarifUv(
   item: Record<string, unknown>,
   purchasePriceHt?: number | null,
   boxQuantity?: number | null,
+  uniteDeVente?: number | null,
 ): number {
   const purchase = resolveProductPurchasePrice(item, purchasePriceHt);
   if (purchase <= 0) return 0;
 
-  if (isSupplierSingleUvTariff(item)) return roundMoney(purchase);
-
   const boxQty = resolveProductBoxQuantity(item, boxQuantity);
-  return roundMoney(supplierUnitPurchasePrice(purchase, boxQty) * UV_BATCH);
+  const salesUnit = resolveUniteDeVente(item, uniteDeVente);
+  return roundMoney(supplierUnitPurchasePrice(purchase, boxQty) * salesUnit);
 }
 
 /**
@@ -116,10 +136,6 @@ export function supplierPurchaseLineTotal(
 ): number {
   const purchase = resolveProductPurchasePrice(item, purchasePriceHt);
   if (purchase <= 0) return 0;
-
-  if (isSupplierSingleUvTariff(item)) {
-    return roundMoney(cartQuantity(item) * purchase);
-  }
 
   const boxQty = resolveProductBoxQuantity(item, boxQuantity);
   const unitPrice = supplierUnitPurchasePrice(purchase, boxQty);
@@ -139,25 +155,31 @@ export function enrichItemSupplierPricing(
   item: Record<string, unknown>,
   purchasePriceHt?: number | null,
   boxQuantity?: number | null,
+  uniteDeVente?: number | null,
 ): Record<string, unknown> {
   const productPurchase = purchasePriceHt ?? null;
   const productBoxQty = boxQuantity ?? null;
+  const productUniteDeVente = uniteDeVente ?? null;
 
   const enrichedItem = {
     ...item,
     product_purchase_price_ht: productPurchase,
     product_box_quantity: productBoxQty,
+    product_unite_de_vente: productUniteDeVente,
     purchase_price_ht: productPurchase,
     box_quantity: productBoxQty,
+    unite_de_vente: productUniteDeVente,
   };
 
   return {
     ...enrichedItem,
     is_kit: isSupplierKit(enrichedItem),
     is_accessory: isSupplierAccessory(enrichedItem),
-    is_single_uv_tariff: isSupplierSingleUvTariff(enrichedItem),
+    is_single_uv_tariff: isSupplierLowUvDecimals(enrichedItem, productUniteDeVente),
     element_quantity: supplierElementQuantity(enrichedItem, productBoxQty),
-    tarif_uv: roundMoney(supplierTarifUv(enrichedItem, productPurchase, productBoxQty)),
+    tarif_uv: roundMoney(
+      supplierTarifUv(enrichedItem, productPurchase, productBoxQty, productUniteDeVente),
+    ),
     purchase_line_total: roundMoney(
       supplierPurchaseLineTotal(enrichedItem, productPurchase, productBoxQty),
     ),
