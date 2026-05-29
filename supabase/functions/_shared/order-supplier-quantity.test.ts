@@ -82,6 +82,21 @@ Deno.test("accessoire unite_de_vente=1: tarif_uv = purchase_price_ht", () => {
   assertEqual(supplierPurchaseLineTotal(item, 23.7, 1), 23.7, "purchase_line_total");
 });
 
+Deno.test("VBF30013: boîte 1000 vis — Tarif UV 0,55 (pas 1,00 par arrondi unitaire)", () => {
+  const item = {
+    quantity: 1,
+    code_alsafix: "VBF30013",
+    variant_id: "prod-vbf30013",
+    product_purchase_price_ht: 5.5,
+    product_box_quantity: 1000,
+    product_unite_de_vente: 100,
+  };
+
+  assertEqual(supplierElementQuantity(item, 1000), 1000, "element_quantity");
+  assertEqual(supplierTarifUv(item, 5.5, 1000, 100), 0.55, "tarif_uv");
+  assertEqual(supplierPurchaseLineTotal(item, 5.5, 1000), 5.5, "purchase_line_total");
+});
+
 Deno.test("kit unite_de_vente=1, box_quantity=1", () => {
   const item = {
     quantity: 2,
