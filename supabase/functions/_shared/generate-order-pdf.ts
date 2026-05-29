@@ -3,6 +3,7 @@ import autoTable from "https://esm.sh/jspdf-autotable@3.8.2";
 import { alsafixCodeOnly } from "./alsafix-code.ts";
 import {
   isSupplierLowUvDecimals,
+  roundPdfFooterMoney,
   supplierElementQuantity,
   supplierPurchaseLineTotal,
   supplierTarifUv,
@@ -99,6 +100,11 @@ export function generateOrderPDF(
       item.product_box_quantity as number | null | undefined,
     );
 
+  const supplierProductsHTRaw = items.reduce((sum, item) => sum + lineTotalForItem(item), 0);
+  const supplierProductsHT = roundPdfFooterMoney(supplierProductsHTRaw);
+  const tvaAmount = roundPdfFooterMoney(supplierProductsHT * 0.2);
+  const productsTTC = roundPdfFooterMoney(supplierProductsHT * 1.2);
+
   const doc = new jsPDF({
     orientation: "landscape",
     unit: "mm",
@@ -110,6 +116,7 @@ export function generateOrderPDF(
   const tableWidth = pageWidth - 2 * margin;
 
   const headerBlue: [number, number, number] = [30, 58, 95];
+  const totalGreen: [number, number, number] = [212, 237, 218];
   const infoDarkBlue = [25, 50, 85];
 
   const logoBottom = drawSiteLogo(doc, margin, siteLogo);
@@ -200,9 +207,36 @@ export function generateOrderPDF(
       finalY?: number;
     };
   }).lastAutoTable;
+  const tableLeft = lastTable?.settings?.margin?.left ?? margin;
+  const tableDrawWidth = lastTable?.table?.width ?? tableWidth;
   const finalY = lastTable?.finalY ?? 100;
 
-  const addressY = ensureY(doc, finalY + 10, 40);
+  const summaryRight = tableLeft + tableDrawWidth - 10;
+  const summaryLabelX = tableLeft + tableDrawWidth - 55;
+  const footerBlockHeight = 28 + 45;
+  let summaryY = ensureY(doc, finalY + 6, footerBlockHeight);
+
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.text("Total achat fournisseur HT", summaryLabelX, summaryY, { align: "right" });
+  doc.text(`${formatMoneyFr(supplierProductsHT, 2)} €`, summaryRight, summaryY, { align: "right" });
+  summaryY += 5;
+  doc.text("TVA achat (20 %)", summaryLabelX, summaryY, { align: "right" });
+  doc.text(`${formatMoneyFr(tvaAmount, 2)} €`, summaryRight, summaryY, { align: "right" });
+
+  const totalRowY = summaryY + 5;
+  doc.setFillColor(totalGreen[0], totalGreen[1], totalGreen[2]);
+  doc.rect(tableLeft, totalRowY, tableDrawWidth, 10, "F");
+  doc.setDrawColor(0, 0, 0);
+  doc.setLineWidth(0.3);
+  doc.rect(tableLeft, totalRowY, tableDrawWidth, 10, "S");
+
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "bold");
+  doc.text("TOTAL ACHAT FOURNISSEUR TTC", tableLeft + 8, totalRowY + 7);
+  doc.text(`${formatMoneyFr(productsTTC, 2)} €`, summaryRight, totalRowY + 7, { align: "right" });
+
+  const addressY = ensureY(doc, totalRowY + 12 + 8, 40);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10);
   doc.text("Adresse de livraison", margin, addressY);
