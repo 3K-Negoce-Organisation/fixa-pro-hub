@@ -35,6 +35,27 @@ export function getDisplayVariantTitle(title: string | null | undefined): string
   return t;
 }
 
+/** Échappe % et _ pour ilike ; retire les virgules (séparateur PostgREST .or). */
+export function escapeForIlike(value: string): string {
+  return value
+    .trim()
+    .replace(/,/g, " ")
+    .replace(/\\/g, "\\\\")
+    .replace(/%/g, "\\%")
+    .replace(/_/g, "\\_");
+}
+
+/** Filtre recherche catalogue : titre, code Alsafix, désignation, handle. */
+export function buildProductsSearchOrFilter(searchQuery: string): string {
+  const pattern = `%${escapeForIlike(searchQuery)}%`;
+  return [
+    `title.ilike.${pattern}`,
+    `code_alsafix.ilike.${pattern}`,
+    `designation_fr.ilike.${pattern}`,
+    `handle.ilike.${pattern}`,
+  ].join(",");
+}
+
 // Fetch all active products (with joined category)
 export async function fetchProducts(searchQuery?: string) {
   let query = supabase
@@ -43,8 +64,9 @@ export async function fetchProducts(searchQuery?: string) {
     .eq("is_active", true)
     .order("title");
 
-  if (searchQuery) {
-    query = query.ilike("title", `%${searchQuery}%`);
+  const term = searchQuery?.trim();
+  if (term) {
+    query = query.or(buildProductsSearchOrFilter(term));
   }
 
   const { data, error } = await query;
