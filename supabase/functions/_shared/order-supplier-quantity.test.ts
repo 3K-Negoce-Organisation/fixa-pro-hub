@@ -82,6 +82,23 @@ Deno.test("accessoire unite_de_vente=1: tarif_uv = purchase_price_ht", () => {
   assertEqual(supplierPurchaseLineTotal(item, 23.7, 1), 23.7, "purchase_line_total");
 });
 
+Deno.test("Tarif UV: un seul arrondi en fin de formule (pas sur prix unitaire)", () => {
+  const purchase = 5.5;
+  const boxQty = 1000;
+  const uv = 100;
+  const raw = (purchase / boxQty) * uv;
+  const roundedUnit = Math.round((purchase / boxQty) * 100) / 100;
+  if (Math.round(roundedUnit * uv * 100) / 100 === raw) {
+    throw new Error("le test doit montrer que l'arrondi unitaire fausserait le tarif");
+  }
+  assertEqual(supplierTarifUv(
+    { product_purchase_price_ht: purchase, product_box_quantity: boxQty, product_unite_de_vente: uv },
+    purchase,
+    boxQty,
+    uv,
+  ), 0.55, "tarif_uv");
+});
+
 Deno.test("VBF30013: boîte 1000 vis — Tarif UV 0,55 (pas 1,00 par arrondi unitaire)", () => {
   const item = {
     quantity: 1,
