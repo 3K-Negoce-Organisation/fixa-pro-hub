@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { enrichItemsWithAlsafixCodes } from "../_shared/alsafix-code.ts";
 import { generateOrderPDF } from "../_shared/generate-order-pdf.ts";
+import { resolveUniteDeVente } from "../_shared/order-supplier-quantity.ts";
 import { loadSiteLogoForOrderPdf } from "../_shared/site-logo.ts";
 import { verifyAdminRequest } from "../_shared/verify-admin.ts";
 
@@ -91,23 +92,31 @@ serve(async (req) => {
     const customerEmail = String(customer.email || "simulation@admin.local").trim();
     const customerPhone = customer.phone?.trim() || null;
 
-    const lineBreakdown = enrichedItems.map((item) => ({
-      code_alsafix: item.code_alsafix || "",
-      product_title: item.product_title || item.title || "",
-      quantity: item.quantity,
-      variant_id: item.variant_id,
-      variant_title: item.variant_title,
-      box_quantity: item.product_box_quantity ?? item.box_quantity ?? null,
-      purchase_price_ht: item.product_purchase_price_ht ?? item.purchase_price_ht ?? null,
-      product_box_quantity: item.product_box_quantity ?? item.box_quantity ?? null,
-      product_purchase_price_ht: item.product_purchase_price_ht ?? item.purchase_price_ht ?? null,
-      is_kit: item.is_kit === true,
-      is_accessory: item.is_accessory === true,
-      is_single_uv_tariff: item.is_single_uv_tariff === true,
-      element_quantity: item.element_quantity,
-      tarif_uv: item.tarif_uv,
-      purchase_line_total: item.purchase_line_total,
-    }));
+    const lineBreakdown = enrichedItems.map((item) => {
+      const productUniteDeVente =
+        (item.product_unite_de_vente ?? item.unite_de_vente) as number | null | undefined;
+      const uniteDeVente = resolveUniteDeVente(item, productUniteDeVente);
+
+      return {
+        code_alsafix: item.code_alsafix || "",
+        product_title: item.product_title || item.title || "",
+        quantity: item.quantity,
+        variant_id: item.variant_id,
+        variant_title: item.variant_title,
+        box_quantity: item.product_box_quantity ?? item.box_quantity ?? null,
+        purchase_price_ht: item.product_purchase_price_ht ?? item.purchase_price_ht ?? null,
+        product_box_quantity: item.product_box_quantity ?? item.box_quantity ?? null,
+        product_purchase_price_ht: item.product_purchase_price_ht ?? item.purchase_price_ht ?? null,
+        unite_de_vente: productUniteDeVente ?? uniteDeVente,
+        product_unite_de_vente: productUniteDeVente ?? uniteDeVente,
+        is_kit: item.is_kit === true,
+        is_accessory: item.is_accessory === true,
+        is_single_uv_tariff: item.is_single_uv_tariff === true,
+        element_quantity: item.element_quantity,
+        tarif_uv: item.tarif_uv,
+        purchase_line_total: item.purchase_line_total,
+      };
+    });
 
     const totalHt = lineBreakdown.reduce(
       (sum, line) => sum + Number(line.purchase_line_total || 0),
