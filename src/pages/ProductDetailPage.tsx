@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { ShoppingCart, Heart, ChevronRight, Truck, Shield, RotateCcw, Loader2, Circle, Ruler, Wrench, Scale, Layers, Target, Settings2, Box, SlidersHorizontal } from "lucide-react";
 import TorxIcon from "@/components/icons/TorxIcon";
+import { CharacteristicPicto } from "@/components/products/CharacteristicPicto";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -70,21 +71,6 @@ const ProductDetailPage = () => {
   const characteristicIconMap = new Map(
     characteristicIcons.map((item) => [item.characteristic_key, item.icon_url || ""])
   );
-
-  const getCharacteristicIcon = (key: string, fallback: React.ReactNode) => {
-    const iconUrl = characteristicIconMap.get(key);
-    if (iconUrl) {
-      return (
-        <img
-          src={iconUrl}
-          alt=""
-          className="h-4 w-4 object-contain"
-          loading="lazy"
-        />
-      );
-    }
-    return fallback;
-  };
 
   if (isLoading) {
     return (
@@ -158,29 +144,87 @@ const ProductDetailPage = () => {
   const tags = product.tags || [];
 
   // Ordre aligné avec l’admin (CHARACTERISTIC_DEFINITIONS) : pictos sous l’image
-  const technicalSpecs: { icon: React.ReactNode; value: string; label: string }[] = [];
-  if (product.box_weight)
-    technicalSpecs.push({ icon: getCharacteristicIcon("box_weight", <Scale className="h-4 w-4" />), value: `${product.box_weight}`, label: "kg" });
-  if (product.diameter_mm) technicalSpecs.push({ icon: getCharacteristicIcon("diameter_mm", <Circle className="h-4 w-4" />), value: `Ø${product.diameter_mm}`, label: "mm" });
-  if (product.length_mm) technicalSpecs.push({ icon: getCharacteristicIcon("length_mm", <Ruler className="h-4 w-4" />), value: `${product.length_mm}`, label: "mm" });
-  if (product.usage) technicalSpecs.push({ icon: getCharacteristicIcon("usage", <Box className="h-4 w-4" />), value: product.usage, label: "" });
-  if (product.material) technicalSpecs.push({ icon: getCharacteristicIcon("material", <Layers className="h-4 w-4" />), value: product.material, label: "" });
-  if (product.drive_type) {
-    const isTorx = product.drive_type.toLowerCase().startsWith('tx') || product.drive_type.toLowerCase().includes('torx');
+  const technicalSpecs: {
+    key: string;
+    value: string;
+    label: string;
+    fallback: React.ReactNode;
+  }[] = [];
+  if (product.box_weight) {
     technicalSpecs.push({
-      icon: getCharacteristicIcon("drive_type", isTorx ? <TorxIcon className="h-4 w-4" /> : <Settings2 className="h-4 w-4" />),
-      value: product.drive_type,
-      label: "",
+      key: "box_weight",
+      value: `${product.box_weight}`,
+      label: "kg",
+      fallback: <Scale className="h-4 w-4" />,
     });
   }
-  if (product.thickness_to_fix_mm)
+  if (product.diameter_mm) {
     technicalSpecs.push({
-      icon: getCharacteristicIcon("thickness_to_fix_mm", <SlidersHorizontal className="h-4 w-4" />),
+      key: "diameter_mm",
+      value: `Ø${product.diameter_mm}`,
+      label: "mm",
+      fallback: <Circle className="h-4 w-4" />,
+    });
+  }
+  if (product.length_mm) {
+    technicalSpecs.push({
+      key: "length_mm",
+      value: `${product.length_mm}`,
+      label: "mm",
+      fallback: <Ruler className="h-4 w-4" />,
+    });
+  }
+  if (product.usage) {
+    technicalSpecs.push({
+      key: "usage",
+      value: product.usage,
+      label: "",
+      fallback: <Box className="h-4 w-4" />,
+    });
+  }
+  if (product.material) {
+    technicalSpecs.push({
+      key: "material",
+      value: product.material,
+      label: "",
+      fallback: <Layers className="h-4 w-4" />,
+    });
+  }
+  if (product.drive_type) {
+    const isTorx =
+      product.drive_type.toLowerCase().startsWith("tx") ||
+      product.drive_type.toLowerCase().includes("torx");
+    technicalSpecs.push({
+      key: "drive_type",
+      value: product.drive_type,
+      label: "",
+      fallback: isTorx ? <TorxIcon className="h-4 w-4" /> : <Settings2 className="h-4 w-4" />,
+    });
+  }
+  if (product.thickness_to_fix_mm) {
+    technicalSpecs.push({
+      key: "thickness_to_fix_mm",
       value: `${product.thickness_to_fix_mm}`,
       label: "mm",
+      fallback: <SlidersHorizontal className="h-4 w-4" />,
     });
-  if (product.thread_length_mm) technicalSpecs.push({ icon: getCharacteristicIcon("thread_length_mm", <Wrench className="h-4 w-4" />), value: `${product.thread_length_mm}`, label: "filet" });
-  if (product.head_diameter_mm) technicalSpecs.push({ icon: getCharacteristicIcon("head_diameter_mm", <Target className="h-4 w-4" />), value: `Ø${product.head_diameter_mm}`, label: "tête" });
+  }
+  if (product.thread_length_mm) {
+    technicalSpecs.push({
+      key: "thread_length_mm",
+      value: `${product.thread_length_mm}`,
+      label: "filet",
+      fallback: <Wrench className="h-4 w-4" />,
+    });
+  }
+  if (product.head_diameter_mm) {
+    technicalSpecs.push({
+      key: "head_diameter_mm",
+      value: `Ø${product.head_diameter_mm}`,
+      label: "tête",
+      fallback: <Target className="h-4 w-4" />,
+    });
+  }
 
   return (
     <PageBackground>
@@ -224,16 +268,15 @@ const ProductDetailPage = () => {
               </div>
               {/* Technical specifications as badges */}
               {technicalSpecs.length > 0 && (
-                <div className="flex flex-wrap gap-2 mt-4">
-                  {technicalSpecs.map((spec, index) => (
-                    <div
-                      key={index}
-                      className="inline-flex items-center gap-1.5 bg-secondary border border-border rounded-full px-3 py-1.5 text-sm"
-                    >
-                      <span className="text-primary">{spec.icon}</span>
-                      <span className="font-medium text-secondary-foreground">{spec.value}</span>
-                      {spec.label && <span className="text-secondary-foreground/70 text-xs">{spec.label}</span>}
-                    </div>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {technicalSpecs.map((spec) => (
+                    <CharacteristicPicto
+                      key={spec.key}
+                      iconUrl={characteristicIconMap.get(spec.key)}
+                      value={spec.value}
+                      label={spec.label}
+                      fallback={spec.fallback}
+                    />
                   ))}
                 </div>
               )}

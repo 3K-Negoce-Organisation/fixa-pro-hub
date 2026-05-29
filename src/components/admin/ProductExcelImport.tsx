@@ -31,6 +31,7 @@ interface ParsedProduct {
   description: string | null;
   category: string | null;
   box_quantity: number | null;
+  unite_de_vente: number;
   purchase_price_ht: number | null;
   box_weight: number | null;
   diameter_mm: number | null;
@@ -190,6 +191,10 @@ export const ProductExcelImport = ({ onImportComplete }: ProductExcelImportProps
           box_quantity: parseNumber(
             getCol(row, "Quantité dans la boite", "Quantite dans la boite", "Qté / Boite", "box_quantity")
           ),
+          unite_de_vente:
+            parseNumber(
+              getCol(row, "Unité de vente", "Unite de vente", "unite_de_vente", "Unité de vente Alsafix"),
+            ) ?? 100,
           purchase_price_ht: roundedPurchase > 0 ? roundedPurchase : null,
           box_weight: parseNumber(
             getCol(row, "Poids de la boite", "Poids / Boite", "box_weight")
@@ -305,6 +310,7 @@ export const ProductExcelImport = ({ onImportComplete }: ProductExcelImportProps
         price_ht: product.price_ht,
         price_ttc: product.price_ttc,
         box_quantity: product.box_quantity,
+        unite_de_vente: product.unite_de_vente,
         purchase_price_ht: product.purchase_price_ht,
         box_weight: product.box_weight,
         diameter_mm: product.diameter_mm,
@@ -419,6 +425,7 @@ export const ProductExcelImport = ({ onImportComplete }: ProductExcelImportProps
                   <TableHead>Code</TableHead>
                   <TableHead>Désignation</TableHead>
                   <TableHead>Qté/Boite</TableHead>
+                  <TableHead>UV</TableHead>
                   <TableHead>PA HT</TableHead>
                   <TableHead>PV HT</TableHead>
                   <TableHead>PV TTC</TableHead>
@@ -447,6 +454,7 @@ export const ProductExcelImport = ({ onImportComplete }: ProductExcelImportProps
                       {product.designation_fr || "-"}
                     </TableCell>
                     <TableCell>{product.box_quantity || "-"}</TableCell>
+                    <TableCell>{product.unite_de_vente}</TableCell>
                     <TableCell>{product.purchase_price_ht ? formatPrice(product.purchase_price_ht) : "-"}</TableCell>
                     <TableCell>{formatPrice(product.price_ht)}</TableCell>
                     <TableCell>{formatPrice(product.price_ttc)}</TableCell>
