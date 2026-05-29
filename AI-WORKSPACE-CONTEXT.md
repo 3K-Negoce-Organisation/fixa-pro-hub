@@ -4,7 +4,7 @@
 
 **Emplacement canonique :** versionné à la **racine de ce dépôt** (`AI-WORKSPACE-CONTEXT.md`). Workspace multi-dépôts local : scripts partagés `../scripts/`, admin `../admin-hub-central/`, docs transverses `../docs/`.
 
-**Last updated:** 2026-05-23 (simulation admin : catégorie, box_quantity, kits KIT*)
+**Last updated:** 2026-05-29 (pictos configurables, `unite_de_vente`, recherche Alsafix, totaux PDF fournisseur)
 
 ---
 
@@ -12,10 +12,11 @@
 
 1. **Read this file first** before drafting a multi-step plan that touches infrastructure, env vars, or releases.
 2. **Deploy order:** never deploy or promote changes to **production** before they are validated on **staging** (and, where applicable, **develop**). Same for Supabase migrations, Edge Functions, and app hosting.
-3. **Secrets:** do not commit API keys, tokens, or connection strings into repos or into this file. Store only **non-secret** identifiers (e.g. Supabase project ref, public URLs, Railway service *names*, Stripe *mode*).
-4. **Updates:** when the user corrects or extends any reference, edit the relevant section below and bump **Last updated**.
-5. **Changelog (obligatoire) :** à chaque **push** sur la branche **`staging`** et à chaque **push** sur **`main`** (ou merge équivalent vers production) pour **`fixa-pro-hub`** et/ou **`admin-hub-central`**, ajouter **une ligne datée** dans le tableau **[Changelog](#changelog)** ci-dessous (résumé factuel : dépôt, branche, migrations Supabase, `db push`, Edge deploy, Railway rebuild, copie Storage, etc.). Même principe après une opération infra manuelle significative (ex. `copy-staging-storage-to-prod`) si elle n’est pas déjà couverte par un commit le même jour. Garder les dates au format **AAAA-MM-JJ** et les entrées **concises**.
-6. **Exécuter la CLI Supabase après validation :** lorsqu’un **plan est approuvé** par l’utilisateur ou qu’il **demande des corrections** qui touchent Postgres (migrations) ou les Edge Functions, l’assistant doit **enchaîner les commandes** (`supabase link`, `db push`, `functions deploy`, etc.) depuis **la racine de ce dépôt** en s’appuyant sur **`../scripts/supabase-refs.env`** (workspace parent, chargé via `../scripts/load-3k-env.sh` ou `source` explicite — voir encadré *À retenir pour la CLI Supabase*), pas seulement les décrire. Si `db push` échoue (mot de passe `postgres` refusé), mettre à jour `**SUPABASE_DB_PASSWORD_STAGING*`* / `**_PRODUCTION**` et les `SUPABASE_DB_URL_*` après copie depuis le dashboard Supabase (**Settings → Database**), puis relancer ; **alternatives sans mot de passe Postgres :** `**supabase db query --linked -f supabase/migrations/<fichier>.sql`** (projet déjà `link` + `SUPABASE_ACCESS_TOKEN`), ou exécuter le SQL dans le **SQL Editor** du projet cible. **Fichiers `.env` sourcés par bash :** si un mot de passe ou une URL contient `**;`**, entourer la valeur de **guillemets simples** (`'...'`) pour que `source` ne coupe pas la ligne.
+3. **Hébergement front (Railway, pas Vercel) :** chaque **push** sur **`staging`** ou **`main`** déclenche un **rebuild Railway** — vitrine **`vis-a-bois-<env>`**, admin **`admin-hub-<env>`** (workspace `3k-negoce_workspace`). Les Edge Functions et migrations Postgres **ne** suivent **pas** le push Git : les déployer **manuellement** via Supabase CLI.
+4. **Secrets:** do not commit API keys, tokens, or connection strings into repos or into this file. Store only **non-secret** identifiers (e.g. Supabase project ref, public URLs, Railway service *names*, Stripe *mode*).
+5. **Updates:** when the user corrects or extends any reference, edit the relevant section below and bump **Last updated**.
+6. **Changelog (obligatoire) :** à chaque **push** sur la branche **`staging`** et à chaque **push** sur **`main`** (ou merge équivalent vers production) pour **`fixa-pro-hub`** et/ou **`admin-hub-central`**, ajouter **une ligne datée** dans le tableau **[Changelog](#changelog)** ci-dessous (résumé factuel : dépôt, branche, migrations Supabase, `db push`, Edge deploy, Railway rebuild, copie Storage, etc.). Même principe après une opération infra manuelle significative (ex. `copy-staging-storage-to-prod`) si elle n’est pas déjà couverte par un commit le même jour. Garder les dates au format **AAAA-MM-JJ** et les entrées **concises**.
+7. **Exécuter la CLI Supabase après validation :** lorsqu’un **plan est approuvé** par l’utilisateur ou qu’il **demande des corrections** qui touchent Postgres (migrations) ou les Edge Functions, l’assistant doit **enchaîner les commandes** (`supabase link`, `db push`, `functions deploy`, etc.) depuis **la racine de ce dépôt** en s’appuyant sur **`../scripts/supabase-refs.env`** (workspace parent, chargé via `../scripts/load-3k-env.sh` ou `source` explicite — voir encadré *À retenir pour la CLI Supabase*), pas seulement les décrire. Si `db push` échoue (mot de passe `postgres` refusé), mettre à jour `**SUPABASE_DB_PASSWORD_STAGING*`* / `**_PRODUCTION**` et les `SUPABASE_DB_URL_*` après copie depuis le dashboard Supabase (**Settings → Database**), puis relancer ; **alternatives sans mot de passe Postgres :** `**supabase db query --linked -f supabase/migrations/<fichier>.sql`** (projet déjà `link` + `SUPABASE_ACCESS_TOKEN`), ou exécuter le SQL dans le **SQL Editor** du projet cible. **Fichiers `.env` sourcés par bash :** si un mot de passe ou une URL contient `**;`**, entourer la valeur de **guillemets simples** (`'...'`) pour que `source` ne coupe pas la ligne.
 
 ---
 
@@ -278,6 +279,7 @@ Buckets copiés avec **même chemin relatif** : `product-images`, `order-documen
 | **Project ID**                      | `7e8dc729-5d6f-4558-acc4-1c683169493d`                                                            |
 | **Environments**                    | `develop`, `staging`, `production`                                                                |
 | **Service naming**                  | **Storefront:** `vis-a-bois-<ENV>` — **Admin:** `admin-hub-<ENV>` (replace `<ENV>` with `develop` |
+| **Déploiement front**               | **Push Git `staging` / `main`** → rebuild Railway automatique du service lié à la branche. **Pas de Vercel.** Pas de workflow GitHub Actions pour le front. |
 
 
 **Dépannage — toast « Failed to fetch » sur la connexion :** le bundle Vite embarque `VITE_SUPABASE_URL` au **build**. Si Railway staging a encore l’ancien ref `**gcyxfuxywratoyjnxurf`**, le navigateur ne peut souvent plus résoudre le host → erreur réseau. **Si l’URL est déjà `lhrwjnieojuempxjbgql`** mais la connexion échoue encore, vérifier que `**VITE_SUPABASE_PUBLISHABLE_KEY**` est la **publishable key du même projet** (sinon Auth répond **401 Invalid API key**, souvent masqué en « failed to fetch ») — voir section *Dépannage* dans `[fixa-pro-hub/ENVIRONMENTS.md](ENVIRONMENTS.md)` (test `curl` sur `/auth/v1/token`). Corriger les variables Railway puis **rebuild**. Le `vite build` du repo **échoue** si `VITE_SUPABASE_URL` contient un ref explicitement déprécié (`vite.config.ts`).
@@ -536,20 +538,36 @@ Génération centralisée : **`supabase/functions/_shared/generate-order-pdf.ts`
 
 Logique centralisée : **`supabase/functions/_shared/order-supplier-quantity.ts`** (utilisée par **`generate-order-pdf.ts`**, **`preview-supplier-order-pdf`**, **`stripe-webhook`**, **`simulate-order-webhook`**).
 
-Données prix / conditionnement : **`products.purchase_price_ht`** et **`products.box_quantity`** uniquement (enrichissement **`alsafix-code.ts`** par `product_id` ou `code_alsafix`).
+Données prix / conditionnement : **`products.purchase_price_ht`**, **`products.box_quantity`**, **`products.unite_de_vente`** (enrichissement **`alsafix-code.ts`** par `product_id` ou `code_alsafix`). Défaut **`unite_de_vente = 100`** (lot Alsafix standard) ; **`1`** pour kits **`KIT*`** et accessoires **`TOOL*`.
 
 | Type produit | Détection | Qté (colonne PDF) | Tarif UV. | Prix total HT net |
 |--------------|-----------|-------------------|-----------|-------------------|
-| **Kit** | `code_alsafix` commence par **`KIT`** (ex. `KIT08822`, `KIT-VBF60`) | Qté panier | **`purchase_price_ht`** (pas de ×100) | Qté panier × `purchase_price_ht` |
-| **Boîte** | `variant_id` **sans** suffixe `-unit` et `box_quantity > 1` | Qté panier × `box_quantity` | `(purchase_price_ht / box_quantity) × 100` | Qté panier × `purchase_price_ht` |
-| **Achat unitaire** | `variant_id` se termine par **`-unit`** | Qté panier | `(purchase_price_ht / box_quantity) × 100` si `box_quantity > 1`, sinon `purchase_price_ht × 100` | Qté × prix unitaire (PA/boîte si multi) |
-| **Autre** (`box_quantity` = 1 ou absent, non kit) | défaut | Qté panier | `purchase_price_ht × 100` | Qté × `purchase_price_ht` |
+| **Kit** | `code_alsafix` commence par **`KIT`** | Qté panier | `(purchase_price_ht / box_quantity) × unite_de_vente` (souvent `unite_de_vente = 1`) | Qté panier × `purchase_price_ht` |
+| **Accessoire** | `code_alsafix` commence par **`TOOL`** | Qté panier | idem kit (`unite_de_vente = 1`) | idem |
+| **Boîte** | `variant_id` **sans** `-unit` et `box_quantity > 1` | Qté panier × `box_quantity` | `(purchase_price_ht / box_quantity) × unite_de_vente` | Qté panier × `purchase_price_ht` |
+| **Achat unitaire** | `variant_id` se termine par **`-unit`** | Qté panier | idem boîte | Qté × prix unitaire (PA/boîte si multi) |
+| **Autre** (`box_quantity` = 1, non kit/tool) | défaut | Qté panier | `purchase_price_ht × unite_de_vente` | Qté × `purchase_price_ht` |
 
 **Pièges documentés :**
 
 - Ne **pas** utiliser `variant_title === "Unité"` pour le PDF fournisseur — seul le suffixe **`variant_id` … `-unit`** compte (`isSupplierUnitPurchase`).
 - Un kit avec `box_quantity` renseigné en base **ne doit pas** déclencher la formule boîte : **`isSupplierKit`** prime.
-- Si `purchase_price_ht` ou `box_quantity` est faux en base, le calcul est cohérent mais le PDF affichera des montants incorrects — corriger **`products`** en admin.
+- **Tarif UV :** un seul arrondi monétaire **en fin de formule** (pas sur le prix unitaire intermédiaire) — ex. VBF30013 : `(5,50 / 1000) × 100 = 0,55 €`.
+- Si `purchase_price_ht`, `box_quantity` ou `unite_de_vente` est faux en base, le calcul est cohérent mais le PDF affichera des montants incorrects — corriger **`products`** en admin.
+
+### Pictos caractéristiques (fiche produit)
+
+| Élément | Détail |
+|---------|--------|
+| **Affichage** | Sous l’image principale — `ProductDetailPage.tsx` |
+| **Composant** | `src/components/products/CharacteristicPicto.tsx` |
+| **Config** | `src/lib/picto-display.ts` — lit `product_characteristic_icons` (par `site_id`) |
+| **Admin** | `/categories` dans **admin-hub-central** — upload + éditeur (taille, texte inside/outside, offsets) ; doc détaillée dans [`../admin-hub-central/AI-WORKSPACE-CONTEXT.md`](../admin-hub-central/AI-WORKSPACE-CONTEXT.md) § *Pictos caractéristiques* |
+| **Migration** | `20260529120000_picto_display_layout.sql` |
+
+### Recherche catalogue
+
+`src/lib/products.ts` — `fetchProducts()` filtre sur **`title`**, **`code_alsafix`**, **`designation_fr`**, **`handle`** (`.or()` PostgREST). Route vitrine : `/produits?q=…`.
 
 ### Simulation commande (admin)
 
@@ -559,7 +577,7 @@ Données prix / conditionnement : **`products.purchase_price_ht`** et **`product
 | **Edge Function** | **`preview-supplier-order-pdf`** (déployée depuis **fixa-pro-hub**) — auth admin (`verify-admin.ts`) |
 | **Comportement** | Catalogue : **filtre catégorie** (`categories` du site) + recherche texte (code, titre, catégorie) ; panier sans choix boîte/unité — conditionnement via **`products.box_quantity`** (`simulationVariantForProduct` dans `supplierPdf.ts` : `variant_id` = `product_id`, pas de suffixe `-unit`) ; champs client/livraison ; **Calculer** / **Générer PDF** |
 | **Exclusions** | Pas de Stripe, pas d’email Resend, pas de webhook n8n, pas d’insertion `orders` |
-| **UI détail** | Tableau calculs : colonnes BDD **`purchase_price_ht`** et **`box_quantity`** (encadré vert foncé) ; badge **(kit)** si `code_alsafix` commence par **`KIT`** |
+| **UI détail** | Tableau calculs : colonnes BDD **`purchase_price_ht`**, **`box_quantity`**, **`unite_de_vente`** (encadré vert) ; badge **(kit)** / **(accessoire)** si préfixe **`KIT`** / **`TOOL`** |
 | **Fichiers admin** | `src/pages/SimulationCommande.tsx`, `src/utils/supplierPdf.ts`, route `App.tsx`, menu `AdminSidebar.tsx` |
 | **Config Edge** | `supabase/config.toml` — entrée `[functions.preview-supplier-order-pdf]` (JWT admin) |
 
@@ -571,9 +589,9 @@ Données prix / conditionnement : **`products.purchase_price_ht`** et **`product
 |---------|------|
 | `supabase/functions/_shared/order-totals.ts` | `sumItemsHT`, `splitOrderTotals(items, totalHT)` → `{ productsHT, shippingHT }` |
 | `supabase/functions/_shared/send-order-confirmation-email.ts` | Envoi Resend HTML à la confirmation |
-| `supabase/functions/_shared/generate-order-pdf.ts` | Génération PDF (tableau, TVA, total TTC, logo, téléphone) |
-| `supabase/functions/_shared/alsafix-code.ts` | `alsafixCodeOnly`, `enrichItemsWithAlsafixCodes` (+ `purchase_price_ht`, `box_quantity`) |
-| `supabase/functions/_shared/order-supplier-quantity.ts` | `isSupplierKit`, `isSupplierUnitPurchase`, `supplierTarifUv`, `supplierElementQuantity`, `supplierPurchaseLineTotal` |
+| `supabase/functions/_shared/generate-order-pdf.ts` | Génération PDF (tableau, **Total HT / TVA / TOTAL TTC fournisseur**, logo, téléphone) |
+| `supabase/functions/_shared/alsafix-code.ts` | `alsafixCodeOnly`, `enrichItemsWithAlsafixCodes` (+ `purchase_price_ht`, `box_quantity`, **`unite_de_vente`**) |
+| `supabase/functions/_shared/order-supplier-quantity.ts` | `resolveUniteDeVente`, `isSupplierKit`, `isSupplierAccessory`, `supplierTarifUv`, `supplierElementQuantity`, `supplierPurchaseLineTotal` |
 | `supabase/functions/_shared/order-customer-phone.ts` | Téléphone client pour le pied de page PDF |
 | `supabase/functions/_shared/site-logo.ts` | Logo site dans le PDF |
 | `supabase/functions/preview-supplier-order-pdf/index.ts` | Simulation admin (panier → PDF + breakdown JSON) |
@@ -614,7 +632,8 @@ Depuis **admin-hub-central** → **Commandes** → action **Renvoyer** : appelle
 
 | Date       | Change                                                                                                                                                                                                                                                                                       |
 | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 2026-05-26 | **fixa-pro-hub — FAQ :** boutique ouverte au public (inscription en ligne) ; frais de livraison alignés sur le panier (seuil 150 € TTC / 12 € TTC forfait). **Paiement :** métadonnées Stripe panier volumineux (chunk), resync panier au checkout. **Git** **staging** → **main**. **Edge** deploy paiement staging + prod. |
+| 2026-05-29 | **Pictos fiche produit :** affichage configurable (taille, texte inside/outside, offsets) depuis `product_characteristic_icons` ; `CharacteristicPicto.tsx`, `picto-display.ts`. **Recherche :** code Alsafix + désignation + handle (`products.ts`). **PDF fournisseur :** totaux HT/TVA/TTC rétablis sous le tableau ; **`unite_de_vente`** dans enrichissement + breakdown simulation. **Migration** `20260529120000_picto_display_layout.sql`, `20260526120000_products_unite_de_vente.sql`. **Git** fixa **staging** → **main**. **Edge** staging + prod : `preview-supplier-order-pdf`, `stripe-webhook`, `simulate-order-webhook`. **Railway** rebuild vitrine au push. Voir aussi admin changelog 2026-05-29 (éditeur pictos). |
+| 2026-05-26 | **fixa-pro-hub — FAQ :** boutique ouverte au public (inscription en ligne) ; frais de livraison alignés sur le panier (seuil 150 € TTC / 12 € TTC forfait). **Paiement :** métadonnées Stripe panier volumineux (chunk), resync panier au checkout. **Git** **staging** → **main**. **Edge** deploy paiement staging + prod. **Railway** rebuild. |
 | 2026-05-26 | **fixa-pro-hub — alignement panier / simulation :** `normalizeCartLinePricing`, hydratation systématique des prix catalogue, `clientLineTotalTtc` (même règle que admin) ; Edge `checkout-totals` redeploy staging + prod. **Git** **staging** → **main**. |
 | 2026-05-26 | **fixa-pro-hub — panier TTC :** totaux panier/checkout basés sur **`products.price_ttc`** (`cartPricing.ts`, `CartContext`, `shipping.orderGrandTotals`) ; Edge `create-payment-intent`, `create-stripe-checkout`, `stripe-webhook` + `_shared/checkout-totals.ts`. **Git** **staging** → **main**. **Edge** deploy staging + prod (3 fonctions paiement). |
 | 2026-05-26 | **admin-hub-central — simulation :** total panier client sur **`price_ttc`** (`SimulationCommande`, `supplierPdf.simulationCartTotals`). **Git** **staging** → **main**. |

@@ -1,6 +1,12 @@
 ## Welcome
 
-**Assistants / déploiement 3K :** lire **[`AI-WORKSPACE-CONTEXT.md`](AI-WORKSPACE-CONTEXT.md)** (source de vérité — Supabase, Railway, PDF fournisseur, simulation admin, kits `KIT*`). Admin : **[`../admin-hub-central/AI-WORKSPACE-CONTEXT.md`](../admin-hub-central/AI-WORKSPACE-CONTEXT.md)**.
+**Assistants / déploiement 3K :** lire **[`AI-WORKSPACE-CONTEXT.md`](AI-WORKSPACE-CONTEXT.md)** (source de vérité — Supabase, Railway, PDF fournisseur, pictos, simulation admin). Admin : **[`../admin-hub-central/AI-WORKSPACE-CONTEXT.md`](../admin-hub-central/AI-WORKSPACE-CONTEXT.md)**.
+
+### Déploiement vitrine (Railway)
+
+- Service **`vis-a-bois-<env>`** (workspace `3k-negoce_workspace`) — **pas de Vercel**.
+- Chaque **push sur `staging` ou `main`** déclenche un **rebuild Railway** automatique.
+- Migrations Postgres et Edge Functions Supabase : **déploiement manuel** CLI (voir `AI-WORKSPACE-CONTEXT.md`).
 
 ### Stripe (paiement vitrine)
 
