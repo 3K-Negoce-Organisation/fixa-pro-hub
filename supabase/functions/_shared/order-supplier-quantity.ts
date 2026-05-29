@@ -108,6 +108,7 @@ export function supplierElementQuantity(
 
 /**
  * Tarif UV : (purchase_price_ht / box_quantity) × unite_de_vente
+ * Aucun arrondi sur le prix unitaire intermédiaire — uniquement sur le Tarif UV final.
  */
 export function supplierTarifUv(
   item: Record<string, unknown>,
@@ -120,12 +121,9 @@ export function supplierTarifUv(
 
   const boxQty = resolveProductBoxQuantity(item, boxQuantity);
   const salesUnit = resolveUniteDeVente(item, uniteDeVente);
-  // Ne pas réutiliser supplierUnitPurchasePrice ici : roundMoney à 2 déc. sur le prix
-  // unitaire (ex. 5,50 € / 1000 → 0,0055) donnerait 0,01 € puis Tarif UV = 1,00 €.
-  if (boxQty > 1) {
-    return roundMoney((purchase / boxQty) * salesUnit);
-  }
-  return roundMoney(purchase * salesUnit);
+  const tarifUv =
+    boxQty > 1 ? (purchase / boxQty) * salesUnit : purchase * salesUnit;
+  return roundMoney(tarifUv);
 }
 
 /**
@@ -182,9 +180,7 @@ export function enrichItemSupplierPricing(
     is_accessory: isSupplierAccessory(enrichedItem),
     is_single_uv_tariff: isSupplierLowUvDecimals(enrichedItem, productUniteDeVente),
     element_quantity: supplierElementQuantity(enrichedItem, productBoxQty),
-    tarif_uv: roundMoney(
-      supplierTarifUv(enrichedItem, productPurchase, productBoxQty, productUniteDeVente),
-    ),
+    tarif_uv: supplierTarifUv(enrichedItem, productPurchase, productBoxQty, productUniteDeVente),
     purchase_line_total: roundMoney(
       supplierPurchaseLineTotal(enrichedItem, productPurchase, productBoxQty),
     ),
