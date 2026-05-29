@@ -9,9 +9,12 @@ type CharacteristicPictoProps = {
   className?: string;
 };
 
+/** Largeur fixe de la case valeur (alignée sur les visuels Alsafix uploadés en admin). */
+const VALUE_ZONE_CLASS = "w-11 min-w-[2.75rem] max-w-[2.75rem]";
+
 /**
- * Picto caractéristique Alsafix : la valeur dynamique est centrée dans la case blanche
- * (partie gauche du visuel uploadé en admin). Sans image custom, badge compact Lucide.
+ * Picto caractéristique Alsafix : valeur dans la case blanche à gauche du visuel,
+ * icône à droite (image admin). Sans image custom → badge Lucide.
  */
 export function CharacteristicPicto({
   iconUrl,
@@ -20,38 +23,47 @@ export function CharacteristicPicto({
   fallback,
   className,
 }: CharacteristicPictoProps) {
+  const title = [value, label].filter(Boolean).join(" ");
+
   if (iconUrl) {
     return (
       <div
-        className={cn("relative inline-flex h-9 shrink-0 items-stretch", className)}
-        title={[value, label].filter(Boolean).join(" ")}
+        className={cn("relative inline-flex h-10 shrink-0 align-middle", className)}
+        title={title}
       >
         <img
           src={iconUrl}
           alt=""
-          className="h-9 w-auto max-w-[9.5rem] object-contain object-left"
+          className="h-10 w-auto max-w-[7.5rem] object-contain object-left"
           loading="lazy"
         />
         <span
-          className="pointer-events-none absolute inset-y-0 left-0 flex w-[32%] max-w-[2.35rem] items-center justify-center px-0.5 text-center text-[10px] font-semibold leading-tight tracking-tight text-foreground"
-          aria-hidden
+          className={cn(
+            "pointer-events-none absolute inset-y-0 left-0 z-[1] flex items-center justify-center border-r border-border/30 bg-white px-0.5",
+            VALUE_ZONE_CLASS,
+          )}
+          aria-label={title}
         >
-          <span className="line-clamp-2 break-all">{value}</span>
+          <span className="block w-full truncate text-center text-[11px] font-semibold leading-none tracking-tight text-foreground whitespace-nowrap tabular-nums">
+            {value}
+          </span>
         </span>
       </div>
     );
   }
 
+  const fallbackText = label ? `${value} ${label}`.trim() : value;
+
   return (
     <div
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full border border-border bg-secondary px-3 py-1.5 text-sm",
+        "inline-flex h-10 items-center gap-1.5 rounded-full border border-border bg-secondary px-3 text-sm",
         className,
       )}
+      title={title}
     >
-      <span className="text-primary">{fallback}</span>
-      <span className="font-medium text-secondary-foreground">{value}</span>
-      {label ? <span className="text-xs text-secondary-foreground/70">{label}</span> : null}
+      <span className="shrink-0 text-primary">{fallback}</span>
+      <span className="font-medium whitespace-nowrap text-secondary-foreground">{fallbackText}</span>
     </div>
   );
 }
