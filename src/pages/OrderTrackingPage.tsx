@@ -17,14 +17,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Package, Truck, CheckCircle, Clock, XCircle, Search, AlertCircle, Loader2, ShoppingBag, FileText, Download, Home, ChevronRight } from "lucide-react";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Package, Truck, CheckCircle, Clock, XCircle, Search, AlertCircle, Loader2, ShoppingBag, FileText, Home, ChevronRight } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { splitOrderTotalsFromItems } from "@/lib/shipping";
 import { getDisplayVariantTitle } from "@/lib/products";
 import { BoxQuantityHint } from "@/components/cart/BoxQuantityHint";
-import { downloadOrderDocumentBlob } from "@/utils/orderDocumentStorage";
 
 const formatPriceHT = (price: number) => {
   return new Intl.NumberFormat("fr-FR", {
@@ -115,34 +113,10 @@ const statusSteps = [
   { key: 'processing', label: 'Préparation' },
   { key: 'shipped', label: 'Expédiée' },
   { key: 'delivered', label: 'Livrée' },
-] as const;
+];
 
-type ProgressStepKey = (typeof statusSteps)[number]["key"];
-
-const stepDocumentConfig: Record<
-  ProgressStepKey,
-  { docKeywords: string[]; supplierDocTypes: string[] }
-> = {
-  pending: { docKeywords: [], supplierDocTypes: [] },
-  paid: { docKeywords: ["commande", "order", "bon_de_commande", "confirmation"], supplierDocTypes: ["renvoi"] },
-  confirmed: { docKeywords: ["confirmation", "accuse"], supplierDocTypes: [] },
-  processing: { docKeywords: ["arc", "a.r.c", "preparation"], supplierDocTypes: ["ARC"] },
-  shipped: { docKeywords: ["expedition", "livraison", "bl", "bon_livraison", "shipping"], supplierDocTypes: ["BL"] },
-  delivered: { docKeywords: ["facture", "invoice", "chorus", "fac"], supplierDocTypes: ["FACTURE"] },
-};
-
-const documentMatchesStep = (doc: OrderDocument, stepKey: ProgressStepKey): boolean => {
-  const config = stepDocumentConfig[stepKey];
-  if (!config) return false;
-
-  if (doc.type === "renvoi") return stepKey === "paid";
-
-  const docType = (doc.type || "").toUpperCase();
-  if (config.supplierDocTypes.some((t) => docType === t.toUpperCase())) return true;
-
-  const docNameLower = doc.name.toLowerCase();
-  return config.docKeywords.some((keyword) => docNameLower.includes(keyword));
-};
+const canDownloadCustomerInvoice = (status: OrderStatus) =>
+  status !== "pending" && status !== "cancelled";
 
 const OrderTrackingPage = () => {
   const [searchParams] = useSearchParams();
@@ -427,74 +401,55 @@ const OrderTrackingPage = () => {
     });
   };
 
-  const handleDownloadDocument = async (doc: OrderDocument) => {
+  const handleDownloadCustomerInvoice = async () => {
+    if (!order?.order_number) return;
+
     try {
-      toast.loading("Téléchargement en cours...", { id: "download" });
+      toast.loading("Génération de la facture...", { id: "download-invoice" });
 
-      let blob: Blob | null = null;
-
-      if (orderFromGuestLookup && guestEmail.trim() && order?.order_number) {
-        const { data, error } = await supabase.functions.invoke("download-order-document", {
-          body: {
-            order_number: order.order_number,
-            email: guestEmail.trim().toLowerCase(),
-            path: doc.path || doc.url,
-          },
-        });
-
-        if (error || (data && typeof data === "object" && "error" in data)) {
-          throw new Error(
-            (data && typeof data === "object" && "error" in data && String((data as { error: string }).error)) ||
-              error?.message ||
-              "Erreur de téléchargement",
-          );
-        }
-
-        const signedUrl = (data as { signed_url?: string })?.signed_url;
-        if (!signedUrl) throw new Error("URL de téléchargement indisponible");
-
-        const response = await fetch(signedUrl);
-        if (!response.ok) throw new Error("Erreur de téléchargement");
-        blob = await response.blob();
-      } else {
-        blob = await downloadOrderDocumentBlob(supabase, doc);
+      const body: { order_number: string; email?: string } = {
+        order_number: order.order_number,
+      };
+      if (orderFromGuestLookup && guestEmail.trim()) {
+        body.email = guestEmail.trim().toLowerCase();
       }
 
-      if (!blob) throw new Error("Document introuvable");
+      const { data, error } = await supabase.functions.invoke("download-customer-invoice", {
+        body,
+      });
 
+      if (error || (data && typeof data === "object" && "error" in data)) {
+        throw new Error(
+          (data && typeof data === "object" && "error" in data && String((data as { error: string }).error)) ||
+            error?.message ||
+            "Erreur lors de la génération",
+        );
+      }
+
+      const payload = data as { pdf_base64?: string; filename?: string };
+      if (!payload.pdf_base64) throw new Error("Facture indisponible");
+
+      const byteCharacters = atob(payload.pdf_base64);
+      const byteArray = new Uint8Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteArray[i] = byteCharacters.charCodeAt(i);
+      }
+
+      const blob = new Blob([byteArray], { type: "application/pdf" });
       const blobUrl = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = blobUrl;
-      link.download = doc.name;
+      link.download = payload.filename || `facture_${order.order_number}.pdf`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(blobUrl);
 
-      toast.success("Document téléchargé", { id: "download" });
-    } catch (error) {
-      console.error("Download error:", error);
-      toast.error("Erreur lors du téléchargement", { id: "download" });
+      toast.success("Facture téléchargée", { id: "download-invoice" });
+    } catch (err) {
+      console.error("Customer invoice download error:", err);
+      toast.error("Erreur lors du téléchargement de la facture", { id: "download-invoice" });
     }
-  };
-
-  // Map documents to status steps for display
-  const getDocumentsForStep = (stepKey: string): OrderDocument[] => {
-    if (!order?.documents) return [];
-    if (!(stepKey in stepDocumentConfig)) return [];
-
-    return order.documents.filter((doc) =>
-      documentMatchesStep(doc, stepKey as ProgressStepKey),
-    );
-  };
-
-  // Documents without step mapping (shown on current step only)
-  const getUnmappedDocuments = (): OrderDocument[] => {
-    if (!order?.documents) return [];
-
-    return order.documents.filter(
-      (doc) => !statusSteps.some((step) => documentMatchesStep(doc, step.key)),
-    );
   };
 
   const renderProgressBar = (status: OrderStatus) => {
@@ -508,123 +463,72 @@ const OrderTrackingPage = () => {
     }
 
     const currentStep = statusConfig[status].step;
-    const unmappedDocs = getUnmappedDocuments();
 
     return (
-      <TooltipProvider>
-        <div className="py-4 sm:py-6">
-          {/* Mobile: Vertical timeline */}
-          <div className="sm:hidden space-y-3">
-            {statusSteps.map((step, index) => {
-              const stepNumber = index + 1;
-              const isCompleted = stepNumber < currentStep;
-              const isCurrent = stepNumber === currentStep;
-              
-              let stepDocs = getDocumentsForStep(step.key);
-              if (isCurrent) {
-                stepDocs = [...stepDocs, ...unmappedDocs];
-              }
-              
-              return (
-                <div key={step.key} className="flex items-center gap-3">
-                  <div 
-                    className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium shrink-0 ${
-                      isCompleted 
-                        ? 'bg-primary text-primary-foreground' 
-                        : isCurrent 
-                          ? 'bg-primary text-primary-foreground ring-2 ring-primary/20' 
-                          : 'bg-muted text-muted-foreground'
-                    }`}
-                  >
-                    {isCompleted ? <CheckCircle className="h-4 w-4" /> : stepNumber}
-                  </div>
-                  <span className={`text-sm font-medium flex-1 ${isCurrent ? 'text-primary' : 'text-muted-foreground'}`}>
-                    {step.label}
-                  </span>
-                  {stepDocs.length > 0 && (
-                    <div className="flex items-center gap-1">
-                      {stepDocs.map((doc, docIndex) => (
-                        <button
-                          key={docIndex}
-                          type="button"
-                          className="p-1 rounded hover:bg-muted transition-colors"
-                          onClick={() => handleDownloadDocument(doc)}
-                        >
-                          <Download className="h-4 w-4 text-primary" />
-                        </button>
-                      ))}
-                    </div>
-                  )}
+      <div className="py-4 sm:py-6">
+        {/* Mobile: Vertical timeline */}
+        <div className="sm:hidden space-y-3">
+          {statusSteps.map((step, index) => {
+            const stepNumber = index + 1;
+            const isCompleted = stepNumber < currentStep;
+            const isCurrent = stepNumber === currentStep;
+
+            return (
+              <div key={step.key} className="flex items-center gap-3">
+                <div
+                  className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium shrink-0 ${
+                    isCompleted
+                      ? "bg-primary text-primary-foreground"
+                      : isCurrent
+                        ? "bg-primary text-primary-foreground ring-2 ring-primary/20"
+                        : "bg-muted text-muted-foreground"
+                  }`}
+                >
+                  {isCompleted ? <CheckCircle className="h-4 w-4" /> : stepNumber}
                 </div>
-              );
-            })}
+                <span className={`text-sm font-medium flex-1 ${isCurrent ? "text-primary" : "text-muted-foreground"}`}>
+                  {step.label}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Desktop: Horizontal progress bar */}
+        <div className="hidden sm:flex items-center justify-between relative">
+          <div className="absolute left-0 right-0 top-4 h-1 bg-muted">
+            <div
+              className="h-full bg-primary transition-all duration-500"
+              style={{ width: `${((currentStep - 1) / (statusSteps.length - 1)) * 100}%` }}
+            />
           </div>
 
-          {/* Desktop: Horizontal progress bar */}
-          <div className="hidden sm:flex items-center justify-between relative">
-            {/* Progress line */}
-            <div className="absolute left-0 right-0 top-4 h-1 bg-muted">
-              <div 
-                className="h-full bg-primary transition-all duration-500"
-                style={{ width: `${((currentStep - 1) / (statusSteps.length - 1)) * 100}%` }}
-              />
-            </div>
-            
-            {statusSteps.map((step, index) => {
-              const stepNumber = index + 1;
-              const isCompleted = stepNumber < currentStep;
-              const isCurrent = stepNumber === currentStep;
-              
-              let stepDocs = getDocumentsForStep(step.key);
-              if (isCurrent) {
-                stepDocs = [...stepDocs, ...unmappedDocs];
-              }
-              
-              return (
-                <div key={step.key} className="flex flex-col items-center relative z-10 w-16">
-                  <div 
-                    className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors ${
-                      isCompleted 
-                        ? 'bg-primary text-primary-foreground' 
-                        : isCurrent 
-                          ? 'bg-primary text-primary-foreground ring-4 ring-primary/20' 
-                          : 'bg-muted text-muted-foreground'
-                    }`}
-                  >
-                    {isCompleted ? <CheckCircle className="h-4 w-4" /> : stepNumber}
-                  </div>
-                  <span className={`mt-2 text-xs font-medium text-center ${isCurrent ? 'text-primary' : 'text-muted-foreground'}`}>
-                    {step.label}
-                  </span>
-                  
-                  {/* Document icons */}
-                  <div className="h-6 flex items-center justify-center gap-1 mt-1">
-                    {stepDocs.map((doc, docIndex) => (
-                      <Tooltip key={docIndex}>
-                        <TooltipTrigger asChild>
-                          <button
-                            type="button"
-                            className="p-0.5 rounded hover:bg-muted transition-colors cursor-pointer"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDownloadDocument(doc);
-                            }}
-                          >
-                            <FileText className="h-4 w-4 text-primary" />
-                          </button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p className="text-xs">{doc.name}</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    ))}
-                  </div>
+          {statusSteps.map((step, index) => {
+            const stepNumber = index + 1;
+            const isCompleted = stepNumber < currentStep;
+            const isCurrent = stepNumber === currentStep;
+
+            return (
+              <div key={step.key} className="flex flex-col items-center relative z-10 w-16">
+                <div
+                  className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors ${
+                    isCompleted
+                      ? "bg-primary text-primary-foreground"
+                      : isCurrent
+                        ? "bg-primary text-primary-foreground ring-4 ring-primary/20"
+                        : "bg-muted text-muted-foreground"
+                  }`}
+                >
+                  {isCompleted ? <CheckCircle className="h-4 w-4" /> : stepNumber}
                 </div>
-              );
-            })}
-          </div>
+                <span className={`mt-2 text-xs font-medium text-center ${isCurrent ? "text-primary" : "text-muted-foreground"}`}>
+                  {step.label}
+                </span>
+              </div>
+            );
+          })}
         </div>
-      </TooltipProvider>
+      </div>
     );
   };
 
@@ -809,6 +713,23 @@ const OrderTrackingPage = () => {
 
                     {/* Progress bar */}
                     {renderProgressBar(order.status)}
+
+                    {canDownloadCustomerInvoice(order.status) && (
+                      <div className="mt-4 pt-4 border-t">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="gap-2"
+                          onClick={handleDownloadCustomerInvoice}
+                        >
+                          <FileText className="h-4 w-4" />
+                          Télécharger la facture client
+                        </Button>
+                        <p className="text-xs text-muted-foreground mt-2">
+                          Récapitulatif avec les prix payés et le détail de votre panier.
+                        </p>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
 
