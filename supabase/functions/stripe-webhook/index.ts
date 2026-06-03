@@ -8,6 +8,7 @@ import { roundMoney } from "../_shared/money.ts";
 import { generateOrderPDF } from "../_shared/generate-order-pdf.ts";
 import { loadSiteLogoForOrderPdf } from "../_shared/site-logo.ts";
 import { resolveOrderCustomerPhone } from "../_shared/order-customer-phone.ts";
+import { sendSupplierOrderEmail } from "../_shared/send-supplier-order-email.ts";
 import {
   compactItemsToOrderLines,
   parseCompactItemsFromMetadata,
@@ -137,7 +138,6 @@ serve(async (req) => {
       );
     }
     const stripe = new Stripe(stripeApiKey, { apiVersion: "2025-08-27.basil" });
-    const n8nWebhookUrl = Deno.env.get("N8N_WEBHOOK_URL");
 
     // Create Supabase client with service role
     const supabaseAdmin = createClient(
@@ -165,15 +165,14 @@ serve(async (req) => {
           orderNumber: existingOrder.order_number 
         });
 
-        // Get order items for n8n webhook
+        // Get order items for supplier fulfillment
         const { data: existingItems } = await supabaseAdmin
           .from("order_items")
           .select("*")
           .eq("order_id", existingOrder.id);
 
-        // Send webhook to n8n for fulfillment (even if order already exists)
-        if (n8nWebhookUrl) {
-          const cartItems = (existingItems || []).map(item => ({
+        // Fulfillment emails (even if order already exists)
+                  const cartItems = (existingItems || []).map(item => ({
             id: item.product_id,
             title: item.product_title,
             variantTitle: item.variant_title,
@@ -182,9 +181,7 @@ serve(async (req) => {
             priceHT: item.unit_price_ht,
           }));
 
-          await sendToN8n(
-            n8nWebhookUrl,
-            supabaseAdmin,
+          await fulfillOrderAfterPayment(supabaseAdmin,
             existingOrder.order_number,
             existingOrder.id,
             paymentIntent.id,
@@ -200,7 +197,6 @@ serve(async (req) => {
             existingOrder.total_ht,
             existingOrder.total_ttc
           );
-        }
 
         logStep("PaymentIntent processing complete (existing order)");
         return new Response(JSON.stringify({ received: true, existing_order: true }), {
@@ -334,25 +330,19 @@ serve(async (req) => {
         }
       }
 
-      // Send webhook to n8n for fulfillment
-      if (n8nWebhookUrl) {
-        await sendToN8n(
-          n8nWebhookUrl,
-          supabaseAdmin,
-          orderNumber,
-          order.id,
-          paymentIntent.id,
-          customerName,
-          userEmail,
-          customerPhone,
-          shippingAddress,
-          cartItems,
-          totalHT,
-          totalTTC
-        );
-      } else {
-        logStep("N8N_WEBHOOK_URL not configured, skipping fulfillment notification");
-      }
+      await fulfillOrderAfterPayment(
+        supabaseAdmin,
+        orderNumber,
+        order.id,
+        paymentIntent.id,
+        customerName,
+        userEmail,
+        customerPhone,
+        shippingAddress,
+        cartItems,
+        totalHT,
+        totalTTC,
+      );
 
       logStep("PaymentIntent processing complete");
     }
@@ -375,15 +365,14 @@ serve(async (req) => {
           orderNumber: existingOrder.order_number 
         });
 
-        // Get order items for n8n webhook
+        // Get order items for supplier fulfillment
         const { data: existingItems } = await supabaseAdmin
           .from("order_items")
           .select("*")
           .eq("order_id", existingOrder.id);
 
-        // Send webhook to n8n for fulfillment (even if order already exists)
-        if (n8nWebhookUrl) {
-          const cartItems = (existingItems || []).map(item => ({
+        // Fulfillment emails (even if order already exists)
+                  const cartItems = (existingItems || []).map(item => ({
             id: item.product_id,
             title: item.product_title,
             variantTitle: item.variant_title,
@@ -392,9 +381,7 @@ serve(async (req) => {
             priceHT: item.unit_price_ht,
           }));
 
-          await sendToN8n(
-            n8nWebhookUrl,
-            supabaseAdmin,
+          await fulfillOrderAfterPayment(supabaseAdmin,
             existingOrder.order_number,
             existingOrder.id,
             session.id,
@@ -410,7 +397,6 @@ serve(async (req) => {
             existingOrder.total_ht,
             existingOrder.total_ttc
           );
-        }
 
         logStep("Checkout session processing complete (existing order)");
         return new Response(JSON.stringify({ received: true, existing_order: true }), {
@@ -528,32 +514,20 @@ serve(async (req) => {
         }
       }
 
-      // Send webhook to n8n for fulfillment
-      if (n8nWebhookUrl) {
-        await sendToN8n(
-          n8nWebhookUrl,
-          supabaseAdmin,
-          orderNumber,
-          order.id,
-          session.id,
-          shippingDetails?.name || fullSession.customer_details?.name || null,
-          customerEmail,
-          fullSession.customer_details?.phone || null,
-          shippingAddress ? {
-            name: shippingDetails?.name || undefined,
-            line1: shippingAddress.line1 || undefined,
-            line2: shippingAddress.line2 || undefined,
-            city: shippingAddress.city || undefined,
-            postal_code: shippingAddress.postal_code || undefined,
-            country: shippingAddress.country || undefined,
-          } : null,
-          cartItems,
-          totalHT,
-          totalTTC
-        );
-      } else {
-        logStep("N8N_WEBHOOK_URL not configured, skipping fulfillment notification");
-      }
+      // Fulfillment emails
+      await fulfillOrderAfterPayment(
+        supabaseAdmin,
+        orderNumber,
+        order.id,
+        session.id,
+        customerName,
+        userEmail,
+        customerPhone,
+        shippingAddress,
+        cartItems,
+        totalHT,
+        totalTTC,
+      );
 
       logStep("Checkout session processing complete");
     }
@@ -572,9 +546,8 @@ serve(async (req) => {
   }
 });
 
-// Helper function to send to n8n and save document
-async function sendToN8n(
-  n8nWebhookUrl: string,
+// Fulfillment: PDF, storage, customer + supplier emails (replaces n8n)
+async function fulfillOrderAfterPayment(
   supabaseAdmin: any,
   orderNumber: string,
   orderId: string,
@@ -738,64 +711,34 @@ async function sendToN8n(
       logStep("Storage operation failed", { error: String(storageError) });
     }
 
-    const n8nPayload = {
-      event: "order.paid",
-      order_number: orderNumber,
-      order_id: orderId,
-      stripe_id: stripeId,
-      customer: {
-        email: customerEmail,
-        phone: customerPhone,
-        name: customerName,
-        shipping_address: shippingAddress,
-      },
-      supplier: supplierSettings ? {
-        name: supplierSettings.name || null,
-        email: supplierSettings.email || null,
-        status_email: supplierSettings.status_email || null,
-        address: supplierSettings.address || null,
-        postal_code: supplierSettings.postal_code || null,
-        city: supplierSettings.city || null,
-        phone: supplierSettings.phone || null,
-      } : null,
-      items: enrichedCartItems.map(item => ({
-        product_id: item.id || item.product_id,
-        code_alsafix: item.code_alsafix || '',
-        variant_id: item.variantId || item.id,
-        title: item.title || item.product_title,
-        variant_title: item.variantTitle || 'Default',
-        quantity: item.quantity || item.q || 1,
-        unit_price_ht: roundMoney(item.priceHT || item.unit_price_ht || 0),
-        unit_price_ttc: roundMoney(
-          item.priceTTC ?? (item.priceHT || item.unit_price_ht || 0) * 1.20,
-        ),
-      })),
-      totals: {
-        ht: totalHT,
-        ttc: totalTTC,
-        products_ht: productsHT,
-        shipping_ht: shippingHT,
-        currency: "EUR",
-      },
-      // PDF file as base64 (replaces excel_file for Deno Edge compatibility)
-      pdf_file: {
-        filename: pdfFileName,
-        content_base64: pdfBase64,
-        content_type: "application/pdf",
-      },
-      created_at: new Date().toISOString(),
-    };
-
-    logStep("Sending to n8n", { url: n8nWebhookUrl });
-
-    const n8nResponse = await fetch(n8nWebhookUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(n8nPayload),
-    });
-
-    logStep("n8n response", { status: n8nResponse.status });
-  } catch (n8nError) {
-    logStep("n8n webhook failed (non-blocking)", { error: String(n8nError) });
+    const supplierTo = supplierSettings?.email;
+    const fromEmail = supplierSettings?.customer_service_email || supplierSettings?.email;
+    if (supplierTo && fromEmail) {
+      const shippingLine = shippingAddress
+        ? [shippingAddress.line1, shippingAddress.line2].filter(Boolean).join(", ")
+        : null;
+      const shippingCityLine = shippingAddress?.postal_code && shippingAddress?.city
+        ? `${shippingAddress.postal_code} ${shippingAddress.city}`
+        : shippingAddress?.city || null;
+      const sent = await sendSupplierOrderEmail({
+        supplierEmail: supplierTo,
+        bccEmail: supplierSettings?.status_email || null,
+        fromEmail,
+        fromName: supplierSettings?.name || "Vis-à-Bois",
+        orderNumber,
+        customerName: customerName || "",
+        customerEmail: customerEmail || "",
+        customerPhone: resolvedPhone,
+        shippingLine,
+        shippingCityLine,
+        pdfFilename: pdfFileName,
+        pdfBase64,
+      });
+      logStep("Supplier order email", { sent, to: supplierTo });
+    } else {
+      logStep("Skipping supplier email", { hasSupplierEmail: !!supplierTo, hasFrom: !!fromEmail });
+    }
+  } catch (fulfillError) {
+    logStep("Fulfillment notification failed (non-blocking)", { error: String(fulfillError) });
   }
 }

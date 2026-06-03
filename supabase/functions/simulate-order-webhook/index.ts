@@ -5,6 +5,7 @@ import { sendOrderConfirmationEmail } from "../_shared/send-order-confirmation-e
 import { enrichItemsWithAlsafixCodes } from "../_shared/alsafix-code.ts";
 import { generateOrderPDF } from "../_shared/generate-order-pdf.ts";
 import { loadSiteLogoForOrderPdf } from "../_shared/site-logo.ts";
+import { sendSupplierOrderEmail } from "../_shared/send-supplier-order-email.ts";
 import { resolveOrderCustomerPhone } from "../_shared/order-customer-phone.ts";
 
 const corsHeaders = {
@@ -26,7 +27,6 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const n8nWebhookUrl = Deno.env.get('N8N_WEBHOOK_URL');
 
     // Verify admin authorization
     const authHeader = req.headers.get('Authorization');
@@ -145,12 +145,6 @@ serve(async (req) => {
     // Get customer number from supplier settings (default to "000001")
     const customerNumber = supplierSettings?.customer_number || '000001';
 
-    if (!preview_only && !n8nWebhookUrl) {
-      return new Response(
-        JSON.stringify({ error: 'N8N_WEBHOOK_URL non configuré' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
 
     // Generate PDF file
     const siteLogo = await loadSiteLogoForOrderPdf(supabaseAdmin, order.site_id);
@@ -280,86 +274,36 @@ serve(async (req) => {
       }
     }
 
-    // Build n8n payload
-    const n8nPayload = {
-      event: "order.paid",
-      order_number: order.order_number,
-      order_id: order.id,
-      simulation: true,
-      customer: {
-        email: customerEmail,
-        phone: customerPhone || profile?.phone || null,
-        name: displayName,
-        shipping_address: {
-          line1: order.shipping_address,
-          city: order.shipping_city,
-          postal_code: order.shipping_postal_code,
-          country: 'FR',
-        },
-      },
-      supplier: supplierSettings ? {
-        name: supplierSettings.name || null,
-        email: supplierSettings.email || null,
-        status_email: supplierSettings.status_email || null,
-        address: supplierSettings.address || null,
-        postal_code: supplierSettings.postal_code || null,
-        city: supplierSettings.city || null,
-        phone: supplierSettings.phone || null,
-      } : null,
-      items: enrichedItems.map(item => ({
-        product_id: item.product_id,
-        code_alsafix: item.code_alsafix || '',
-        title: item.product_title,
-        variant_title: item.variant_title,
-        quantity: item.quantity,
-        unit_price_ht: item.unit_price_ht,
-        unit_price_ttc: item.unit_price_ttc,
-      })),
-      totals: {
-        ht: order.total_ht,
-        ttc: order.total_ttc,
-        products_ht: productsHT,
-        shipping_ht: shippingHT,
-        currency: "EUR",
-      },
-      pdf_file: {
-        filename: pdfFileName,
-        content_base64: pdfBase64,
-        content_type: "application/pdf",
-      },
-      created_at: new Date().toISOString(),
-    };
-
-    logStep("Sending to n8n", { url: n8nWebhookUrl });
-
-    if (!n8nWebhookUrl) {
-      return new Response(
-        JSON.stringify({ error: 'N8N_WEBHOOK_URL non configuré' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-      );
+    const supplierTo = supplierSettings?.email;
+    const supplierFrom = supplierSettings?.customer_service_email || supplierSettings?.email;
+    let supplierSent = false;
+    if (supplierTo && supplierFrom) {
+      supplierSent = await sendSupplierOrderEmail({
+        supplierEmail: supplierTo,
+        bccEmail: supplierSettings?.status_email || null,
+        fromEmail: supplierFrom,
+        fromName: supplierSettings?.name || "Vis-à-Bois",
+        orderNumber: order.order_number,
+        customerName: displayName,
+        customerEmail: customerEmail,
+        customerPhone: customerPhone || profile?.phone || null,
+        shippingLine: order.shipping_address || null,
+        shippingCityLine: order.shipping_postal_code && order.shipping_city
+          ? `${order.shipping_postal_code} ${order.shipping_city}`
+          : order.shipping_city,
+        pdfFilename: pdfFileName,
+        pdfBase64,
+      });
     }
-
-    const n8nResponse = await fetch(n8nWebhookUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(n8nPayload),
-    });
-
-    const responseStatus = n8nResponse.status;
-    let responseBody = '';
-    try {
-      responseBody = await n8nResponse.text();
-    } catch (e) {
-      // ignore
-    }
-
-    logStep("n8n response", { status: responseStatus, body: responseBody.substring(0, 200) });
+    logStep("Supplier email simulation", { sent: supplierSent, to: supplierTo });
 
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: `Webhook n8n envoyé (status: ${responseStatus})`,
-        n8n_status: responseStatus,
+        message: supplierSent
+          ? "Email fournisseur envoyé (simulation)"
+          : "PDF généré — email fournisseur non envoyé (config manquante)",
+        supplier_email_sent: supplierSent,
         order_number: order.order_number,
         pdf_file: {
           filename: pdfFileName,

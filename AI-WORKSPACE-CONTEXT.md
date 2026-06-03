@@ -43,7 +43,7 @@
 
 **Workspace root:** `[../docs/PRESENTATION-SCHEMA.md](../docs/PRESENTATION-SCHEMA.md)` — Mermaid diagrams for presentations; it links back to this file for operational detail (not a deployable app).
 
-**Flux commande (panier → Stripe → webhook → n8n → livraison) :** `[../docs/ORDER_FLOW.md](../docs/ORDER_FLOW.md)` — inclut vérification production (`lqsbsinycyewdvdtbruy`), secrets `ORDER_UPDATE_API_KEY` / `VAB_API_KEY`, et liens vers le code.
+**Flux commande (panier → Stripe → webhook → Resend fournisseur + ingest Gmail → livraison) :** `[../docs/ORDER_FLOW.md](../docs/ORDER_FLOW.md)` — inclut vérification production (`lqsbsinycyewdvdtbruy`), secrets `ORDER_UPDATE_API_KEY` / `VAB_API_KEY`, et liens vers le code.
 
 **Commande payée — totaux, PDF, emails client (fixa-pro-hub, 2026-05-23) :** voir section **[Commande payée — frais de port, PDF et emails](#commande-payée--frais-de-port-pdf-et-emails)** ci-dessous.
 
