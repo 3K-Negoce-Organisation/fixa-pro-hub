@@ -24,31 +24,7 @@ import { toast } from "sonner";
 import { splitOrderTotalsFromItems } from "@/lib/shipping";
 import { getDisplayVariantTitle } from "@/lib/products";
 import { BoxQuantityHint } from "@/components/cart/BoxQuantityHint";
-
-// Download document via fetch to avoid ad-blocker issues
-const downloadDocument = async (url: string, fileName: string) => {
-  try {
-    toast.loading("Téléchargement en cours...", { id: "download" });
-    const response = await fetch(url);
-    if (!response.ok) throw new Error("Erreur de téléchargement");
-    
-    const blob = await response.blob();
-    const blobUrl = window.URL.createObjectURL(blob);
-    
-    const link = document.createElement('a');
-    link.href = blobUrl;
-    link.download = fileName;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    window.URL.revokeObjectURL(blobUrl);
-    
-    toast.success("Document téléchargé", { id: "download" });
-  } catch (error) {
-    console.error("Download error:", error);
-    toast.error("Erreur lors du téléchargement", { id: "download" });
-  }
-};
+import { downloadOrderDocumentBlob } from "@/utils/orderDocumentStorage";
 
 const formatPriceHT = (price: number) => {
   return new Intl.NumberFormat("fr-FR", {
@@ -80,10 +56,11 @@ interface OrderItem {
 
 interface OrderDocument {
   name: string;
-  path: string;
+  path?: string;
   url: string;
-  type: string;
-  uploaded_at: string;
+  type?: string;
+  uploaded_at?: string;
+  source?: string;
 }
 
 interface Order {
@@ -138,7 +115,34 @@ const statusSteps = [
   { key: 'processing', label: 'Préparation' },
   { key: 'shipped', label: 'Expédiée' },
   { key: 'delivered', label: 'Livrée' },
-];
+] as const;
+
+type ProgressStepKey = (typeof statusSteps)[number]["key"];
+
+const stepDocumentConfig: Record<
+  ProgressStepKey,
+  { docKeywords: string[]; supplierDocTypes: string[] }
+> = {
+  pending: { docKeywords: [], supplierDocTypes: [] },
+  paid: { docKeywords: ["commande", "order", "bon_de_commande", "confirmation"], supplierDocTypes: ["renvoi"] },
+  confirmed: { docKeywords: ["confirmation", "accuse"], supplierDocTypes: [] },
+  processing: { docKeywords: ["arc", "a.r.c", "preparation"], supplierDocTypes: ["ARC"] },
+  shipped: { docKeywords: ["expedition", "livraison", "bl", "bon_livraison", "shipping"], supplierDocTypes: ["BL"] },
+  delivered: { docKeywords: ["facture", "invoice", "chorus", "fac"], supplierDocTypes: ["FACTURE"] },
+};
+
+const documentMatchesStep = (doc: OrderDocument, stepKey: ProgressStepKey): boolean => {
+  const config = stepDocumentConfig[stepKey];
+  if (!config) return false;
+
+  if (doc.type === "renvoi") return stepKey === "paid";
+
+  const docType = (doc.type || "").toUpperCase();
+  if (config.supplierDocTypes.some((t) => docType === t.toUpperCase())) return true;
+
+  const docNameLower = doc.name.toLowerCase();
+  return config.docKeywords.some((keyword) => docNameLower.includes(keyword));
+};
 
 const OrderTrackingPage = () => {
   const [searchParams] = useSearchParams();
@@ -240,17 +244,22 @@ const OrderTrackingPage = () => {
             tracking_number: string | null;
             carrier: string | null;
             updated_at: string;
+            documents?: unknown;
           };
           
           // Update order state with new data
           setOrder((prev) => {
             if (!prev) return prev;
+            const documents = Array.isArray(newData.documents)
+              ? (newData.documents as OrderDocument[])
+              : prev.documents;
             return {
               ...prev,
               status: newData.status,
               tracking_number: newData.tracking_number,
               carrier: newData.carrier,
               updated_at: newData.updated_at,
+              documents,
             };
           });
 
@@ -418,39 +427,74 @@ const OrderTrackingPage = () => {
     });
   };
 
+  const handleDownloadDocument = async (doc: OrderDocument) => {
+    try {
+      toast.loading("Téléchargement en cours...", { id: "download" });
+
+      let blob: Blob | null = null;
+
+      if (orderFromGuestLookup && guestEmail.trim() && order?.order_number) {
+        const { data, error } = await supabase.functions.invoke("download-order-document", {
+          body: {
+            order_number: order.order_number,
+            email: guestEmail.trim().toLowerCase(),
+            path: doc.path || doc.url,
+          },
+        });
+
+        if (error || (data && typeof data === "object" && "error" in data)) {
+          throw new Error(
+            (data && typeof data === "object" && "error" in data && String((data as { error: string }).error)) ||
+              error?.message ||
+              "Erreur de téléchargement",
+          );
+        }
+
+        const signedUrl = (data as { signed_url?: string })?.signed_url;
+        if (!signedUrl) throw new Error("URL de téléchargement indisponible");
+
+        const response = await fetch(signedUrl);
+        if (!response.ok) throw new Error("Erreur de téléchargement");
+        blob = await response.blob();
+      } else {
+        blob = await downloadOrderDocumentBlob(supabase, doc);
+      }
+
+      if (!blob) throw new Error("Document introuvable");
+
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      link.download = doc.name;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+
+      toast.success("Document téléchargé", { id: "download" });
+    } catch (error) {
+      console.error("Download error:", error);
+      toast.error("Erreur lors du téléchargement", { id: "download" });
+    }
+  };
+
   // Map documents to status steps for display
   const getDocumentsForStep = (stepKey: string): OrderDocument[] => {
     if (!order?.documents) return [];
-    
-    // Map step keys to document name patterns
-    const stepDocPatterns: Record<string, string[]> = {
-      'paid': ['commande', 'order', 'bon_de_commande'],
-      'confirmed': ['confirmation', 'accuse'],
-      'processing': ['preparation'],
-      'shipped': ['expedition', 'livraison', 'facture', 'invoice', 'bon_de_livraison'],
-      'delivered': ['livraison', 'delivery'],
-    };
+    if (!(stepKey in stepDocumentConfig)) return [];
 
-    const patterns = stepDocPatterns[stepKey] || [];
-    if (patterns.length === 0) return [];
-
-    return order.documents.filter(doc => {
-      const docNameLower = doc.name.toLowerCase();
-      return patterns.some(pattern => docNameLower.includes(pattern));
-    });
+    return order.documents.filter((doc) =>
+      documentMatchesStep(doc, stepKey as ProgressStepKey),
+    );
   };
 
-  // Get all documents that don't match any step pattern (show on current step)
+  // Documents without step mapping (shown on current step only)
   const getUnmappedDocuments = (): OrderDocument[] => {
     if (!order?.documents) return [];
-    
-    const allPatterns = ['commande', 'order', 'bon_de_commande', 'confirmation', 'accuse', 
-      'preparation', 'expedition', 'livraison', 'facture', 'invoice', 'bon_de_livraison', 'delivery'];
-    
-    return order.documents.filter(doc => {
-      const docNameLower = doc.name.toLowerCase();
-      return !allPatterns.some(pattern => docNameLower.includes(pattern));
-    });
+
+    return order.documents.filter(
+      (doc) => !statusSteps.some((step) => documentMatchesStep(doc, step.key)),
+    );
   };
 
   const renderProgressBar = (status: OrderStatus) => {
@@ -504,7 +548,7 @@ const OrderTrackingPage = () => {
                           key={docIndex}
                           type="button"
                           className="p-1 rounded hover:bg-muted transition-colors"
-                          onClick={() => downloadDocument(doc.url, doc.name)}
+                          onClick={() => handleDownloadDocument(doc)}
                         >
                           <Download className="h-4 w-4 text-primary" />
                         </button>
@@ -563,7 +607,7 @@ const OrderTrackingPage = () => {
                             className="p-0.5 rounded hover:bg-muted transition-colors cursor-pointer"
                             onClick={(e) => {
                               e.stopPropagation();
-                              downloadDocument(doc.url, doc.name);
+                              handleDownloadDocument(doc);
                             }}
                           >
                             <FileText className="h-4 w-4 text-primary" />

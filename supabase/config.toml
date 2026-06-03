@@ -15,6 +15,9 @@ verify_jwt = false
 [functions.lookup-order-by-email]
 verify_jwt = false
 
+[functions.download-order-document]
+verify_jwt = false
+
 [functions.stripe-webhook]
 verify_jwt = false
 
