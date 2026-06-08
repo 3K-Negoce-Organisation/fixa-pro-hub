@@ -6,6 +6,7 @@ import { enrichItemsWithAlsafixCodes } from "../_shared/alsafix-code.ts";
 import { generateOrderPDF } from "../_shared/generate-order-pdf.ts";
 import { loadSiteLogoForOrderPdf } from "../_shared/site-logo.ts";
 import { resolveOrderCustomerPhone } from "../_shared/order-customer-phone.ts";
+import { resolveOrderCustomerEmail } from "../_shared/order-customer-email.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -118,6 +119,7 @@ serve(async (req) => {
         });
       }
     }
+    customerEmail = await resolveOrderCustomerEmail(supabaseAdmin, order, customerEmail);
 
     // Get profile for more details
     let profile: { company_name?: string | null; phone?: string | null } | null = null;

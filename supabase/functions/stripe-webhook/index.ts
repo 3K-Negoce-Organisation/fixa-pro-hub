@@ -8,6 +8,7 @@ import { roundMoney } from "../_shared/money.ts";
 import { generateOrderPDF } from "../_shared/generate-order-pdf.ts";
 import { loadSiteLogoForOrderPdf } from "../_shared/site-logo.ts";
 import { resolveOrderCustomerPhone } from "../_shared/order-customer-phone.ts";
+import { resolveOrderCustomerEmail } from "../_shared/order-customer-email.ts";
 import {
   compactItemsToOrderLines,
   parseCompactItemsFromMetadata,
@@ -602,16 +603,22 @@ async function sendToN8n(
     const enrichedCartItems = await enrichItemsWithAlsafixCodes(supabaseAdmin, cartItems);
 
     let resolvedPhone = customerPhone?.trim() || null;
+    let resolvedEmail = customerEmail?.trim() || "";
     let orderSiteId: string | null = null;
     if (orderId) {
       const { data: orderRow } = await supabaseAdmin
         .from("orders")
-        .select("user_id, site_id, notes")
+        .select("user_id, site_id, notes, user_email")
         .eq("id", orderId)
         .maybeSingle();
       orderSiteId = orderRow?.site_id ?? null;
-      if (!resolvedPhone && orderRow) {
-        resolvedPhone = await resolveOrderCustomerPhone(supabaseAdmin, orderRow);
+      if (orderRow) {
+        if (!resolvedPhone) {
+          resolvedPhone = await resolveOrderCustomerPhone(supabaseAdmin, orderRow);
+        }
+        if (!resolvedEmail) {
+          resolvedEmail = await resolveOrderCustomerEmail(supabaseAdmin, orderRow, customerEmail);
+        }
       }
     }
 
@@ -621,7 +628,7 @@ async function sendToN8n(
     const pdfBase64 = generateOrderPDF(
       orderNumber,
       customerName || '',
-      customerEmail || '',
+      resolvedEmail,
       customerNumber,
       enrichedCartItems,
       shippingAddress ? {
@@ -639,7 +646,7 @@ async function sendToN8n(
 
     const { productsHT, shippingHT } = splitOrderTotals(enrichedCartItems, totalHT);
     const fromEmail = supplierSettings?.customer_service_email || supplierSettings?.email;
-    if (fromEmail && customerEmail) {
+    if (fromEmail && (resolvedEmail || customerEmail)) {
       const shippingName = shippingAddress?.name || customerName;
       const shippingLine = [shippingAddress?.line1, shippingAddress?.line2].filter(Boolean).join(", ") || null;
       const shippingCityLine = shippingAddress?.postal_code && shippingAddress?.city
@@ -647,7 +654,7 @@ async function sendToN8n(
         : shippingAddress?.city || null;
 
       await sendOrderConfirmationEmail({
-        customerEmail,
+        customerEmail: resolvedEmail || customerEmail!,
         fromEmail,
         fromName: supplierSettings?.name || "Vis-à-Bois",
         bccEmail: supplierSettings?.status_email || null,
@@ -668,7 +675,7 @@ async function sendToN8n(
         shippingCityLine,
       });
     } else {
-      logStep("Skipping customer confirmation email", { hasFrom: !!fromEmail, hasCustomerEmail: !!customerEmail });
+      logStep("Skipping customer confirmation email", { hasFrom: !!fromEmail, hasCustomerEmail: !!(resolvedEmail || customerEmail) });
     }
 
     // Upload PDF to Supabase Storage and update order documents
@@ -744,8 +751,8 @@ async function sendToN8n(
       order_id: orderId,
       stripe_id: stripeId,
       customer: {
-        email: customerEmail,
-        phone: customerPhone,
+        email: resolvedEmail || customerEmail,
+        phone: resolvedPhone || customerPhone,
         name: customerName,
         shipping_address: shippingAddress,
       },
