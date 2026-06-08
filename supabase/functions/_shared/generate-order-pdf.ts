@@ -78,7 +78,7 @@ function drawSiteLogo(
 export function generateOrderPDF(
   orderNumber: string,
   customerName: string,
-  _customerEmail: string,
+  customerEmail: string,
   customerNumber: string,
   items: Array<Record<string, unknown>>,
   shippingAddress: {
@@ -267,6 +267,12 @@ export function generateOrderPDF(
   const phone = customerPhone?.trim();
   if (phone) {
     doc.text(`Tél. ${phone}`, margin + 10, currentY);
+    currentY += 5;
+  }
+
+  const email = customerEmail?.trim();
+  if (email) {
+    doc.text(`E-mail ${email}`, margin + 10, currentY);
     currentY += 5;
   }
 
