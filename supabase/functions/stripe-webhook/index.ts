@@ -13,6 +13,10 @@ import {
   compactItemsToOrderLines,
   parseCompactItemsFromMetadata,
 } from "../_shared/stripe-cart-metadata.ts";
+import {
+  checkoutSessionEventExists,
+  insertOrderStatusEvent,
+} from "../_shared/order-status-events.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -294,6 +298,7 @@ serve(async (req) => {
         shipping_city: shippingAddress?.city || null,
         shipping_postal_code: shippingAddress?.postal_code || null,
         shipping_name: customerName,
+        stripe_payment_intent_id: paymentIntent.id,
         notes: `Stripe PaymentIntent: ${paymentIntent.id} | stripe_mode:${stripeModeFromMetadata}`,
       };
       if (orderSiteId) insertPayload.site_id = orderSiteId;
@@ -310,6 +315,15 @@ serve(async (req) => {
       }
 
       logStep("Order created", { orderId: order.id, orderNumber });
+
+      await insertOrderStatusEvent(supabaseAdmin, {
+        order_id: order.id,
+        status: "paid",
+        event_kind: "auto_stripe",
+        is_manual: false,
+        note: "Paiement Stripe reçu",
+        amount_ttc: totalTTC,
+      });
 
       // Create order items
       if (cartItems.length > 0) {
@@ -362,6 +376,60 @@ serve(async (req) => {
     if (event.type === "checkout.session.completed") {
       const session = event.data.object as Stripe.Checkout.Session;
       logStep("Processing checkout session", { sessionId: session.id });
+
+      const sessionMetadata = session.metadata || {};
+      if (sessionMetadata.admin_correction === "true" && sessionMetadata.order_id) {
+        const orderId = sessionMetadata.order_id;
+        const alreadyProcessed = await checkoutSessionEventExists(supabaseAdmin, session.id);
+        if (alreadyProcessed) {
+          logStep("Admin correction session already processed", { sessionId: session.id });
+          return new Response(JSON.stringify({ received: true, admin_correction: true, skipped: true }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 200,
+          });
+        }
+
+        const correctionAmount = parseFloat(sessionMetadata.correction_amount_ttc || "0");
+        const { data: correctionOrder, error: correctionError } = await supabaseAdmin
+          .from("orders")
+          .select("*")
+          .eq("id", orderId)
+          .maybeSingle();
+
+        if (correctionError || !correctionOrder) {
+          throw new Error(`Admin correction order not found: ${orderId}`);
+        }
+
+        const newTotalTtc = Number(correctionOrder.total_ttc || 0) + (Number.isFinite(correctionAmount) ? correctionAmount : 0);
+        const notesAppend = `\nStripe correction session: ${session.id}`;
+
+        await supabaseAdmin
+          .from("orders")
+          .update({
+            status: "paid",
+            total_ttc: Math.round(newTotalTtc * 100) / 100,
+            stripe_checkout_session_id: session.id,
+            notes: `${correctionOrder.notes || ""}${notesAppend}`.trim(),
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", orderId);
+
+        await insertOrderStatusEvent(supabaseAdmin, {
+          order_id: orderId,
+          status: "paid",
+          event_kind: "payment_received",
+          is_manual: false,
+          note: "Paiement complémentaire reçu",
+          amount_ttc: Number.isFinite(correctionAmount) ? correctionAmount : null,
+          stripe_checkout_session_id: session.id,
+        });
+
+        logStep("Admin correction payment applied", { orderId, sessionId: session.id });
+        return new Response(JSON.stringify({ received: true, admin_correction: true }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
+        });
+      }
 
       // Check if order already exists with this Session ID
       const { data: existingOrder } = await supabaseAdmin
@@ -488,6 +556,7 @@ serve(async (req) => {
           : null,
         shipping_city: shippingAddress?.city || null,
         shipping_postal_code: shippingAddress?.postal_code || null,
+        stripe_checkout_session_id: session.id,
         notes: `Stripe Session: ${session.id} | stripe_mode:${stripeModeFromSession}`,
       };
       if (sessionOrderSiteId) sessionInsert.site_id = sessionOrderSiteId;
@@ -504,6 +573,16 @@ serve(async (req) => {
       }
 
       logStep("Order created", { orderId: order.id, orderNumber });
+
+      await insertOrderStatusEvent(supabaseAdmin, {
+        order_id: order.id,
+        status: "paid",
+        event_kind: "auto_stripe",
+        is_manual: false,
+        note: "Paiement Checkout Stripe reçu",
+        amount_ttc: totalTTC,
+        stripe_checkout_session_id: session.id,
+      });
 
       // Create order items
       if (cartItems.length > 0) {
@@ -557,6 +636,34 @@ serve(async (req) => {
       }
 
       logStep("Checkout session processing complete");
+    }
+
+    if (event.type === "charge.refunded") {
+      const charge = event.data.object as Stripe.Charge;
+      const paymentIntentId = typeof charge.payment_intent === "string"
+        ? charge.payment_intent
+        : charge.payment_intent?.id;
+
+      if (paymentIntentId) {
+        const { data: refundedOrder } = await supabaseAdmin
+          .from("orders")
+          .select("id, status, order_number")
+          .or(`stripe_payment_intent_id.eq.${paymentIntentId},notes.ilike.%${paymentIntentId}%`)
+          .maybeSingle();
+
+        if (refundedOrder) {
+          const refundAmount = charge.amount_refunded ? charge.amount_refunded / 100 : null;
+          await insertOrderStatusEvent(supabaseAdmin, {
+            order_id: refundedOrder.id,
+            status: refundedOrder.status,
+            event_kind: "refund",
+            is_manual: false,
+            note: "Remboursement synchronisé depuis Stripe",
+            amount_ttc: refundAmount,
+          });
+          logStep("Refund event recorded from Stripe webhook", { orderId: refundedOrder.id });
+        }
+      }
     }
 
     return new Response(JSON.stringify({ received: true }), {

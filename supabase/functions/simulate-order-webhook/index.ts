@@ -7,6 +7,7 @@ import { generateOrderPDF } from "../_shared/generate-order-pdf.ts";
 import { loadSiteLogoForOrderPdf } from "../_shared/site-logo.ts";
 import { resolveOrderCustomerPhone } from "../_shared/order-customer-phone.ts";
 import { resolveOrderCustomerEmail } from "../_shared/order-customer-email.ts";
+import { insertOrderStatusEvent } from "../_shared/order-status-events.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -67,7 +68,7 @@ serve(async (req) => {
       );
     }
 
-    const { order_id, preview_only } = await req.json();
+    const { order_id, preview_only, record_manual_event, manual_note } = await req.json();
 
     if (!order_id) {
       return new Response(
@@ -356,6 +357,22 @@ serve(async (req) => {
     }
 
     logStep("n8n response", { status: responseStatus, body: responseBody.substring(0, 200) });
+
+    if (record_manual_event) {
+      await insertOrderStatusEvent(supabaseAdmin, {
+        order_id: order.id,
+        status: order.status,
+        event_kind: "manual_cmd",
+        is_manual: true,
+        note: manual_note || "Régénération CMD fournisseur",
+        document: {
+          name: pdfFileName,
+          path: pdfPath,
+          type: "renvoi",
+        },
+        created_by: user.id,
+      });
+    }
 
     return new Response(
       JSON.stringify({ 
