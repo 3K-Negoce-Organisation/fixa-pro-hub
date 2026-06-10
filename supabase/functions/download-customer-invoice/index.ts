@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { generateCustomerInvoicePDF } from "../_shared/generate-customer-invoice-pdf.ts";
 import { loadSiteLogoForOrderPdf } from "../_shared/site-logo.ts";
+import { verifyGuestOrderTrackingToken } from "../_shared/guest-order-tracking-token.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -23,6 +24,7 @@ async function resolveOrderAccess(
   orderNumber: string,
   email: string | null,
   userId: string | null,
+  trackingToken: string | null,
 ) {
   const { data: order, error: orderErr } = await admin
     .from("orders")
@@ -46,6 +48,11 @@ async function resolveOrderAccess(
     return { error: "Commande introuvable.", status: 404 as const };
   }
 
+  const tokenOk = await verifyGuestOrderTrackingToken(orderNumber, guestEmail, trackingToken);
+  if (!tokenOk) {
+    return { error: "Lien de suivi invalide. Utilisez le lien reçu par email.", status: 403 as const };
+  }
+
   return { order };
 }
 
@@ -55,7 +62,7 @@ serve(async (req) => {
   }
 
   try {
-    const body = await req.json() as { order_number?: string; email?: string };
+    const body = await req.json() as { order_number?: string; email?: string; token?: string };
     const order_number = (body.order_number ?? "").trim().toUpperCase();
 
     if (!order_number) {
@@ -95,7 +102,13 @@ serve(async (req) => {
       userId = authData.user?.id ?? null;
     }
 
-    const access = await resolveOrderAccess(admin, order_number, body.email ?? null, userId);
+    const access = await resolveOrderAccess(
+      admin,
+      order_number,
+      body.email ?? null,
+      userId,
+      body.token ?? null,
+    );
     if ("error" in access) {
       return new Response(JSON.stringify({ error: access.error }), {
         status: access.status,
@@ -104,9 +117,8 @@ serve(async (req) => {
     }
 
     const order = access.order;
-    const blockedStatuses = new Set(["pending", "cancelled"]);
-    if (blockedStatuses.has(order.status as string)) {
-      return new Response(JSON.stringify({ error: "Facture indisponible pour cette commande." }), {
+    if ((order.status as string) !== "delivered") {
+      return new Response(JSON.stringify({ error: "La facture client est disponible après livraison." }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });

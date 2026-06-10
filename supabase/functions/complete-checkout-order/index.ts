@@ -5,6 +5,7 @@ import {
   fulfillPaymentIntentOrder,
   stripeClientForPaymentIntent,
 } from "../_shared/payment-intent-order.ts";
+import { signGuestOrderTrackingToken } from "../_shared/guest-order-tracking-token.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -69,7 +70,13 @@ serve(async (req) => {
       user_email,
     });
 
-    return new Response(JSON.stringify({ success: true, ...result }), {
+    const customerEmail = typeof user_email === "string" ? user_email.trim().toLowerCase() : "";
+    const tracking_token =
+      customerEmail && result.order_number
+        ? await signGuestOrderTrackingToken(result.order_number, customerEmail)
+        : undefined;
+
+    return new Response(JSON.stringify({ success: true, ...result, tracking_token }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

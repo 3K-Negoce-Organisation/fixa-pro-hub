@@ -51,8 +51,9 @@ const App = () => (
                 
                 <Routes>
                   <Route path="/auth" element={<AuthPage />} />
-                  <Route path="/suivi" element={<StorefrontAccessGuard><OrderTrackingPage /></StorefrontAccessGuard>} />
-                  <Route path="/confirmation" element={<StorefrontAccessGuard><OrderConfirmationPage /></StorefrontAccessGuard>} />
+                  {/* Suivi / confirmation : accessibles via lien email même boutique privée */}
+                  <Route path="/suivi" element={<OrderTrackingPage />} />
+                  <Route path="/confirmation" element={<OrderConfirmationPage />} />
                   <Route path="/paiement-annule" element={<StorefrontAccessGuard><PaymentCancelPage /></StorefrontAccessGuard>} />
                   <Route path="/" element={<StorefrontAccessGuard><Index /></StorefrontAccessGuard>} />
                   <Route path="/produits" element={<StorefrontAccessGuard><ProductsPage /></StorefrontAccessGuard>} />

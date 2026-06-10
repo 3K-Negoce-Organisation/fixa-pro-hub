@@ -766,8 +766,8 @@ async function sendToN8n(
       const storefrontBase = (Deno.env.get("STOREFRONT_URL") || "https://www.vis-a-bois.com").replace(/\/$/, "");
       const emailForLink = resolvedEmail || customerEmail || "";
       const trackingUrl = emailForLink
-        ? buildOrderTrackingUrlForEmail(orderNumber, emailForLink, storefrontBase)
-        : `${storefrontBase}/suivi?order=${encodeURIComponent(orderNumber)}`;
+        ? await buildOrderTrackingUrlForEmail(orderNumber, emailForLink, storefrontBase)
+        : `${storefrontBase}/suivi`;
 
       const { fromEmail: resendFrom, fromName, replyTo } = resolveResendFrom(supplierSettings);
       const logoUrl = await resolveSiteLogoUrlForEmail(supabaseAdmin, orderSiteId);

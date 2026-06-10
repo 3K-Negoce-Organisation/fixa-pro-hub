@@ -200,7 +200,7 @@ serve(async (req) => {
     const fromEmail = supplierSettings?.customer_service_email || supplierSettings?.email;
     if ((fromEmail || Deno.env.get("RESEND_FROM_EMAIL")) && customerEmail) {
       const storefrontBase = (Deno.env.get("STOREFRONT_URL") || "https://www.vis-a-bois.com").replace(/\/$/, "");
-      const trackingUrl = buildOrderTrackingUrlForEmail(order.order_number, customerEmail, storefrontBase);
+      const trackingUrl = await buildOrderTrackingUrlForEmail(order.order_number, customerEmail, storefrontBase);
 
       const { fromEmail: resendFrom, fromName, replyTo } = resolveResendFrom(supplierSettings);
       const logoUrl = await resolveSiteLogoUrlForEmail(supabaseAdmin, order.site_id ?? null);

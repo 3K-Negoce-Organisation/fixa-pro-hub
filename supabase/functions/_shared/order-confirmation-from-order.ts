@@ -124,7 +124,7 @@ async function sendOrderConfirmationForOrderRow(
     ? `${order.shipping_postal_code} ${order.shipping_city}`
     : order.shipping_city;
 
-  const trackingUrl = buildOrderTrackingUrlForEmail(order.order_number, customerEmail);
+  const trackingUrl = await buildOrderTrackingUrlForEmail(order.order_number, customerEmail);
 
   const params: OrderConfirmationEmailParams = {
     customerEmail,

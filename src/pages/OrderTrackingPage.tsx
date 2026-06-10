@@ -6,7 +6,6 @@ import { Footer } from "@/components/layout/Footer";
 import { PageBackground } from "@/components/layout/PageBackground";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -106,6 +105,14 @@ const statusConfig: Record<OrderStatus, { label: string; color: string; icon: Re
   cancelled: { label: "Annulée", color: "bg-red-100 text-red-800", icon: <XCircle className="h-4 w-4" />, step: 0 },
 };
 
+const getStatusMeta = (status: string) =>
+  statusConfig[status as OrderStatus] ?? {
+    label: status.replace(/_/g, " "),
+    color: "bg-muted text-muted-foreground",
+    icon: <Clock className="h-4 w-4" />,
+    step: 1,
+  };
+
 const statusSteps = [
   { key: 'pending', label: 'En attente' },
   { key: 'paid', label: 'Payée' },
@@ -115,17 +122,18 @@ const statusSteps = [
   { key: 'delivered', label: 'Livrée' },
 ];
 
-const canDownloadCustomerInvoice = (status: OrderStatus) =>
-  status !== "pending" && status !== "cancelled";
+const canDownloadCustomerInvoice = (status: OrderStatus) => status === "delivered";
 
 const OrderTrackingPage = () => {
   const [searchParams] = useSearchParams();
   const orderFromUrl = searchParams.get("order");
   const emailFromUrl = searchParams.get("email");
+  const tokenFromUrl = searchParams.get("t");
   
   const [orderNumber, setOrderNumber] = useState(orderFromUrl || "");
   const [searchTerm, setSearchTerm] = useState(orderFromUrl || "");
   const [guestEmail, setGuestEmail] = useState(emailFromUrl || "");
+  const [guestTrackingToken, setGuestTrackingToken] = useState(tokenFromUrl || "");
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
@@ -133,6 +141,7 @@ const OrderTrackingPage = () => {
   const [sessionUserId, setSessionUserId] = useState<string | null>(null);
   const [orderFromGuestLookup, setOrderFromGuestLookup] = useState(false);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const autoSearchKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -175,17 +184,36 @@ const OrderTrackingPage = () => {
     enabled: !!sessionUserId,
   });
 
-  // Auto-search when order + email in URL (invité) or order + session (connecté)
+  // Auto-search : lien email signé (order + email + jeton)
   useEffect(() => {
-    if (orderFromUrl && emailFromUrl && !sessionUserId) {
-      void searchGuestOrder(orderFromUrl, emailFromUrl);
-    } else if (orderFromUrl && sessionUserId) {
+    if (orderFromUrl && emailFromUrl && tokenFromUrl) {
+      const key = `${orderFromUrl}:${emailFromUrl}:${tokenFromUrl}`;
+      if (autoSearchKeyRef.current === key) return;
+      autoSearchKeyRef.current = key;
+      setGuestTrackingToken(tokenFromUrl);
+      void searchGuestOrder(orderFromUrl, emailFromUrl, tokenFromUrl);
+      return;
+    }
+
+    if (orderFromUrl && emailFromUrl && !tokenFromUrl) {
+      setError("Lien de suivi incomplet ou invalide. Ouvrez le lien reçu par email de confirmation.");
+      setSearched(true);
+      return;
+    }
+
+    if (orderFromUrl && sessionUserId) {
+      const key = `user:${orderFromUrl}`;
+      if (autoSearchKeyRef.current === key) return;
+      autoSearchKeyRef.current = key;
       void searchOrder(orderFromUrl);
-    } else if (sessionUserId && userOrders && userOrders.length > 0 && !order && !searched && !orderFromUrl) {
+      return;
+    }
+
+    if (sessionUserId && userOrders && userOrders.length > 0 && !order && !searched && !orderFromUrl) {
       const mostRecentOrder = userOrders[0];
       void handleSelectOrder(mostRecentOrder.order_number);
     }
-  }, [orderFromUrl, emailFromUrl, userOrders, sessionUserId]);
+  }, [orderFromUrl, emailFromUrl, tokenFromUrl, userOrders, sessionUserId]);
 
   // Subscribe to realtime updates when order is loaded (not for guest email lookup — RLS blocks anon channel)
   useEffect(() => {
@@ -241,7 +269,7 @@ const OrderTrackingPage = () => {
           });
 
           // Show toast notification
-          const statusLabel = statusConfig[newData.status]?.label || newData.status;
+          const statusLabel = getStatusMeta(newData.status).label;
           toast.success(`Statut mis à jour : ${statusLabel}`, {
             description: newData.tracking_number 
               ? `Numéro de suivi : ${newData.tracking_number}` 
@@ -313,13 +341,19 @@ const OrderTrackingPage = () => {
     setLoading(false);
   };
 
-  const searchGuestOrder = async (term: string, email: string) => {
+  const searchGuestOrder = async (term: string, email: string, token: string) => {
     if (!term.trim()) return;
+    if (!token.trim()) {
+      setError("Lien de suivi invalide. Utilisez le lien reçu par email de confirmation.");
+      setSearched(true);
+      return;
+    }
 
     setLoading(true);
     setError(null);
     setSearched(true);
     setOrderFromGuestLookup(false);
+    setGuestTrackingToken(token.trim());
 
     const searchTermUpper = term.trim().toUpperCase();
 
@@ -327,6 +361,7 @@ const OrderTrackingPage = () => {
       body: {
         order_number: searchTermUpper,
         email: email.trim().toLowerCase(),
+        token: token.trim(),
       },
     });
 
@@ -371,13 +406,9 @@ const OrderTrackingPage = () => {
     setSearchTerm(orderNumber);
     if (sessionUserId) {
       await searchOrder(orderNumber);
-    } else {
-      if (!guestEmail.trim() || !guestEmail.includes("@")) {
-        toast.error("Indiquez l'email utilisé lors de la commande.");
-        return;
-      }
-      await searchGuestOrder(orderNumber, guestEmail);
+      return;
     }
+    toast.error("Sans compte, ouvrez le lien « Suivre ma commande » reçu par email.");
   };
 
   const handleSelectOrder = async (selectedOrderNumber: string) => {
@@ -410,11 +441,14 @@ const OrderTrackingPage = () => {
     try {
       toast.loading("Génération de la facture...", { id: "download-invoice" });
 
-      const body: { order_number: string; email?: string } = {
+      const body: { order_number: string; email?: string; token?: string } = {
         order_number: order.order_number,
       };
       if (orderFromGuestLookup && guestEmail.trim()) {
         body.email = guestEmail.trim().toLowerCase();
+        if (guestTrackingToken.trim()) {
+          body.token = guestTrackingToken.trim();
+        }
       }
 
       const { data, error } = await supabase.functions.invoke("download-customer-invoice", {
@@ -465,7 +499,7 @@ const OrderTrackingPage = () => {
       );
     }
 
-    const currentStep = statusConfig[status].step;
+    const currentStep = getStatusMeta(status).step;
 
     return (
       <div className="py-4 sm:py-6">
@@ -561,32 +595,29 @@ const OrderTrackingPage = () => {
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleSearch} className="flex flex-col gap-3">
-                  <Input
-                    type="text"
-                    placeholder="Numéro de commande (ex: VB-ABC123)"
-                    value={orderNumber}
-                    onChange={(e) => setOrderNumber(e.target.value)}
-                  />
-                  {!sessionUserId ? (
-                    <div className="space-y-2">
-                      <Label htmlFor="guest-email">Email utilisé pour la commande</Label>
+                  {sessionUserId ? (
+                    <>
                       <Input
-                        id="guest-email"
-                        type="email"
-                        autoComplete="email"
-                        placeholder="vous@exemple.fr"
-                        value={guestEmail}
-                        onChange={(e) => setGuestEmail(e.target.value)}
+                        type="text"
+                        placeholder="Numéro de commande (ex: VIS-202606-ABC123)"
+                        value={orderNumber}
+                        onChange={(e) => setOrderNumber(e.target.value)}
                       />
-                      <p className="text-xs text-muted-foreground">
-                        Sans compte, le numéro de commande et l&apos;email doivent correspondre à la commande.
-                      </p>
-                    </div>
-                  ) : null}
-                  <Button type="submit" disabled={loading}>
-                    <Search className="h-4 w-4 mr-2" />
-                    {loading ? "Recherche..." : "Rechercher"}
-                  </Button>
+                      <Button type="submit" disabled={loading}>
+                        <Search className="h-4 w-4 mr-2" />
+                        {loading ? "Recherche..." : "Rechercher"}
+                      </Button>
+                    </>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      Commande passée sans compte ? Ouvrez le lien de suivi reçu par email après votre achat.
+                      Vous pouvez aussi{" "}
+                      <Link to="/auth" className="text-primary hover:underline">
+                        vous connecter
+                      </Link>{" "}
+                      pour retrouver vos commandes.
+                    </p>
+                  )}
                 </form>
               </CardContent>
             </Card>
@@ -626,8 +657,8 @@ const OrderTrackingPage = () => {
                       >
                         <div className="flex items-center justify-between mb-1">
                           <span className="font-medium text-sm">{o.order_number}</span>
-                          <Badge className={`${statusConfig[o.status as OrderStatus].color} text-xs`}>
-                            {statusConfig[o.status as OrderStatus].label}
+                          <Badge className={`${getStatusMeta(o.status).color} text-xs`}>
+                            {getStatusMeta(o.status).label}
                           </Badge>
                         </div>
                         <div className="flex items-center justify-between text-xs text-muted-foreground">
@@ -679,15 +710,15 @@ const OrderTrackingPage = () => {
             )}
 
             {/* Initial state - no search yet */}
-            {!searched && !order && orderFromUrl && (
+            {!searched && !order && orderFromUrl && !tokenFromUrl && (
               <Card>
                 <CardContent className="flex flex-col items-center justify-center py-12 text-center px-4">
                   <Package className="h-16 w-16 text-muted-foreground mb-4" />
                   <h2 className="text-xl font-semibold text-foreground mb-2">
-                    Commande {orderFromUrl}
+                    Lien de suivi invalide
                   </h2>
                   <p className="text-muted-foreground max-w-md">
-                    Pour afficher le détail, saisissez l&apos;email utilisé lors de la commande dans le formulaire à gauche, puis cliquez sur Rechercher.
+                    Utilisez le lien complet reçu par email de confirmation (il contient un code de sécurité).
                   </p>
                 </CardContent>
               </Card>
@@ -701,7 +732,7 @@ const OrderTrackingPage = () => {
                     Recherchez une commande
                   </h2>
                   <p className="text-muted-foreground text-center">
-                    Entrez un numéro de commande ou sélectionnez une commande dans la liste
+                    Connectez-vous pour retrouver vos commandes, ou ouvrez le lien reçu par email.
                   </p>
                 </CardContent>
               </Card>
@@ -722,9 +753,9 @@ const OrderTrackingPage = () => {
                           Passée le {formatDate(order.created_at)}
                         </p>
                       </div>
-                      <Badge className={`${statusConfig[order.status].color} flex items-center gap-1 self-start`}>
-                        {statusConfig[order.status].icon}
-                        {statusConfig[order.status].label}
+                      <Badge className={`${getStatusMeta(order.status).color} flex items-center gap-1 self-start`}>
+                        {getStatusMeta(order.status).icon}
+                        {getStatusMeta(order.status).label}
                       </Badge>
                     </div>
 
