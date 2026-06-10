@@ -203,6 +203,17 @@ export async function loadSiteLogoForPdf(logoUrl: string | null | undefined): Pr
   return null;
 }
 
+/** URL publique du logo, rendue JPEG si stockée en WebP (compatibilité clients mail). */
+export async function resolveSiteLogoUrlForEmail(
+  supabaseAdmin: SupabaseAdmin,
+  siteId: string | null | undefined,
+): Promise<string | null> {
+  const logoUrl = await resolveSiteLogoUrl(supabaseAdmin, siteId);
+  if (!logoUrl) return null;
+  const renderUrl = toSupabaseRenderJpegUrl(logoUrl);
+  return renderUrl || logoUrl;
+}
+
 export async function loadSiteLogoForOrderPdf(
   supabaseAdmin: SupabaseAdmin,
   siteId: string | null | undefined,

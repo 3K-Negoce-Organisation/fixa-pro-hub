@@ -128,7 +128,7 @@ const OrderTrackingPage = () => {
   const [guestEmail, setGuestEmail] = useState(emailFromUrl || "");
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(false);
-  const [searched, setSearched] = useState(!!orderFromUrl);
+  const [searched, setSearched] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sessionUserId, setSessionUserId] = useState<string | null>(null);
   const [orderFromGuestLookup, setOrderFromGuestLookup] = useState(false);
@@ -175,15 +175,15 @@ const OrderTrackingPage = () => {
     enabled: !!sessionUserId,
   });
 
-  // Auto-search when order number is in URL or select most recent order
+  // Auto-search when order + email in URL (invité) or order + session (connecté)
   useEffect(() => {
-    if (orderFromUrl && sessionUserId) {
-      searchOrder(orderFromUrl);
-    } else if (orderFromUrl && emailFromUrl && !sessionUserId) {
+    if (orderFromUrl && emailFromUrl && !sessionUserId) {
       void searchGuestOrder(orderFromUrl, emailFromUrl);
-    } else if (sessionUserId && userOrders && userOrders.length > 0 && !order && !searched) {
+    } else if (orderFromUrl && sessionUserId) {
+      void searchOrder(orderFromUrl);
+    } else if (sessionUserId && userOrders && userOrders.length > 0 && !order && !searched && !orderFromUrl) {
       const mostRecentOrder = userOrders[0];
-      handleSelectOrder(mostRecentOrder.order_number);
+      void handleSelectOrder(mostRecentOrder.order_number);
     }
   }, [orderFromUrl, emailFromUrl, userOrders, sessionUserId]);
 
@@ -679,7 +679,21 @@ const OrderTrackingPage = () => {
             )}
 
             {/* Initial state - no search yet */}
-            {!searched && !order && (
+            {!searched && !order && orderFromUrl && (
+              <Card>
+                <CardContent className="flex flex-col items-center justify-center py-12 text-center px-4">
+                  <Package className="h-16 w-16 text-muted-foreground mb-4" />
+                  <h2 className="text-xl font-semibold text-foreground mb-2">
+                    Commande {orderFromUrl}
+                  </h2>
+                  <p className="text-muted-foreground max-w-md">
+                    Pour afficher le détail, saisissez l&apos;email utilisé lors de la commande dans le formulaire à gauche, puis cliquez sur Rechercher.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+
+            {!searched && !order && !orderFromUrl && (
               <Card>
                 <CardContent className="flex flex-col items-center justify-center py-12">
                   <Search className="h-16 w-16 text-muted-foreground mb-4" />

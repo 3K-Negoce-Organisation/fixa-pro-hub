@@ -29,6 +29,8 @@ export interface OrderConfirmationEmailParams {
   trackingUrl?: string | null;
   /** Reply-to (ex. SAV) si différent de l'expéditeur Resend vérifié */
   replyTo?: string | null;
+  /** Logo vitrine (URL publique HTTPS) */
+  logoUrl?: string | null;
 }
 
 function escapeHtml(value: string): string {
@@ -70,13 +72,19 @@ function buildOrderConfirmationHtml(params: OrderConfirmationEmailParams): strin
     params.shippingCityLine,
   ].filter(Boolean).map((line) => `<p style="margin:0 0 4px;">${escapeHtml(line!)}</p>`).join("");
 
+  const logoBlock = params.logoUrl
+    ? `<img src="${escapeHtml(params.logoUrl)}" alt="${escapeHtml(params.fromName)}" width="180" style="display:block;margin:0 auto 12px;max-width:180px;height:auto;" />`
+    : "";
+
   return `<!DOCTYPE html>
 <html lang="fr">
 <head><meta charset="UTF-8" /></head>
 <body style="font-family:Arial,sans-serif;background:#f4f4f4;margin:0;padding:24px;">
   <div style="max-width:600px;margin:0 auto;background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
-    <div style="background:#1a1a2e;padding:24px 32px;">
-      <h1 style="color:#fff;margin:0;font-size:20px;">${escapeHtml(params.fromName)}</h1>
+    <div style="background:#c45a11;padding:28px 32px;text-align:center;">
+      ${logoBlock}
+      <p style="color:#fff;margin:0;font-size:22px;font-weight:bold;letter-spacing:0.02em;">${escapeHtml(params.fromName)}</p>
+      <p style="color:rgba(255,255,255,0.85);margin:6px 0 0;font-size:13px;">vis-a-bois.com</p>
     </div>
     <div style="padding:32px;color:#333;">
       <p style="margin-top:0;">Bonjour${params.shippingName ? ` ${escapeHtml(params.shippingName)}` : ""},</p>
@@ -100,7 +108,7 @@ function buildOrderConfirmationHtml(params: OrderConfirmationEmailParams): strin
       ${addressBlock ? `<h2 style="font-size:16px;margin:0 0 8px;">Adresse de livraison</h2>${addressBlock}` : ""}
       ${params.trackingUrl ? `
       <p style="margin:28px 0 8px;text-align:center;">
-        <a href="${escapeHtml(params.trackingUrl)}" style="display:inline-block;background:#1a1a2e;color:#fff;text-decoration:none;padding:14px 28px;border-radius:6px;font-weight:bold;font-size:15px;">
+        <a href="${escapeHtml(params.trackingUrl)}" style="display:inline-block;background:#c45a11;color:#fff;text-decoration:none;padding:14px 28px;border-radius:6px;font-weight:bold;font-size:15px;">
           Suivre ma commande
         </a>
       </p>

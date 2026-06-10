@@ -1,8 +1,9 @@
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { splitOrderTotals } from "./order-totals.ts";
 import { sendOrderConfirmationEmail, type OrderConfirmationEmailParams } from "./send-order-confirmation-email.ts";
-import { buildGuestOrderTrackingUrl } from "./guest-order-tracking-url.ts";
+import { buildOrderTrackingUrlForEmail } from "./guest-order-tracking-url.ts";
 import { resolveResendFrom } from "./resolve-resend-from.ts";
+import { resolveSiteLogoUrlForEmail } from "./site-logo.ts";
 
 type OrderRow = {
   order_number: string;
@@ -14,6 +15,7 @@ type OrderRow = {
   total_ht: number;
   total_ttc: number;
   user_id: string | null;
+  site_id: string | null;
 };
 
 type OrderItemRow = {
@@ -30,7 +32,7 @@ export async function sendOrderConfirmationForOrderId(
 ): Promise<{ sent: boolean; order_number?: string; error?: string }> {
   const { data: order, error: orderError } = await supabaseAdmin
     .from("orders")
-    .select("id, order_number, user_email, shipping_name, shipping_address, shipping_city, shipping_postal_code, total_ht, total_ttc, user_id")
+    .select("id, order_number, user_email, shipping_name, shipping_address, shipping_city, shipping_postal_code, total_ht, total_ttc, user_id, site_id")
     .eq("id", orderId)
     .maybeSingle();
 
@@ -47,7 +49,7 @@ export async function sendOrderConfirmationForOrderNumber(
 ): Promise<{ sent: boolean; order_number?: string; error?: string }> {
   const { data: order, error: orderError } = await supabaseAdmin
     .from("orders")
-    .select("id, order_number, user_email, shipping_name, shipping_address, shipping_city, shipping_postal_code, total_ht, total_ttc, user_id")
+    .select("id, order_number, user_email, shipping_name, shipping_address, shipping_city, shipping_postal_code, total_ht, total_ttc, user_id, site_id")
     .eq("order_number", orderNumber.trim().toUpperCase())
     .maybeSingle();
 
@@ -79,6 +81,7 @@ async function sendOrderConfirmationForOrderRow(
   }
 
   const { fromEmail: resendFrom, fromName, replyTo } = resolveResendFrom(supplierSettings);
+  const logoUrl = await resolveSiteLogoUrlForEmail(supabaseAdmin, order.site_id);
 
   const { data: items, error: itemsError } = await supabaseAdmin
     .from("order_items")
@@ -121,15 +124,14 @@ async function sendOrderConfirmationForOrderRow(
     ? `${order.shipping_postal_code} ${order.shipping_city}`
     : order.shipping_city;
 
-  const trackingUrl = !order.user_id
-    ? buildGuestOrderTrackingUrl(order.order_number, customerEmail)
-    : `${(Deno.env.get("STOREFRONT_URL") || "https://www.vis-a-bois.com").replace(/\/$/, "")}/suivi?order=${encodeURIComponent(order.order_number)}`;
+  const trackingUrl = buildOrderTrackingUrlForEmail(order.order_number, customerEmail);
 
   const params: OrderConfirmationEmailParams = {
     customerEmail,
     fromEmail: resendFrom,
     fromName,
     replyTo,
+    logoUrl,
     bccEmail: null,
     orderNumber: order.order_number,
     items: mappedItems,

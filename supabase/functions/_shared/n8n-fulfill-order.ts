@@ -6,8 +6,9 @@ import { generateOrderPDF } from "./generate-order-pdf.ts";
 import { loadSiteLogoForOrderPdf } from "./site-logo.ts";
 import { resolveOrderCustomerPhone } from "./order-customer-phone.ts";
 import { resolveOrderCustomerEmail } from "./order-customer-email.ts";
-import { buildGuestOrderTrackingUrl } from "./guest-order-tracking-url.ts";
+import { buildOrderTrackingUrlForEmail } from "./guest-order-tracking-url.ts";
 import { resolveResendFrom } from "./resolve-resend-from.ts";
+import { resolveSiteLogoUrlForEmail } from "./site-logo.ts";
 
 export type SendOrderToN8nParams = {
   n8nWebhookUrl: string;
@@ -61,7 +62,6 @@ export async function sendOrderToN8n(params: SendOrderToN8nParams): Promise<void
     let resolvedPhone = customerPhone?.trim() || null;
     let resolvedEmail = customerEmail?.trim() || "";
     let orderSiteId: string | null = null;
-    let orderUserId: string | null = null;
 
     if (orderId) {
       const { data: orderRow } = await supabaseAdmin
@@ -70,7 +70,6 @@ export async function sendOrderToN8n(params: SendOrderToN8nParams): Promise<void
         .eq("id", orderId)
         .maybeSingle();
       orderSiteId = orderRow?.site_id ?? null;
-      orderUserId = orderRow?.user_id ?? null;
       if (orderRow) {
         if (!resolvedPhone) {
           resolvedPhone = await resolveOrderCustomerPhone(supabaseAdmin, orderRow);
@@ -104,8 +103,9 @@ export async function sendOrderToN8n(params: SendOrderToN8nParams): Promise<void
     const { productsHT, shippingHT } = splitOrderTotals(enrichedCartItems, totalHT);
     const fromEmail = supplierSettings?.customer_service_email || supplierSettings?.email;
     const storefrontBase = (Deno.env.get("STOREFRONT_URL") || "https://www.vis-a-bois.com").replace(/\/$/, "");
-    const trackingUrl = !orderUserId && (resolvedEmail || customerEmail)
-      ? buildGuestOrderTrackingUrl(orderNumber, resolvedEmail || customerEmail!)
+    const customerEmailForLink = resolvedEmail || customerEmail || "";
+    const trackingUrl = customerEmailForLink
+      ? buildOrderTrackingUrlForEmail(orderNumber, customerEmailForLink, storefrontBase)
       : `${storefrontBase}/suivi?order=${encodeURIComponent(orderNumber)}`;
 
     if ((fromEmail || Deno.env.get("RESEND_FROM_EMAIL")) && (resolvedEmail || customerEmail)) {
@@ -116,12 +116,14 @@ export async function sendOrderToN8n(params: SendOrderToN8nParams): Promise<void
         : shippingAddress?.city || null;
 
       const { fromEmail: resendFrom, fromName, replyTo } = resolveResendFrom(supplierSettings);
+      const logoUrl = await resolveSiteLogoUrlForEmail(supabaseAdmin, orderSiteId);
 
       await sendOrderConfirmationEmail({
         customerEmail: resolvedEmail || customerEmail!,
         fromEmail: resendFrom,
         fromName,
         replyTo,
+        logoUrl,
         bccEmail: supplierSettings?.status_email || null,
         orderNumber,
         items: enrichedCartItems.map((item) => ({
