@@ -22,6 +22,7 @@ import { toast } from "sonner";
 import { splitOrderTotalsFromItems } from "@/lib/shipping";
 import { getDisplayVariantTitle } from "@/lib/products";
 import { BoxQuantityHint } from "@/components/cart/BoxQuantityHint";
+import { getEdgeFunctionErrorMessage } from "@/lib/edgeFunctionError";
 
 const formatPriceHT = (price: number) => {
   return new Intl.NumberFormat("fr-FR", {
@@ -368,8 +369,7 @@ const OrderTrackingPage = () => {
     if (fnError || (data && typeof data === "object" && "error" in data && data.error)) {
       const msg =
         (data && typeof data === "object" && "error" in data && String((data as { error: string }).error)) ||
-        fnError?.message ||
-        "Commande introuvable.";
+        (await getEdgeFunctionErrorMessage(fnError, "Commande introuvable."));
       setError(msg);
       setOrder(null);
       setLoading(false);
