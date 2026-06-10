@@ -6,7 +6,9 @@ export type OrderEventKind =
   | "manual_cmd"
   | "refund"
   | "payment_link_sent"
-  | "payment_received";
+  | "payment_received"
+  | "supplier_problem"
+  | "intervention_claimed";
 
 export interface OrderStatusEventDocument {
   name: string;

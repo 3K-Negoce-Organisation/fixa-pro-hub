@@ -38,7 +38,7 @@ const formatPriceTTC = (price: number) => {
   }).format(price) + " TTC";
 };
 
-type OrderStatus = 'pending' | 'paid' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
+type OrderStatus = 'pending' | 'paid' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'manual_intervention' | 'awaiting_payment';
 
 interface OrderItem {
   id: string;
@@ -46,6 +46,8 @@ interface OrderItem {
   product_title: string;
   product_image: string | null;
   variant_title: string | null;
+  designation_fr?: string | null;
+  product_description?: string | null;
   quantity: number;
   unit_price_ht: number;
   unit_price_ttc: number;
@@ -79,23 +81,6 @@ interface Order {
   documents: OrderDocument[];
 }
 
-async function enrichOrderItemsWithBoxQuantity(items: OrderItem[]): Promise<OrderItem[]> {
-  const productIds = [...new Set(items.map((i) => i.product_id).filter(Boolean))];
-  if (productIds.length === 0) return items;
-
-  const { data: products } = await supabase
-    .from("products")
-    .select("id, box_quantity")
-    .in("id", productIds);
-
-  const boxById = new Map((products || []).map((p) => [p.id, p.box_quantity]));
-
-  return items.map((item) => ({
-    ...item,
-    box_quantity: boxById.get(item.product_id) ?? item.box_quantity ?? null,
-  }));
-}
-
 const statusConfig: Record<OrderStatus, { label: string; color: string; icon: React.ReactNode; step: number }> = {
   pending: { label: "En attente", color: "bg-yellow-100 text-yellow-800", icon: <Clock className="h-4 w-4" />, step: 1 },
   paid: { label: "Payée", color: "bg-emerald-100 text-emerald-800", icon: <CheckCircle className="h-4 w-4" />, step: 2 },
@@ -103,6 +88,8 @@ const statusConfig: Record<OrderStatus, { label: string; color: string; icon: Re
   processing: { label: "En préparation", color: "bg-purple-100 text-purple-800", icon: <Package className="h-4 w-4" />, step: 4 },
   shipped: { label: "Expédiée", color: "bg-indigo-100 text-indigo-800", icon: <Truck className="h-4 w-4" />, step: 5 },
   delivered: { label: "Livrée", color: "bg-green-100 text-green-800", icon: <CheckCircle className="h-4 w-4" />, step: 6 },
+  manual_intervention: { label: "Traitement en cours", color: "bg-amber-100 text-amber-900", icon: <Package className="h-4 w-4" />, step: 4 },
+  awaiting_payment: { label: "En attente de paiement", color: "bg-orange-100 text-orange-800", icon: <Clock className="h-4 w-4" />, step: 2 },
   cancelled: { label: "Annulée", color: "bg-red-100 text-red-800", icon: <XCircle className="h-4 w-4" />, step: 0 },
 };
 
@@ -335,7 +322,7 @@ const OrderTrackingPage = () => {
     setOrder({
       ...orderData,
       status: orderData.status as OrderStatus,
-      order_items: await enrichOrderItemsWithBoxQuantity(itemsData || []),
+      order_items: (itemsData || []) as OrderItem[],
       documents,
     });
 
@@ -394,7 +381,7 @@ const OrderTrackingPage = () => {
     setOrder({
       ...(orderData as unknown as Order),
       status: orderData.status as OrderStatus,
-      order_items: await enrichOrderItemsWithBoxQuantity((itemsData || []) as unknown as OrderItem[]),
+      order_items: (itemsData || []) as OrderItem[],
       documents,
     });
     setOrderFromGuestLookup(true);
@@ -836,6 +823,11 @@ const OrderTrackingPage = () => {
                             <p className="font-medium text-foreground text-sm line-clamp-2">
                               {item.product_title}
                             </p>
+                            {item.designation_fr && item.designation_fr !== item.product_title && (
+                              <p className="text-xs text-muted-foreground line-clamp-2">
+                                {item.designation_fr}
+                              </p>
+                            )}
                             {getDisplayVariantTitle(item.variant_title) && (
                               <p className="text-xs text-muted-foreground">
                                 {getDisplayVariantTitle(item.variant_title)}
@@ -881,6 +873,11 @@ const OrderTrackingPage = () => {
                                     <p className="font-medium text-foreground">
                                       {item.product_title}
                                     </p>
+                                    {item.designation_fr && item.designation_fr !== item.product_title && (
+                                      <p className="text-sm text-muted-foreground">
+                                        {item.designation_fr}
+                                      </p>
+                                    )}
                                     {getDisplayVariantTitle(item.variant_title) && (
                                       <p className="text-sm text-muted-foreground">
                                         {getDisplayVariantTitle(item.variant_title)}

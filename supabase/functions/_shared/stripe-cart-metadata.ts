@@ -9,6 +9,8 @@ export type CompactCartItem = {
   q: number;
   p: number;
   t: number;
+  /** variantId (ex. product-id-unit) */
+  v?: string;
 };
 
 export type PayableCartLine = {
@@ -24,14 +26,20 @@ export function filterPayableCartLines<T extends PayableCartLine>(items: T[]): T
 }
 
 export function toCompactCartItems(
-  items: Array<{ id: string; quantity: number; priceHT: number; priceTTC: number }>,
+  items: Array<{ id: string; quantity: number; priceHT: number; priceTTC: number; variantId?: string }>,
 ): CompactCartItem[] {
-  return items.map((item) => ({
-    i: item.id,
-    q: item.quantity,
-    p: roundMoney(item.priceHT),
-    t: roundMoney(item.priceTTC),
-  }));
+  return items.map((item) => {
+    const compact: CompactCartItem = {
+      i: item.id,
+      q: item.quantity,
+      p: roundMoney(item.priceHT),
+      t: roundMoney(item.priceTTC),
+    };
+    if (item.variantId?.trim()) {
+      compact.v = item.variantId.trim();
+    }
+    return compact;
+  });
 }
 
 /** Serialize compact cart lines into Stripe metadata (single key or chunked). */
@@ -93,6 +101,7 @@ export function compactItemsToOrderLines(compact: CompactCartItem[]) {
       quantity: item.q,
       priceHT,
       priceTTC,
+      variantId: item.v?.trim() || item.i,
     };
   });
 }
