@@ -11,3 +11,12 @@ export function buildGuestOrderTrackingUrl(
   });
   return `${base}/suivi?${params.toString()}`;
 }
+
+/** Lien suivi dans les emails client — toujours avec email (fonctionne sans compte). */
+export function buildOrderTrackingUrlForEmail(
+  orderNumber: string,
+  customerEmail: string,
+  storefrontUrl?: string,
+): string {
+  return buildGuestOrderTrackingUrl(orderNumber, customerEmail, storefrontUrl);
+}
