@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { generateCustomerInvoicePDF } from "../_shared/generate-customer-invoice-pdf.ts";
 import { loadSiteLogoForOrderPdf } from "../_shared/site-logo.ts";
 import { verifyGuestOrderTrackingToken } from "../_shared/guest-order-tracking-token.ts";
+import { verifyAdminRequest } from "../_shared/verify-admin.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -56,6 +57,52 @@ async function resolveOrderAccess(
   return { order };
 }
 
+async function buildCustomerInvoiceResponse(
+  admin: ReturnType<typeof createClient>,
+  order: Record<string, unknown>,
+) {
+  if ((order.status as string) !== "delivered") {
+    return {
+      error: "La facture client est disponible après livraison.",
+      status: 403 as const,
+    };
+  }
+
+  const { data: orderItems, error: itemsErr } = await admin
+    .from("order_items")
+    .select("product_title, variant_title, quantity, unit_price_ht, box_quantity")
+    .eq("order_id", order.id as string);
+
+  if (itemsErr) throw itemsErr;
+
+  const siteLogo = await loadSiteLogoForOrderPdf(admin, order.site_id as string | null);
+  const shippingCityLine = [order.shipping_postal_code, order.shipping_city]
+    .filter(Boolean)
+    .join(" ");
+
+  const pdfBase64 = generateCustomerInvoicePDF({
+    orderNumber: order.order_number as string,
+    orderDate: formatOrderDate(order.created_at as string),
+    customerName: null,
+    shippingAddress: order.shipping_address as string | null,
+    shippingCityLine: shippingCityLine || null,
+    items: (orderItems ?? []).map((item) => ({
+      product_title: item.product_title as string,
+      variant_title: item.variant_title as string | null,
+      quantity: item.quantity as number,
+      unit_price_ht: Number(item.unit_price_ht),
+      box_quantity: (item.box_quantity as number | null) ?? null,
+    })),
+    totalHT: Number(order.total_ht),
+    totalTTC: Number(order.total_ttc),
+    siteLogo,
+  });
+
+  const filename = `FACTURE_CLIENT_${order.order_number}.pdf`;
+
+  return { pdfBase64, filename };
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -78,85 +125,73 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
     const admin = createClient(supabaseUrl, serviceKey);
 
-    const { data: site, error: siteErr } = await admin
-      .from("sites")
-      .select("storefront_public")
-      .eq("slug", SITE_SLUG)
-      .eq("is_active", true)
-      .maybeSingle();
+    const adminAuth = await verifyAdminRequest(req);
+    let order: Record<string, unknown> | null = null;
 
-    if (siteErr) throw siteErr;
-    if (!site?.storefront_public) {
-      return new Response(JSON.stringify({ error: "Non disponible." }), {
-        status: 403,
+    if (adminAuth.ok) {
+      const { data: adminOrder, error: adminOrderErr } = await adminAuth.supabaseAdmin
+        .from("orders")
+        .select("*")
+        .eq("order_number", order_number)
+        .maybeSingle();
+      if (adminOrderErr) throw adminOrderErr;
+      if (!adminOrder) {
+        return new Response(JSON.stringify({ error: "Commande introuvable." }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      order = adminOrder;
+    } else {
+      const { data: site, error: siteErr } = await admin
+        .from("sites")
+        .select("storefront_public")
+        .eq("slug", SITE_SLUG)
+        .eq("is_active", true)
+        .maybeSingle();
+
+      if (siteErr) throw siteErr;
+      if (!site?.storefront_public) {
+        return new Response(JSON.stringify({ error: "Non disponible." }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      let userId: string | null = null;
+      const authHeader = req.headers.get("Authorization");
+      if (authHeader?.startsWith("Bearer ")) {
+        const anon = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY") ?? "");
+        const token = authHeader.replace("Bearer ", "");
+        const { data: authData } = await anon.auth.getUser(token);
+        userId = authData.user?.id ?? null;
+      }
+
+      const access = await resolveOrderAccess(
+        admin,
+        order_number,
+        body.email ?? null,
+        userId,
+        body.token ?? null,
+      );
+      if ("error" in access) {
+        return new Response(JSON.stringify({ error: access.error }), {
+          status: access.status,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      order = access.order;
+    }
+
+    const invoice = await buildCustomerInvoiceResponse(admin, order);
+    if ("error" in invoice) {
+      return new Response(JSON.stringify({ error: invoice.error }), {
+        status: invoice.status,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    let userId: string | null = null;
-    const authHeader = req.headers.get("Authorization");
-    if (authHeader?.startsWith("Bearer ")) {
-      const anon = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY") ?? "");
-      const token = authHeader.replace("Bearer ", "");
-      const { data: authData } = await anon.auth.getUser(token);
-      userId = authData.user?.id ?? null;
-    }
-
-    const access = await resolveOrderAccess(
-      admin,
-      order_number,
-      body.email ?? null,
-      userId,
-      body.token ?? null,
-    );
-    if ("error" in access) {
-      return new Response(JSON.stringify({ error: access.error }), {
-        status: access.status,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const order = access.order;
-    if ((order.status as string) !== "delivered") {
-      return new Response(JSON.stringify({ error: "La facture client est disponible après livraison." }), {
-        status: 403,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const { data: orderItems, error: itemsErr } = await admin
-      .from("order_items")
-      .select("product_title, variant_title, quantity, unit_price_ht, box_quantity")
-      .eq("order_id", order.id);
-
-    if (itemsErr) throw itemsErr;
-
-    const siteLogo = await loadSiteLogoForOrderPdf(admin, order.site_id as string | null);
-    const shippingCityLine = [order.shipping_postal_code, order.shipping_city]
-      .filter(Boolean)
-      .join(" ");
-
-    const pdfBase64 = generateCustomerInvoicePDF({
-      orderNumber: order.order_number,
-      orderDate: formatOrderDate(order.created_at as string),
-      customerName: null,
-      shippingAddress: order.shipping_address as string | null,
-      shippingCityLine: shippingCityLine || null,
-      items: (orderItems ?? []).map((item) => ({
-        product_title: item.product_title as string,
-        variant_title: item.variant_title as string | null,
-        quantity: item.quantity as number,
-        unit_price_ht: Number(item.unit_price_ht),
-        box_quantity: (item.box_quantity as number | null) ?? null,
-      })),
-      totalHT: Number(order.total_ht),
-      totalTTC: Number(order.total_ttc),
-      siteLogo,
-    });
-
-    const filename = `facture_${order.order_number}.pdf`;
-
-    return new Response(JSON.stringify({ pdf_base64: pdfBase64, filename }), {
+    return new Response(JSON.stringify({ pdf_base64: invoice.pdfBase64, filename: invoice.filename }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
