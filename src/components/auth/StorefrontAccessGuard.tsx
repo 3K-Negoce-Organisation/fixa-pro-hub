@@ -86,7 +86,12 @@ const StorefrontAccessGuard = ({ children }: StorefrontAccessGuardProps) => {
   }
 
   if (!user && !storefrontPublic) {
-    return null;
+    return (
+      <div className="min-h-screen flex items-center justify-center flex-col gap-3">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+        <p className="text-sm text-muted-foreground">Redirection vers la connexion…</p>
+      </div>
+    );
   }
 
   return <>{children}</>;

@@ -1,22 +1,31 @@
-/** Lien suivi invité : préremplit numéro + email sur /suivi */
-export function buildGuestOrderTrackingUrl(
+import {
+  GUEST_TRACKING_TOKEN_PARAM,
+  signGuestOrderTrackingToken,
+} from "./guest-order-tracking-token.ts";
+
+/** Lien suivi invité signé : order + email + jeton HMAC (non forgeable). */
+export async function buildGuestOrderTrackingUrl(
   orderNumber: string,
   customerEmail: string,
   storefrontUrl?: string,
-): string {
+): Promise<string> {
   const base = (storefrontUrl || Deno.env.get("STOREFRONT_URL") || "https://www.vis-a-bois.com").replace(/\/$/, "");
+  const order = orderNumber.trim().toUpperCase();
+  const email = customerEmail.trim().toLowerCase();
+  const token = await signGuestOrderTrackingToken(order, email);
   const params = new URLSearchParams({
-    order: orderNumber.trim().toUpperCase(),
-    email: customerEmail.trim().toLowerCase(),
+    order,
+    email,
+    [GUEST_TRACKING_TOKEN_PARAM]: token,
   });
   return `${base}/suivi?${params.toString()}`;
 }
 
-/** Lien suivi dans les emails client — toujours avec email (fonctionne sans compte). */
-export function buildOrderTrackingUrlForEmail(
+/** Lien suivi dans les emails client — toujours signé. */
+export async function buildOrderTrackingUrlForEmail(
   orderNumber: string,
   customerEmail: string,
   storefrontUrl?: string,
-): string {
+): Promise<string> {
   return buildGuestOrderTrackingUrl(orderNumber, customerEmail, storefrontUrl);
 }

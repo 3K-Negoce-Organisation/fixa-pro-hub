@@ -105,8 +105,8 @@ export async function sendOrderToN8n(params: SendOrderToN8nParams): Promise<void
     const storefrontBase = (Deno.env.get("STOREFRONT_URL") || "https://www.vis-a-bois.com").replace(/\/$/, "");
     const customerEmailForLink = resolvedEmail || customerEmail || "";
     const trackingUrl = customerEmailForLink
-      ? buildOrderTrackingUrlForEmail(orderNumber, customerEmailForLink, storefrontBase)
-      : `${storefrontBase}/suivi?order=${encodeURIComponent(orderNumber)}`;
+      ? await buildOrderTrackingUrlForEmail(orderNumber, customerEmailForLink, storefrontBase)
+      : `${storefrontBase}/suivi`;
 
     if ((fromEmail || Deno.env.get("RESEND_FROM_EMAIL")) && (resolvedEmail || customerEmail)) {
       const shippingName = shippingAddress?.name || customerName;

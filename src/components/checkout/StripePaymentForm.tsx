@@ -246,9 +246,10 @@ const CheckoutForm = ({ totalTTC, userEmail, isGuest, onSuccess, onCancel, items
           throw new Error(String((data as { error: string }).error));
         }
 
-        const payload = data as { order_number?: string; success?: boolean };
+        const payload = data as { order_number?: string; success?: boolean; tracking_token?: string };
         const orderNumber = payload.order_number;
         if (!orderNumber) throw new Error("Numéro de commande manquant");
+        const trackingToken = payload.tracking_token;
 
         const { data: { user } } = await supabase.auth.getUser();
         if (user?.id && phone.trim()) {
@@ -267,6 +268,9 @@ const CheckoutForm = ({ totalTTC, userEmail, isGuest, onSuccess, onCancel, items
         const confirmParams = new URLSearchParams({ order_number: orderNumber });
         if (isGuest && finalEmail) {
           confirmParams.set("email", finalEmail.trim().toLowerCase());
+        }
+        if (trackingToken) {
+          confirmParams.set("t", trackingToken);
         }
         navigate(`/confirmation?${confirmParams.toString()}`);
       } catch (err) {

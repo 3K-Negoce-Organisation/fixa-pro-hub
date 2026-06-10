@@ -1,12 +1,11 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { verifyGuestOrderTrackingToken } from "../_shared/guest-order-tracking-token.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
-
-const SITE_SLUG = Deno.env.get("STOREFRONT_SITE_SLUG") || "vis-a-bois";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -14,34 +13,34 @@ serve(async (req) => {
   }
 
   try {
-    const supabaseAnon = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
-    );
-
-    const authHeader = req.headers.get("Authorization");
-    if (authHeader?.startsWith("Bearer ")) {
-      const token = authHeader.replace("Bearer ", "");
-      const { data: u } = await supabaseAnon.auth.getUser(token);
-      if (u.user) {
-        return new Response(JSON.stringify({ error: "Utilisez votre espace connecté pour le suivi." }), {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-    }
-
-    const { order_number: rawOrder, email: rawEmail } = await req.json() as {
+    const { order_number: rawOrder, email: rawEmail, token: rawToken } = await req.json() as {
       order_number?: string;
       email?: string;
+      token?: string;
     };
 
     const order_number = (rawOrder ?? "").trim().toUpperCase();
     const email = (rawEmail ?? "").trim().toLowerCase();
+    const token = (rawToken ?? "").trim();
 
     if (!order_number || !email || !email.includes("@")) {
       return new Response(JSON.stringify({ error: "Numéro de commande et email requis." }), {
         status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (!token) {
+      return new Response(JSON.stringify({ error: "Lien de suivi invalide. Utilisez le lien reçu par email." }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const tokenValid = await verifyGuestOrderTrackingToken(order_number, email, token);
+    if (!tokenValid) {
+      return new Response(JSON.stringify({ error: "Lien de suivi invalide ou expiré." }), {
+        status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -52,21 +51,6 @@ serve(async (req) => {
     }
 
     const admin = createClient(Deno.env.get("SUPABASE_URL") ?? "", serviceKey);
-
-    const { data: site, error: siteErr } = await admin
-      .from("sites")
-      .select("storefront_public")
-      .eq("slug", SITE_SLUG)
-      .eq("is_active", true)
-      .maybeSingle();
-
-    if (siteErr) throw siteErr;
-    if (!site?.storefront_public) {
-      return new Response(JSON.stringify({ error: "Non disponible." }), {
-        status: 403,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
 
     const { data: order, error: orderErr } = await admin
       .from("orders")
