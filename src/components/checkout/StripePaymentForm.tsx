@@ -153,20 +153,6 @@ const CheckoutForm = ({ totalTTC, userEmail, isGuest, onSuccess, onCancel, items
     }
   };
 
-  // Generate order number
-  const generateOrderNumber = () => {
-    const date = new Date();
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const random = Math.random().toString(36).substring(2, 8).toUpperCase();
-    return `VIS-${year}${month}-${random}`;
-  };
-
-  // Generate guest user ID
-  const generateGuestId = () => {
-    return `guest_${crypto.randomUUID()}`;
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     console.log("[STRIPE] Form submitted - stripe:", !!stripe, "elements:", !!elements);
@@ -240,71 +226,37 @@ const CheckoutForm = ({ totalTTC, userEmail, isGuest, onSuccess, onCancel, items
       setIsProcessing(false);
     } else if (paymentIntent && paymentIntent.status === "succeeded") {
       console.log("[STRIPE] Payment succeeded:", paymentIntent.id);
-      // Create order in database with shipping address
       try {
-        const { data: { user } } = await supabase.auth.getUser();
-        
-        // Use user ID if logged in, otherwise generate guest ID
-        const userId = user?.id || generateGuestId();
-        const orderNumber = generateOrderNumber();
+        const finalEmail = isGuest ? resolvedGuestEmail : userEmail;
 
-        let orderSiteId: string | null = (theme?.site_id as string | undefined) ?? null;
-        if (!orderSiteId) {
-          const { data: siteRow } = await supabase
-            .from("sites")
-            .select("id")
-            .eq("slug", SITE_SLUG)
-            .eq("is_active", true)
-            .maybeSingle();
-          orderSiteId = (siteRow as { id?: string } | null)?.id ?? null;
-        }
-
-        // Create order
-        const { data: order, error: orderError } = await supabase
-          .from('orders')
-          .insert({
-            user_id: userId,
-            user_email: finalEmail,
-            order_number: orderNumber,
-            status: 'paid',
-            total_ht: totalHT,
-            total_ttc: totalTTC,
+        const { data, error: completeError } = await supabase.functions.invoke("complete-checkout-order", {
+          body: {
+            payment_intent_id: paymentIntent.id,
             shipping_name: shippingName,
             shipping_address: shippingAddress,
             shipping_city: shippingCity,
             shipping_postal_code: shippingPostalCode,
-            notes: `Payment Intent: ${paymentIntent.id} | stripe_mode:${stripeMode}`,
-            ...(orderSiteId ? { site_id: orderSiteId } : {}),
-          })
-          .select()
-          .single();
+            phone: phone.trim(),
+            user_email: finalEmail,
+          },
+        });
 
-        if (orderError) throw orderError;
+        if (completeError) throw completeError;
+        if (data && typeof data === "object" && "error" in data) {
+          throw new Error(String((data as { error: string }).error));
+        }
 
+        const payload = data as { order_number?: string; success?: boolean };
+        const orderNumber = payload.order_number;
+        if (!orderNumber) throw new Error("Numéro de commande manquant");
+
+        const { data: { user } } = await supabase.auth.getUser();
         if (user?.id && phone.trim()) {
           await supabase
             .from("profiles")
             .update({ phone: phone.trim() })
             .eq("user_id", user.id);
         }
-
-        // Create order items
-        const orderItems = items.map(item => ({
-          order_id: order.id,
-          product_id: item.id,
-          product_title: item.title,
-          product_image: item.image,
-          variant_title: item.variantTitle,
-          quantity: item.quantity,
-          unit_price_ht: roundMoney(lineUnitHT(item)),
-          unit_price_ttc: roundMoney(lineUnitTTC(item)),
-        }));
-
-        const { error: itemsError } = await supabase
-          .from('order_items')
-          .insert(orderItems);
-
-        if (itemsError) throw itemsError;
 
         toast({
           title: "Paiement réussi !",
