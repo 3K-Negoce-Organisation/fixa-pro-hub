@@ -126,22 +126,10 @@ serve(async (req) => {
 
     const { data: orderItems, error: itemsErr } = await admin
       .from("order_items")
-      .select("product_id, product_title, variant_title, quantity, unit_price_ht")
+      .select("product_title, variant_title, quantity, unit_price_ht, box_quantity")
       .eq("order_id", order.id);
 
     if (itemsErr) throw itemsErr;
-
-    const productIds = [...new Set((orderItems ?? []).map((item) => item.product_id as string).filter(Boolean))];
-    const boxByProductId = new Map<string, number | null>();
-    if (productIds.length > 0) {
-      const { data: products } = await admin
-        .from("products")
-        .select("id, box_quantity")
-        .in("id", productIds);
-      for (const product of products ?? []) {
-        boxByProductId.set(product.id as string, product.box_quantity as number | null);
-      }
-    }
 
     const siteLogo = await loadSiteLogoForOrderPdf(admin, order.site_id as string | null);
     const shippingCityLine = [order.shipping_postal_code, order.shipping_city]
@@ -159,7 +147,7 @@ serve(async (req) => {
         variant_title: item.variant_title as string | null,
         quantity: item.quantity as number,
         unit_price_ht: Number(item.unit_price_ht),
-        box_quantity: boxByProductId.get(item.product_id as string) ?? null,
+        box_quantity: (item.box_quantity as number | null) ?? null,
       })),
       totalHT: Number(order.total_ht),
       totalTTC: Number(order.total_ttc),

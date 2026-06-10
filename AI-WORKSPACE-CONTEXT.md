@@ -4,7 +4,7 @@
 
 **Emplacement canonique :** versionné à la **racine de ce dépôt** (`AI-WORKSPACE-CONTEXT.md`). Workspace multi-dépôts local : scripts partagés `../scripts/`, admin `../admin-hub-central/`, docs transverses `../docs/`.
 
-**Last updated:** 2026-05-29 (pictos configurables, `unite_de_vente`, recherche Alsafix, totaux PDF fournisseur)
+**Last updated:** 2026-06-10 (snapshot `order_items`, suivi invité signé, emails confirmation, changelog centralisé `docs/CHANGELOG.md`)
 
 ---
 
@@ -15,7 +15,7 @@
 3. **Hébergement front (Railway, pas Vercel) :** chaque **push** sur **`staging`** ou **`main`** déclenche un **rebuild Railway** — vitrine **`vis-a-bois-<env>`**, admin **`admin-hub-<env>`** (workspace `3k-negoce_workspace`). Les Edge Functions et migrations Postgres **ne** suivent **pas** le push Git : les déployer **manuellement** via Supabase CLI.
 4. **Secrets:** do not commit API keys, tokens, or connection strings into repos or into this file. Store only **non-secret** identifiers (e.g. Supabase project ref, public URLs, Railway service *names*, Stripe *mode*).
 5. **Updates:** when the user corrects or extends any reference, edit the relevant section below and bump **Last updated**.
-6. **Changelog (obligatoire) :** à chaque **push** sur la branche **`staging`** et à chaque **push** sur **`main`** (ou merge équivalent vers production) pour **`fixa-pro-hub`** et/ou **`admin-hub-central`**, ajouter **une ligne datée** dans le tableau **[Changelog](#changelog)** ci-dessous (résumé factuel : dépôt, branche, migrations Supabase, `db push`, Edge deploy, Railway rebuild, copie Storage, etc.). Même principe après une opération infra manuelle significative (ex. `copy-staging-storage-to-prod`) si elle n’est pas déjà couverte par un commit le même jour. Garder les dates au format **AAAA-MM-JJ** et les entrées **concises**.
+6. **Changelog (obligatoire) :** à chaque **push** sur la branche **`staging`** et à chaque **push** sur **`main`** (ou merge équivalent vers production) pour **`fixa-pro-hub`** et/ou **`admin-hub-central`**, ajouter **une ligne datée** dans le tableau **[Changelog](#changelog)** ci-dessous **et** une section datée dans **[`docs/CHANGELOG.md`](../docs/CHANGELOG.md)** (blocs `extract-start` / `extract-end` pour extraction par date). Résumé factuel : dépôt, branche, migrations Supabase, `db push`, Edge deploy, Railway rebuild, copie Storage, etc. Même principe après une opération infra manuelle significative si elle n’est pas déjà couverte par un commit le même jour. Format dates **AAAA-MM-JJ**, entrées **concises**.
 7. **Exécuter la CLI Supabase après validation :** lorsqu’un **plan est approuvé** par l’utilisateur ou qu’il **demande des corrections** qui touchent Postgres (migrations) ou les Edge Functions, l’assistant doit **enchaîner les commandes** (`supabase link`, `db push`, `functions deploy`, etc.) depuis **la racine de ce dépôt** en s’appuyant sur **`../scripts/supabase-refs.env`** (workspace parent, chargé via `../scripts/load-3k-env.sh` ou `source` explicite — voir encadré *À retenir pour la CLI Supabase*), pas seulement les décrire. Si `db push` échoue (mot de passe `postgres` refusé), mettre à jour `**SUPABASE_DB_PASSWORD_STAGING*`* / `**_PRODUCTION**` et les `SUPABASE_DB_URL_*` après copie depuis le dashboard Supabase (**Settings → Database**), puis relancer ; **alternatives sans mot de passe Postgres :** `**supabase db query --linked -f supabase/migrations/<fichier>.sql`** (projet déjà `link` + `SUPABASE_ACCESS_TOKEN`), ou exécuter le SQL dans le **SQL Editor** du projet cible. **Fichiers `.env` sourcés par bash :** si un mot de passe ou une URL contient `**;`**, entourer la valeur de **guillemets simples** (`'...'`) pour que `source` ne coupe pas la ligne.
 
 ---
@@ -496,6 +496,14 @@ Les adresses **`from`** des Edge (ex. sous-domaines de **`vis-a-bois.com`** ou *
 
 **Important :** ne pas confondre « total produits seuls » et « total commande » — comparer toujours la somme des lignes **plus** la ligne livraison au **`total_ht`** en base.
 
+### Snapshot produit (`order_items`) — depuis 2026-06-10
+
+Au **paiement**, chaque ligne `order_items` fige titre, image, descriptions (`product_description`, `designation_fr`), prix unitaires (`unit_price_ht` / `unit_price_ttc` depuis métadonnées Stripe), conditionnement (`box_quantity`, `variant_id`), données fournisseur (`code_alsafix`, `snapshot_purchase_price_ht`, `snapshot_unite_de_vente`). **Consultation** (suivi boutique, admin, emails Resend, facture client, PDF fournisseur régénéré) lit **`order_items`**, pas le catalogue live. Migration : `20260610120000_order_items_product_snapshot.sql`. Détail journalier : [`docs/CHANGELOG.md`](../docs/CHANGELOG.md#2026-06-10).
+
+### Suivi invité signé — depuis 2026-06-10
+
+Liens `/suivi?order=VIS-…&email=…&t=…` signés HMAC (`guest-order-tracking-token.ts`). `lookup-order-by-email` refuse les requêtes sans `t` valide. Jeton renvoyé à la confirmation (`complete-checkout-order`) et dans les emails (`guest-order-tracking-url.ts`).
+
 ### Détail affiché (état actuel — 2026-05-23)
 
 | Canal | Comportement |
@@ -590,7 +598,8 @@ Données prix / conditionnement : **`products.purchase_price_ht`**, **`products.
 | `supabase/functions/_shared/order-totals.ts` | `sumItemsHT`, `splitOrderTotals(items, totalHT)` → `{ productsHT, shippingHT }` |
 | `supabase/functions/_shared/send-order-confirmation-email.ts` | Envoi Resend HTML à la confirmation |
 | `supabase/functions/_shared/generate-order-pdf.ts` | Génération PDF (tableau, **Total HT / TVA / TOTAL TTC fournisseur**, logo, téléphone) |
-| `supabase/functions/_shared/alsafix-code.ts` | `alsafixCodeOnly`, `enrichItemsWithAlsafixCodes` (+ `purchase_price_ht`, `box_quantity`, **`unite_de_vente`**) |
+| `supabase/functions/_shared/alsafix-code.ts` | `alsafixCodeOnly`, `enrichItemsWithAlsafixCodes` — **priorité snapshot `order_items`** si présent, sinon repli `products` |
+| `supabase/functions/_shared/order-item-snapshot.ts` | Snapshot catalogue à la commande : `fetchProductsForOrderSnapshot`, `buildOrderItemInsert`, `orderItemRowToEnrichmentLine` |
 | `supabase/functions/_shared/order-supplier-quantity.ts` | `resolveUniteDeVente`, `isSupplierKit`, `isSupplierAccessory`, `supplierTarifUv`, `supplierElementQuantity`, `supplierPurchaseLineTotal` |
 | `supabase/functions/_shared/order-customer-phone.ts` | Téléphone client pour le pied de page PDF |
 | `supabase/functions/_shared/site-logo.ts` | Logo site dans le PDF |
@@ -632,6 +641,10 @@ Depuis **admin-hub-central** → **Commandes** → action **Renvoyer** : appelle
 
 | Date       | Change                                                                                                                                                                                                                                                                                       |
 | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-06-10 | **Snapshot commande :** migration `20260610120000_order_items_product_snapshot.sql` ; `_shared/order-item-snapshot.ts` ; plus de relecture live `products` pour suivi/emails/PDF si snapshot présent. **Emails confirmation** Resend + lien suivi invité signé (`t`) ; `/suivi` hors garde vitrine ; `lookup-order-by-email`, `complete-checkout-order`, `resend-order-confirmation`. **Git** `a62fc54`→`b718177` **main**. **Changelog détaillé :** [`docs/CHANGELOG.md`](../docs/CHANGELOG.md#2026-06-10). **À déployer :** migration prod + Edge listées dans CHANGELOG. |
+| 2026-06-09 | **Remboursement / paiement correctif :** Edge `admin-stripe-refund`, `admin-create-payment-link` ; migrations événements statut. Voir [`docs/CHANGELOG.md`](../docs/CHANGELOG.md#2026-06-09). |
+| 2026-06-08 | **PDF fournisseur :** email client sur le bon. Voir [`docs/CHANGELOG.md`](../docs/CHANGELOG.md#2026-06-08). |
+| 2026-06-03 | **Facture client** après livraison uniquement ; téléchargement docs Storage. Voir [`docs/CHANGELOG.md`](../docs/CHANGELOG.md#2026-06-03). |
 | 2026-05-29 | **Pictos fiche produit :** affichage configurable (taille, texte inside/outside, offsets) depuis `product_characteristic_icons` ; `CharacteristicPicto.tsx`, `picto-display.ts`. **Recherche :** code Alsafix + désignation + handle (`products.ts`). **PDF fournisseur :** totaux HT/TVA/TTC rétablis sous le tableau ; **`unite_de_vente`** dans enrichissement + breakdown simulation. **Migration** `20260529120000_picto_display_layout.sql`, `20260526120000_products_unite_de_vente.sql`. **Git** fixa **staging** → **main**. **Edge** staging + prod : `preview-supplier-order-pdf`, `stripe-webhook`, `simulate-order-webhook`. **Railway** rebuild vitrine au push. Voir aussi admin changelog 2026-05-29 (éditeur pictos). |
 | 2026-05-26 | **fixa-pro-hub — FAQ :** boutique ouverte au public (inscription en ligne) ; frais de livraison alignés sur le panier (seuil 150 € TTC / 12 € TTC forfait). **Paiement :** métadonnées Stripe panier volumineux (chunk), resync panier au checkout. **Git** **staging** → **main**. **Edge** deploy paiement staging + prod. **Railway** rebuild. |
 | 2026-05-26 | **fixa-pro-hub — alignement panier / simulation :** `normalizeCartLinePricing`, hydratation systématique des prix catalogue, `clientLineTotalTtc` (même règle que admin) ; Edge `checkout-totals` redeploy staging + prod. **Git** **staging** → **main**. |

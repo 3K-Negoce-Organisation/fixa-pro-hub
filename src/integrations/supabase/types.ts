@@ -54,39 +54,63 @@ export type Database = {
       }
       order_items: {
         Row: {
+          box_quantity: number | null
+          code_alsafix: string | null
           created_at: string
+          designation_fr: string | null
           id: string
           order_id: string
+          product_description: string | null
+          product_handle: string | null
           product_id: string
           product_image: string | null
           product_title: string
           quantity: number
+          snapshot_purchase_price_ht: number | null
+          snapshot_unite_de_vente: number | null
           unit_price_ht: number
           unit_price_ttc: number
+          variant_id: string | null
           variant_title: string | null
         }
         Insert: {
+          box_quantity?: number | null
+          code_alsafix?: string | null
           created_at?: string
+          designation_fr?: string | null
           id?: string
           order_id: string
+          product_description?: string | null
+          product_handle?: string | null
           product_id: string
           product_image?: string | null
           product_title: string
           quantity: number
+          snapshot_purchase_price_ht?: number | null
+          snapshot_unite_de_vente?: number | null
           unit_price_ht: number
           unit_price_ttc: number
+          variant_id?: string | null
           variant_title?: string | null
         }
         Update: {
+          box_quantity?: number | null
+          code_alsafix?: string | null
           created_at?: string
+          designation_fr?: string | null
           id?: string
           order_id?: string
+          product_description?: string | null
+          product_handle?: string | null
           product_id?: string
           product_image?: string | null
           product_title?: string
           quantity?: number
+          snapshot_purchase_price_ht?: number | null
+          snapshot_unite_de_vente?: number | null
           unit_price_ht?: number
           unit_price_ttc?: number
+          variant_id?: string | null
           variant_title?: string | null
         }
         Relationships: [

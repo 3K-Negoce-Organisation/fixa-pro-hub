@@ -6,7 +6,12 @@ import { sendOrderConfirmationEmail } from "../_shared/send-order-confirmation-e
 import { buildOrderTrackingUrlForEmail } from "../_shared/guest-order-tracking-url.ts";
 import { resolveResendFrom } from "../_shared/resolve-resend-from.ts";
 import { resolveSiteLogoUrlForEmail } from "../_shared/site-logo.ts";
-import { alsafixCodeOnly, enrichItemsWithAlsafixCodes } from "../_shared/alsafix-code.ts";
+import {
+  buildOrderItemInsert,
+  enrichCartLinesWithProductSnapshots,
+  orderItemRowToEnrichmentLine,
+} from "../_shared/order-item-snapshot.ts";
+import { enrichItemsWithAlsafixCodes } from "../_shared/alsafix-code.ts";
 import { roundMoney } from "../_shared/money.ts";
 import { generateOrderPDF } from "../_shared/generate-order-pdf.ts";
 import { loadSiteLogoForOrderPdf } from "../_shared/site-logo.ts";
@@ -40,29 +45,6 @@ function generateOrderNumber(): string {
   return `VIS-${year}${month}-${random}`;
 }
 
-
-// Fetch full product details from Supabase
-async function fetchProductDetails(supabaseAdmin: any, productIds: string[]): Promise<Map<string, any>> {
-  const productMap = new Map();
-  
-  if (productIds.length === 0) return productMap;
-  
-  const { data: products, error } = await supabaseAdmin
-    .from('products')
-    .select('id, title, handle, images, code_alsafix, box_quantity')
-    .in('id', productIds);
-  
-  if (error) {
-    logStep("Error fetching products", { error: error.message });
-    return productMap;
-  }
-  
-  for (const product of products || []) {
-    productMap.set(product.id, product);
-  }
-  
-  return productMap;
-}
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -181,14 +163,9 @@ serve(async (req) => {
 
         // Send webhook to n8n for fulfillment (even if order already exists)
         if (n8nWebhookUrl) {
-          const cartItems = (existingItems || []).map(item => ({
-            id: item.product_id,
-            title: item.product_title,
-            variantTitle: item.variant_title,
-            image: item.product_image,
-            quantity: item.quantity,
-            priceHT: item.unit_price_ht,
-          }));
+          const cartItems = (existingItems || []).map((item) =>
+            orderItemRowToEnrichmentLine(item as Record<string, unknown>),
+          );
 
           await sendToN8n(
             n8nWebhookUrl,
@@ -238,24 +215,21 @@ serve(async (req) => {
         logStep("Failed to parse items_compact", { error: String(e) });
       }
 
-      // Fetch full product details from Supabase
-      const productIds = cartItems.map(item => item.id);
-      const productMap = await fetchProductDetails(supabaseAdmin, productIds);
-      
-      // Enrich cart items with product details
-      cartItems = cartItems.map(item => {
-        const product = productMap.get(item.id);
-        return {
-          ...item,
-          title: product?.title || `Product ${item.id}`,
-          handle: product?.handle || '',
-          image: product?.images?.[0]?.url || '',
-          code_alsafix: alsafixCodeOnly(product?.code_alsafix),
-          box_quantity: product?.box_quantity ?? null,
-          variantTitle: 'Default',
-        };
-      });
-      logStep("Enriched cart items with product details");
+      cartItems = await enrichCartLinesWithProductSnapshots(
+        supabaseAdmin,
+        cartItems.map((item: Record<string, unknown>) => ({
+          id: item.id as string,
+          quantity: item.quantity as number,
+          priceHT: item.priceHT as number,
+          priceTTC: item.priceTTC as number | undefined,
+          variantId: (item.variantId as string | undefined) || (item.id as string),
+          variantTitle: (item.variantTitle as string | undefined) || "Default",
+          title: item.title as string | undefined,
+          handle: item.handle as string | undefined,
+          image: item.image as string | undefined,
+        })),
+      );
+      logStep("Enriched cart items with product snapshot");
 
       // Get shipping details from PaymentIntent (if collected via Stripe Elements)
       // Note: For PaymentIntent flow, shipping is typically collected separately
@@ -330,16 +304,25 @@ serve(async (req) => {
 
       // Create order items
       if (cartItems.length > 0) {
-        const orderItems = cartItems.map(item => ({
-          order_id: order.id,
-          product_id: item.id,
-          product_title: item.title,
-          variant_title: item.variantTitle || 'Default',
-          product_image: item.image || null,
-          quantity: item.quantity,
-          unit_price_ht: roundMoney(item.priceHT),
-          unit_price_ttc: roundMoney(item.priceTTC ?? item.priceHT * 1.20),
-        }));
+        const orderItems = cartItems.map((item: Record<string, unknown>) =>
+          buildOrderItemInsert(order.id, {
+            id: item.id as string,
+            quantity: item.quantity as number,
+            priceHT: item.priceHT as number,
+            priceTTC: item.priceTTC as number | undefined,
+            title: item.title as string,
+            handle: item.handle as string,
+            image: item.image as string,
+            variantId: item.variantId as string,
+            variantTitle: item.variantTitle as string,
+            code_alsafix: item.code_alsafix,
+            box_quantity: item.box_quantity,
+            product_description: item.product_description,
+            designation_fr: item.designation_fr,
+            snapshot_purchase_price_ht: item.snapshot_purchase_price_ht,
+            snapshot_unite_de_vente: item.snapshot_unite_de_vente,
+          }),
+        );
 
         const { error: itemsError } = await supabaseAdmin
           .from("order_items")
@@ -455,14 +438,9 @@ serve(async (req) => {
 
         // Send webhook to n8n for fulfillment (even if order already exists)
         if (n8nWebhookUrl) {
-          const cartItems = (existingItems || []).map(item => ({
-            id: item.product_id,
-            title: item.product_title,
-            variantTitle: item.variant_title,
-            image: item.product_image,
-            quantity: item.quantity,
-            priceHT: item.unit_price_ht,
-          }));
+          const cartItems = (existingItems || []).map((item) =>
+            orderItemRowToEnrichmentLine(item as Record<string, unknown>),
+          );
 
           await sendToN8n(
             n8nWebhookUrl,
@@ -518,21 +496,20 @@ serve(async (req) => {
         logStep("Failed to parse checkout session items", { error: String(e) });
       }
 
-      const productIds = cartItems.map((item) => item.id);
-      const productMap = await fetchProductDetails(supabaseAdmin, productIds);
-
-      cartItems = cartItems.map((item) => {
-        const product = productMap.get(item.id);
-        return {
-          ...item,
-          title: item.title || product?.title || `Product ${item.id}`,
-          handle: item.handle || product?.handle || "",
-          image: item.image || product?.images?.[0]?.url || "",
-          variantTitle: item.variantTitle || "Default",
-          code_alsafix: alsafixCodeOnly(product?.code_alsafix),
-          box_quantity: product?.box_quantity ?? null,
-        };
-      });
+      cartItems = await enrichCartLinesWithProductSnapshots(
+        supabaseAdmin,
+        cartItems.map((item: Record<string, unknown>) => ({
+          id: item.id as string,
+          quantity: item.quantity as number,
+          priceHT: item.priceHT as number,
+          priceTTC: item.priceTTC as number | undefined,
+          variantId: (item.variantId as string | undefined) || (item.id as string),
+          variantTitle: (item.variantTitle as string | undefined) || "Default",
+          title: item.title as string | undefined,
+          handle: item.handle as string | undefined,
+          image: item.image as string | undefined,
+        })),
+      );
 
       // Generate order number
       const orderNumber = generateOrderNumber();
@@ -589,16 +566,25 @@ serve(async (req) => {
 
       // Create order items
       if (cartItems.length > 0) {
-        const orderItems = cartItems.map(item => ({
-          order_id: order.id,
-          product_id: item.id,
-          product_title: item.title,
-          variant_title: item.variantTitle,
-          product_image: item.image,
-          quantity: item.quantity,
-          unit_price_ht: roundMoney(item.priceHT),
-          unit_price_ttc: roundMoney(item.priceTTC ?? item.priceHT * 1.20),
-        }));
+        const orderItems = cartItems.map((item: Record<string, unknown>) =>
+          buildOrderItemInsert(order.id, {
+            id: item.id as string,
+            quantity: item.quantity as number,
+            priceHT: item.priceHT as number,
+            priceTTC: item.priceTTC as number | undefined,
+            title: item.title as string,
+            handle: item.handle as string,
+            image: item.image as string,
+            variantId: item.variantId as string,
+            variantTitle: item.variantTitle as string,
+            code_alsafix: item.code_alsafix,
+            box_quantity: item.box_quantity,
+            product_description: item.product_description,
+            designation_fr: item.designation_fr,
+            snapshot_purchase_price_ht: item.snapshot_purchase_price_ht,
+            snapshot_unite_de_vente: item.snapshot_unite_de_vente,
+          }),
+        );
 
         const { error: itemsError } = await supabaseAdmin
           .from("order_items")

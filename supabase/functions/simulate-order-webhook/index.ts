@@ -6,6 +6,7 @@ import { buildOrderTrackingUrlForEmail } from "../_shared/guest-order-tracking-u
 import { resolveResendFrom } from "../_shared/resolve-resend-from.ts";
 import { resolveSiteLogoUrlForEmail } from "../_shared/site-logo.ts";
 import { enrichItemsWithAlsafixCodes } from "../_shared/alsafix-code.ts";
+import { orderItemRowToEnrichmentLine } from "../_shared/order-item-snapshot.ts";
 import { generateOrderPDF } from "../_shared/generate-order-pdf.ts";
 import { loadSiteLogoForOrderPdf } from "../_shared/site-logo.ts";
 import { resolveOrderCustomerPhone } from "../_shared/order-customer-phone.ts";
@@ -105,7 +106,7 @@ serve(async (req) => {
     // Enrich order items with code Alsafix from products table
     const enrichedItems = await enrichItemsWithAlsafixCodes(
       supabaseAdmin,
-      orderItems || [],
+      (orderItems || []).map((item) => orderItemRowToEnrichmentLine(item as Record<string, unknown>)),
     );
 
     // Get user info (guest orders may not exist in auth.users)

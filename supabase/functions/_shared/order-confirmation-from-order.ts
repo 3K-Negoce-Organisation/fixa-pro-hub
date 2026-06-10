@@ -85,23 +85,11 @@ async function sendOrderConfirmationForOrderRow(
 
   const { data: items, error: itemsError } = await supabaseAdmin
     .from("order_items")
-    .select("product_title, variant_title, quantity, unit_price_ht, product_id")
+    .select("product_title, variant_title, quantity, unit_price_ht, product_id, box_quantity")
     .eq("order_id", orderId);
 
   if (itemsError) {
     return { sent: false, order_number: order.order_number, error: itemsError.message };
-  }
-
-  const productIds = (items || []).map((i) => i.product_id as string).filter(Boolean);
-  let boxByProduct = new Map<string, number | null>();
-  if (productIds.length > 0) {
-    const { data: products } = await supabaseAdmin
-      .from("products")
-      .select("id, box_quantity")
-      .in("id", productIds);
-    for (const p of products || []) {
-      boxByProduct.set(p.id as string, (p.box_quantity as number | null) ?? null);
-    }
   }
 
   const mappedItems = (items || []).map((item) => ({
@@ -109,7 +97,7 @@ async function sendOrderConfirmationForOrderRow(
     variantTitle: item.variant_title as string | null,
     quantity: item.quantity as number,
     unit_price_ht: Number(item.unit_price_ht),
-    boxQuantity: boxByProduct.get(item.product_id as string) ?? null,
+    boxQuantity: (item.box_quantity as number | null) ?? null,
   }));
 
   const { productsHT, shippingHT } = splitOrderTotals(

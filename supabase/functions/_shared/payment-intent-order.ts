@@ -1,7 +1,10 @@
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
-import { alsafixCodeOnly } from "./alsafix-code.ts";
-import { roundMoney } from "./money.ts";
+import {
+  buildOrderItemInsert,
+  enrichCartLinesWithProductSnapshots,
+  orderItemRowToEnrichmentLine,
+} from "./order-item-snapshot.ts";
 import {
   compactItemsToOrderLines,
   parseCompactItemsFromMetadata,
@@ -26,25 +29,6 @@ export function generateOrderNumber(): string {
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const random = Math.random().toString(36).substring(2, 8).toUpperCase();
   return `VIS-${year}${month}-${random}`;
-}
-
-async function fetchProductDetails(
-  supabaseAdmin: SupabaseClient,
-  productIds: string[],
-): Promise<Map<string, Record<string, unknown>>> {
-  const productMap = new Map<string, Record<string, unknown>>();
-  if (productIds.length === 0) return productMap;
-
-  const { data: products, error } = await supabaseAdmin
-    .from("products")
-    .select("id, title, handle, images, code_alsafix, box_quantity")
-    .in("id", productIds);
-
-  if (error) return productMap;
-  for (const product of products || []) {
-    productMap.set(product.id as string, product as Record<string, unknown>);
-  }
-  return productMap;
 }
 
 export async function resolveOrderSiteId(
@@ -102,15 +86,9 @@ export async function fulfillPaymentIntentOrder(
       .eq("order_id", existingOrder.id);
 
     if (n8nWebhookUrl) {
-      const cartItems = (existingItems || []).map((item) => ({
-        id: item.product_id,
-        title: item.product_title,
-        variantTitle: item.variant_title,
-        image: item.product_image,
-        quantity: item.quantity,
-        priceHT: item.unit_price_ht,
-        priceTTC: item.unit_price_ttc,
-      }));
+      const cartItems = (existingItems || []).map((item) =>
+        orderItemRowToEnrichmentLine(item as Record<string, unknown>),
+      );
 
       await sendOrderToN8n({
         n8nWebhookUrl,
@@ -161,20 +139,17 @@ export async function fulfillPaymentIntentOrder(
     cartItems = [];
   }
 
-  const productMap = await fetchProductDetails(supabaseAdmin, cartItems.map((item) => item.id as string));
-  cartItems = cartItems.map((item) => {
-    const product = productMap.get(item.id as string);
-    const images = product?.images as Array<{ url?: string }> | undefined;
-    return {
-      ...item,
-      title: product?.title || `Product ${item.id}`,
-      handle: product?.handle || "",
-      image: images?.[0]?.url || "",
-      code_alsafix: alsafixCodeOnly(product?.code_alsafix as string | null | undefined),
-      box_quantity: product?.box_quantity ?? null,
-      variantTitle: "Default",
-    };
-  });
+  cartItems = await enrichCartLinesWithProductSnapshots(
+    supabaseAdmin,
+    cartItems.map((item) => ({
+      id: item.id as string,
+      quantity: item.quantity as number,
+      priceHT: item.priceHT as number,
+      priceTTC: item.priceTTC as number | undefined,
+      variantId: (item.variantId as string | undefined) || (item.id as string),
+      variantTitle: (item.variantTitle as string | undefined) || "Default",
+    })),
+  );
 
   let customerName = shippingOverride?.shipping_name ?? null;
   let shippingLine1 = shippingOverride?.shipping_address ?? null;
@@ -236,16 +211,25 @@ export async function fulfillPaymentIntentOrder(
   });
 
   if (cartItems.length > 0) {
-    const orderItems = cartItems.map((item) => ({
-      order_id: order.id,
-      product_id: item.id,
-      product_title: item.title,
-      variant_title: item.variantTitle || "Default",
-      product_image: item.image || null,
-      quantity: item.quantity,
-      unit_price_ht: roundMoney(Number(item.priceHT)),
-      unit_price_ttc: roundMoney(Number(item.priceTTC ?? Number(item.priceHT) * 1.2)),
-    }));
+    const orderItems = cartItems.map((item) =>
+      buildOrderItemInsert(order.id, {
+        id: item.id as string,
+        quantity: item.quantity as number,
+        priceHT: item.priceHT as number,
+        priceTTC: item.priceTTC as number | undefined,
+        title: item.title as string,
+        handle: item.handle as string,
+        image: item.image as string,
+        variantId: item.variantId as string,
+        variantTitle: item.variantTitle as string,
+        code_alsafix: item.code_alsafix,
+        box_quantity: item.box_quantity,
+        product_description: item.product_description,
+        designation_fr: item.designation_fr,
+        snapshot_purchase_price_ht: item.snapshot_purchase_price_ht,
+        snapshot_unite_de_vente: item.snapshot_unite_de_vente,
+      }),
+    );
 
     await supabaseAdmin.from("order_items").insert(orderItems);
   }

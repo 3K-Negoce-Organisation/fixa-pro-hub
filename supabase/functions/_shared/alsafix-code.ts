@@ -1,4 +1,5 @@
 import { enrichItemSupplierPricing } from "./order-supplier-quantity.ts";
+import { orderItemHasFrozenSnapshot } from "./order-item-snapshot.ts";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -33,22 +34,47 @@ function resolveProductForItem(
   return undefined;
 }
 
+function enrichFromFrozenSnapshot(item: Record<string, unknown>): Record<string, unknown> {
+  const code = alsafixCodeOnly(item.code_alsafix as string | undefined);
+  return enrichItemSupplierPricing(
+    { ...item, code_alsafix: code },
+    (item.snapshot_purchase_price_ht ?? item.purchase_price_ht) as number | null,
+    (item.box_quantity ?? item.product_box_quantity) as number | null,
+    (item.snapshot_unite_de_vente ?? item.unite_de_vente) as number | null,
+  );
+}
+
 export async function enrichItemsWithAlsafixCodes(
   supabaseAdmin: any,
   items: Array<Record<string, unknown>>,
 ): Promise<Array<Record<string, unknown>>> {
+  const results: Array<Record<string, unknown> | undefined> = new Array(items.length);
+  const liveLookupItems: Array<{ index: number; item: Record<string, unknown> }> = [];
+
+  items.forEach((item, index) => {
+    if (orderItemHasFrozenSnapshot(item)) {
+      results[index] = enrichFromFrozenSnapshot(item);
+    } else {
+      liveLookupItems.push({ index, item });
+    }
+  });
+
+  if (liveLookupItems.length === 0) {
+    return results as Array<Record<string, unknown>>;
+  }
+
   const productIds = [
     ...new Set(
-      items
-        .map((item) => (item.product_id || item.id) as string | undefined)
+      liveLookupItems
+        .map(({ item }) => (item.product_id || item.id) as string | undefined)
         .filter(Boolean),
     ),
   ] as string[];
 
   const codes = [
     ...new Set(
-      items
-        .map((item) => alsafixCodeOnly(item.code_alsafix as string | undefined))
+      liveLookupItems
+        .map(({ item }) => alsafixCodeOnly(item.code_alsafix as string | undefined))
         .filter(Boolean),
     ),
   ] as string[];
@@ -83,7 +109,7 @@ export async function enrichItemsWithAlsafixCodes(
     }
   }
 
-  return items.map((item) => {
+  for (const { index, item } of liveLookupItems) {
     const productId = (item.product_id || item.id) as string | undefined;
     const code = alsafixCodeOnly(item.code_alsafix as string | undefined);
     const product = resolveProductForItem(productId, code, productById, productByCode);
@@ -113,11 +139,13 @@ export async function enrichItemsWithAlsafixCodes(
       });
     }
 
-    return enrichItemSupplierPricing(
+    results[index] = enrichItemSupplierPricing(
       { ...item, code_alsafix: resolvedCode },
       product?.purchase_price_ht ?? null,
       product?.box_quantity ?? null,
       product?.unite_de_vente ?? null,
     );
-  });
+  }
+
+  return results as Array<Record<string, unknown>>;
 }
