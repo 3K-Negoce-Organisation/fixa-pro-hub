@@ -4,6 +4,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { splitOrderTotals } from "../_shared/order-totals.ts";
 import { sendOrderConfirmationEmail } from "../_shared/send-order-confirmation-email.ts";
 import { buildGuestOrderTrackingUrl } from "../_shared/guest-order-tracking-url.ts";
+import { resolveResendFrom } from "../_shared/resolve-resend-from.ts";
 import { alsafixCodeOnly, enrichItemsWithAlsafixCodes } from "../_shared/alsafix-code.ts";
 import { roundMoney } from "../_shared/money.ts";
 import { generateOrderPDF } from "../_shared/generate-order-pdf.ts";
@@ -756,7 +757,7 @@ async function sendToN8n(
 
     const { productsHT, shippingHT } = splitOrderTotals(enrichedCartItems, totalHT);
     const fromEmail = supplierSettings?.customer_service_email || supplierSettings?.email;
-    if (fromEmail && (resolvedEmail || customerEmail)) {
+    if ((fromEmail || Deno.env.get("RESEND_FROM_EMAIL")) && (resolvedEmail || customerEmail)) {
       const shippingName = shippingAddress?.name || customerName;
       const shippingLine = [shippingAddress?.line1, shippingAddress?.line2].filter(Boolean).join(", ") || null;
       const shippingCityLine = shippingAddress?.postal_code && shippingAddress?.city
@@ -768,10 +769,13 @@ async function sendToN8n(
         ? buildGuestOrderTrackingUrl(orderNumber, resolvedEmail || customerEmail!)
         : `${storefrontBase}/suivi?order=${encodeURIComponent(orderNumber)}`;
 
+      const { fromEmail: resendFrom, fromName, replyTo } = resolveResendFrom(supplierSettings);
+
       await sendOrderConfirmationEmail({
         customerEmail: resolvedEmail || customerEmail!,
-        fromEmail,
-        fromName: supplierSettings?.name || "Vis-à-Bois",
+        fromEmail: resendFrom,
+        fromName,
+        replyTo,
         bccEmail: supplierSettings?.status_email || null,
         orderNumber,
         items: enrichedCartItems.map((item) => ({

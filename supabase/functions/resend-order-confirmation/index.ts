@@ -13,10 +13,25 @@ serve(async (req) => {
   }
 
   try {
-    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
     const authHeader = req.headers.get("Authorization") ?? "";
-    const token = authHeader.replace(/^Bearer\s+/i, "");
-    if (!serviceKey || token !== serviceKey) {
+    const token = authHeader.replace(/^Bearer\s+/i, "").trim();
+    if (!token) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+    const supabaseAdmin = createClient(supabaseUrl, token, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+
+    const { error: probeError } = await supabaseAdmin
+      .from("orders")
+      .select("id")
+      .limit(1);
+    if (probeError) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -35,12 +50,6 @@ serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-
-    const supabaseAdmin = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      serviceKey,
-      { auth: { persistSession: false } },
-    );
 
     const results = [];
     for (const orderNumber of numbers) {

@@ -7,6 +7,7 @@ import { loadSiteLogoForOrderPdf } from "./site-logo.ts";
 import { resolveOrderCustomerPhone } from "./order-customer-phone.ts";
 import { resolveOrderCustomerEmail } from "./order-customer-email.ts";
 import { buildGuestOrderTrackingUrl } from "./guest-order-tracking-url.ts";
+import { resolveResendFrom } from "./resolve-resend-from.ts";
 
 export type SendOrderToN8nParams = {
   n8nWebhookUrl: string;
@@ -107,17 +108,20 @@ export async function sendOrderToN8n(params: SendOrderToN8nParams): Promise<void
       ? buildGuestOrderTrackingUrl(orderNumber, resolvedEmail || customerEmail!)
       : `${storefrontBase}/suivi?order=${encodeURIComponent(orderNumber)}`;
 
-    if (fromEmail && (resolvedEmail || customerEmail)) {
+    if ((fromEmail || Deno.env.get("RESEND_FROM_EMAIL")) && (resolvedEmail || customerEmail)) {
       const shippingName = shippingAddress?.name || customerName;
       const shippingLine = [shippingAddress?.line1, shippingAddress?.line2].filter(Boolean).join(", ") || null;
       const shippingCityLine = shippingAddress?.postal_code && shippingAddress?.city
         ? `${shippingAddress.postal_code} ${shippingAddress.city}`
         : shippingAddress?.city || null;
 
+      const { fromEmail: resendFrom, fromName, replyTo } = resolveResendFrom(supplierSettings);
+
       await sendOrderConfirmationEmail({
         customerEmail: resolvedEmail || customerEmail!,
-        fromEmail,
-        fromName: supplierSettings?.name || "Vis-à-Bois",
+        fromEmail: resendFrom,
+        fromName,
+        replyTo,
         bccEmail: supplierSettings?.status_email || null,
         orderNumber,
         items: enrichedCartItems.map((item) => ({

@@ -2,6 +2,7 @@ import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.57.2
 import { splitOrderTotals } from "./order-totals.ts";
 import { sendOrderConfirmationEmail, type OrderConfirmationEmailParams } from "./send-order-confirmation-email.ts";
 import { buildGuestOrderTrackingUrl } from "./guest-order-tracking-url.ts";
+import { resolveResendFrom } from "./resolve-resend-from.ts";
 
 type OrderRow = {
   order_number: string;
@@ -73,9 +74,11 @@ async function sendOrderConfirmationForOrderRow(
     .maybeSingle();
 
   const fromEmail = supplierSettings?.customer_service_email || supplierSettings?.email;
-  if (!fromEmail) {
+  if (!fromEmail && !Deno.env.get("RESEND_FROM_EMAIL")) {
     return { sent: false, order_number: order.order_number, error: "Email expéditeur non configuré" };
   }
+
+  const { fromEmail: resendFrom, fromName, replyTo } = resolveResendFrom(supplierSettings);
 
   const { data: items, error: itemsError } = await supabaseAdmin
     .from("order_items")
@@ -124,9 +127,10 @@ async function sendOrderConfirmationForOrderRow(
 
   const params: OrderConfirmationEmailParams = {
     customerEmail,
-    fromEmail,
-    fromName: supplierSettings?.name || "Vis-à-Bois",
-    bccEmail: supplierSettings?.status_email || null,
+    fromEmail: resendFrom,
+    fromName,
+    replyTo,
+    bccEmail: null,
     orderNumber: order.order_number,
     items: mappedItems,
     productsHT,
@@ -139,6 +143,10 @@ async function sendOrderConfirmationForOrderRow(
     trackingUrl,
   };
 
-  const sent = await sendOrderConfirmationEmail(params);
-  return { sent, order_number: order.order_number, error: sent ? undefined : "Échec envoi Resend" };
+  const sendResult = await sendOrderConfirmationEmail(params);
+  return {
+    sent: sendResult.sent,
+    order_number: order.order_number,
+    error: sendResult.sent ? undefined : (sendResult.error || "Échec envoi Resend"),
+  };
 }

@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { splitOrderTotals } from "../_shared/order-totals.ts";
 import { sendOrderConfirmationEmail } from "../_shared/send-order-confirmation-email.ts";
 import { buildGuestOrderTrackingUrl } from "../_shared/guest-order-tracking-url.ts";
+import { resolveResendFrom } from "../_shared/resolve-resend-from.ts";
 import { enrichItemsWithAlsafixCodes } from "../_shared/alsafix-code.ts";
 import { generateOrderPDF } from "../_shared/generate-order-pdf.ts";
 import { loadSiteLogoForOrderPdf } from "../_shared/site-logo.ts";
@@ -196,16 +197,19 @@ serve(async (req) => {
 
     const { productsHT, shippingHT } = splitOrderTotals(enrichedItems, order.total_ht);
     const fromEmail = supplierSettings?.customer_service_email || supplierSettings?.email;
-    if (fromEmail && customerEmail) {
+    if ((fromEmail || Deno.env.get("RESEND_FROM_EMAIL")) && customerEmail) {
       const storefrontBase = (Deno.env.get("STOREFRONT_URL") || "https://www.vis-a-bois.com").replace(/\/$/, "");
       const trackingUrl = !order.user_id
         ? buildGuestOrderTrackingUrl(order.order_number, customerEmail)
         : `${storefrontBase}/suivi?order=${encodeURIComponent(order.order_number)}`;
 
+      const { fromEmail: resendFrom, fromName, replyTo } = resolveResendFrom(supplierSettings);
+
       await sendOrderConfirmationEmail({
         customerEmail,
-        fromEmail,
-        fromName: supplierSettings?.name || "Vis-à-Bois",
+        fromEmail: resendFrom,
+        fromName,
+        replyTo,
         bccEmail: supplierSettings?.status_email || null,
         orderNumber: order.order_number,
         items: enrichedItems.map((item) => ({

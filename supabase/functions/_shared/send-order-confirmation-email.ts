@@ -27,6 +27,8 @@ export interface OrderConfirmationEmailParams {
   shippingCityLine?: string | null;
   /** Lien direct suivi commande (invité ou connecté) */
   trackingUrl?: string | null;
+  /** Reply-to (ex. SAV) si différent de l'expéditeur Resend vérifié */
+  replyTo?: string | null;
 }
 
 function escapeHtml(value: string): string {
@@ -116,14 +118,14 @@ function buildOrderConfirmationHtml(params: OrderConfirmationEmailParams): strin
 </html>`;
 }
 
-export async function sendOrderConfirmationEmail(params: OrderConfirmationEmailParams): Promise<boolean> {
+export async function sendOrderConfirmationEmail(params: OrderConfirmationEmailParams): Promise<{ sent: boolean; error?: string }> {
   if (!RESEND_API_KEY) {
     console.error("[order-confirmation-email] RESEND_API_KEY not set");
-    return false;
+    return { sent: false, error: "RESEND_API_KEY not set" };
   }
   if (!params.customerEmail) {
     console.warn("[order-confirmation-email] No customer email — skipping");
-    return false;
+    return { sent: false, error: "No customer email" };
   }
 
   const payload: Record<string, unknown> = {
@@ -134,6 +136,9 @@ export async function sendOrderConfirmationEmail(params: OrderConfirmationEmailP
   };
   if (params.bccEmail) {
     payload.bcc = [params.bccEmail];
+  }
+  if (params.replyTo) {
+    payload.reply_to = [params.replyTo];
   }
 
   try {
@@ -146,14 +151,16 @@ export async function sendOrderConfirmationEmail(params: OrderConfirmationEmailP
       body: JSON.stringify(payload),
     });
     if (!resp.ok) {
-      console.error("[order-confirmation-email] Resend error:", resp.status, await resp.text());
-      return false;
+      const errText = await resp.text();
+      console.error("[order-confirmation-email] Resend error:", resp.status, errText);
+      return { sent: false, error: `Resend ${resp.status}: ${errText}` };
     }
     const result = await resp.json();
     console.log("[order-confirmation-email] Sent:", result.id, "→", params.customerEmail);
-    return true;
+    return { sent: true };
   } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
     console.error("[order-confirmation-email] Unexpected error:", e);
-    return false;
+    return { sent: false, error: message };
   }
 }
