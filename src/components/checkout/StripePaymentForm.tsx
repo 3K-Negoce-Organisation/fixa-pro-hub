@@ -264,7 +264,11 @@ const CheckoutForm = ({ totalTTC, userEmail, isGuest, onSuccess, onCancel, items
         });
         clearCart();
         onSuccess();
-        navigate(`/confirmation?order_number=${orderNumber}`);
+        const confirmParams = new URLSearchParams({ order_number: orderNumber });
+        if (isGuest && finalEmail) {
+          confirmParams.set("email", finalEmail.trim().toLowerCase());
+        }
+        navigate(`/confirmation?${confirmParams.toString()}`);
       } catch (err) {
         console.error("Error creating order:", err);
         toast({

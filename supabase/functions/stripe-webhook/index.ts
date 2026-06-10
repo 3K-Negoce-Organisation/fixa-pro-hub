@@ -3,6 +3,8 @@ import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { splitOrderTotals } from "../_shared/order-totals.ts";
 import { sendOrderConfirmationEmail } from "../_shared/send-order-confirmation-email.ts";
+import { buildGuestOrderTrackingUrl } from "../_shared/guest-order-tracking-url.ts";
+import { resolveResendFrom } from "../_shared/resolve-resend-from.ts";
 import { alsafixCodeOnly, enrichItemsWithAlsafixCodes } from "../_shared/alsafix-code.ts";
 import { roundMoney } from "../_shared/money.ts";
 import { generateOrderPDF } from "../_shared/generate-order-pdf.ts";
@@ -712,6 +714,7 @@ async function sendToN8n(
     let resolvedPhone = customerPhone?.trim() || null;
     let resolvedEmail = customerEmail?.trim() || "";
     let orderSiteId: string | null = null;
+    let orderUserId: string | null = null;
     if (orderId) {
       const { data: orderRow } = await supabaseAdmin
         .from("orders")
@@ -719,6 +722,7 @@ async function sendToN8n(
         .eq("id", orderId)
         .maybeSingle();
       orderSiteId = orderRow?.site_id ?? null;
+      orderUserId = orderRow?.user_id ?? null;
       if (orderRow) {
         if (!resolvedPhone) {
           resolvedPhone = await resolveOrderCustomerPhone(supabaseAdmin, orderRow);
@@ -753,17 +757,25 @@ async function sendToN8n(
 
     const { productsHT, shippingHT } = splitOrderTotals(enrichedCartItems, totalHT);
     const fromEmail = supplierSettings?.customer_service_email || supplierSettings?.email;
-    if (fromEmail && (resolvedEmail || customerEmail)) {
+    if ((fromEmail || Deno.env.get("RESEND_FROM_EMAIL")) && (resolvedEmail || customerEmail)) {
       const shippingName = shippingAddress?.name || customerName;
       const shippingLine = [shippingAddress?.line1, shippingAddress?.line2].filter(Boolean).join(", ") || null;
       const shippingCityLine = shippingAddress?.postal_code && shippingAddress?.city
         ? `${shippingAddress.postal_code} ${shippingAddress.city}`
         : shippingAddress?.city || null;
 
+      const storefrontBase = (Deno.env.get("STOREFRONT_URL") || "https://www.vis-a-bois.com").replace(/\/$/, "");
+      const trackingUrl = !orderUserId && (resolvedEmail || customerEmail)
+        ? buildGuestOrderTrackingUrl(orderNumber, resolvedEmail || customerEmail!)
+        : `${storefrontBase}/suivi?order=${encodeURIComponent(orderNumber)}`;
+
+      const { fromEmail: resendFrom, fromName, replyTo } = resolveResendFrom(supplierSettings);
+
       await sendOrderConfirmationEmail({
         customerEmail: resolvedEmail || customerEmail!,
-        fromEmail,
-        fromName: supplierSettings?.name || "Vis-à-Bois",
+        fromEmail: resendFrom,
+        fromName,
+        replyTo,
         bccEmail: supplierSettings?.status_email || null,
         orderNumber,
         items: enrichedCartItems.map((item) => ({
@@ -780,6 +792,7 @@ async function sendToN8n(
         shippingName,
         shippingAddress: shippingLine,
         shippingCityLine,
+        trackingUrl,
       });
     } else {
       logStep("Skipping customer confirmation email", { hasFrom: !!fromEmail, hasCustomerEmail: !!(resolvedEmail || customerEmail) });
