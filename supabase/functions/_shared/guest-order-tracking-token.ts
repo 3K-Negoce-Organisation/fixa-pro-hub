@@ -1,45 +1,61 @@
 /** Paramètre URL du jeton de suivi invité (HMAC order + email). */
 export const GUEST_TRACKING_TOKEN_PARAM = "t";
 
-function trackingSecret(): string {
-  const secret =
-    Deno.env.get("ORDER_TRACKING_SECRET")?.trim() ||
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")?.trim();
-  if (!secret) {
-    throw new Error("ORDER_TRACKING_SECRET is not configured");
-  }
-  return secret;
-}
+const TRACKING_KEY_SALT = "vis-a-bois-guest-tracking-v1";
 
 function payload(orderNumber: string, email: string): string {
   return `${orderNumber.trim().toUpperCase()}|${email.trim().toLowerCase()}`;
 }
 
 function base64UrlEncode(bytes: Uint8Array): string {
-  const bin = String.fromCharCode(...bytes);
-  return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+  let binary = "";
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
 }
 
-function timingSafeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  let out = 0;
-  for (let i = 0; i < a.length; i++) {
-    out |= a.charCodeAt(i) ^ b.charCodeAt(i);
+function base64UrlDecode(value: string): Uint8Array | null {
+  try {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    const padLen = (4 - (trimmed.length % 4)) % 4;
+    const b64 = trimmed.replace(/-/g, "+").replace(/_/g, "/") + "=".repeat(padLen);
+    const binary = atob(b64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    return bytes;
+  } catch {
+    return null;
   }
-  return out === 0;
+}
+
+/** Clé HMAC dérivée (stable, identique sur toutes les edge functions du projet). */
+async function getTrackingHmacKey(): Promise<CryptoKey> {
+  const explicit = Deno.env.get("ORDER_TRACKING_SECRET")?.trim();
+  const serviceRole = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")?.trim();
+  const material = explicit || (serviceRole ? `${TRACKING_KEY_SALT}:${serviceRole}` : "");
+  if (!material) {
+    throw new Error("Tracking secret not configured");
+  }
+
+  const keyBytes = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(material));
+  return crypto.subtle.importKey(
+    "raw",
+    keyBytes,
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign", "verify"],
+  );
 }
 
 export async function signGuestOrderTrackingToken(
   orderNumber: string,
   email: string,
 ): Promise<string> {
-  const key = await crypto.subtle.importKey(
-    "raw",
-    new TextEncoder().encode(trackingSecret()),
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"],
-  );
+  const key = await getTrackingHmacKey();
   const sig = await crypto.subtle.sign(
     "HMAC",
     key,
@@ -53,11 +69,17 @@ export async function verifyGuestOrderTrackingToken(
   email: string,
   token: string | null | undefined,
 ): Promise<boolean> {
-  const trimmed = (token ?? "").trim();
-  if (!trimmed) return false;
+  const sigBytes = base64UrlDecode((token ?? "").trim());
+  if (!sigBytes) return false;
+
   try {
-    const expected = await signGuestOrderTrackingToken(orderNumber, email);
-    return timingSafeEqual(expected, trimmed);
+    const key = await getTrackingHmacKey();
+    return await crypto.subtle.verify(
+      "HMAC",
+      key,
+      sigBytes,
+      new TextEncoder().encode(payload(orderNumber, email)),
+    );
   } catch {
     return false;
   }

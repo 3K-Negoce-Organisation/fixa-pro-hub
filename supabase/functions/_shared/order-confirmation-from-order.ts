@@ -29,7 +29,7 @@ type OrderItemRow = {
 export async function sendOrderConfirmationForOrderId(
   supabaseAdmin: SupabaseClient,
   orderId: string,
-): Promise<{ sent: boolean; order_number?: string; error?: string }> {
+): Promise<{ sent: boolean; order_number?: string; tracking_url?: string; error?: string }> {
   const { data: order, error: orderError } = await supabaseAdmin
     .from("orders")
     .select("id, order_number, user_email, shipping_name, shipping_address, shipping_city, shipping_postal_code, total_ht, total_ttc, user_id, site_id")
@@ -46,7 +46,7 @@ export async function sendOrderConfirmationForOrderId(
 export async function sendOrderConfirmationForOrderNumber(
   supabaseAdmin: SupabaseClient,
   orderNumber: string,
-): Promise<{ sent: boolean; order_number?: string; error?: string }> {
+): Promise<{ sent: boolean; order_number?: string; tracking_url?: string; error?: string }> {
   const { data: order, error: orderError } = await supabaseAdmin
     .from("orders")
     .select("id, order_number, user_email, shipping_name, shipping_address, shipping_city, shipping_postal_code, total_ht, total_ttc, user_id, site_id")
@@ -64,7 +64,7 @@ async function sendOrderConfirmationForOrderRow(
   supabaseAdmin: SupabaseClient,
   order: OrderRow,
   orderId: string,
-): Promise<{ sent: boolean; order_number?: string; error?: string }> {
+): Promise<{ sent: boolean; order_number?: string; tracking_url?: string; error?: string }> {
   const customerEmail = (order.user_email || "").trim();
   if (!customerEmail) {
     return { sent: false, order_number: order.order_number, error: "Pas d'email client sur la commande" };
@@ -149,6 +149,7 @@ async function sendOrderConfirmationForOrderRow(
   return {
     sent: sendResult.sent,
     order_number: order.order_number,
+    tracking_url: trackingUrl,
     error: sendResult.sent ? undefined : (sendResult.error || "Échec envoi Resend"),
   };
 }
