@@ -3,6 +3,7 @@ import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { splitOrderTotals } from "../_shared/order-totals.ts";
 import { sendOrderConfirmationEmail } from "../_shared/send-order-confirmation-email.ts";
+import { buildGuestOrderTrackingUrl } from "../_shared/guest-order-tracking-url.ts";
 import { alsafixCodeOnly, enrichItemsWithAlsafixCodes } from "../_shared/alsafix-code.ts";
 import { roundMoney } from "../_shared/money.ts";
 import { generateOrderPDF } from "../_shared/generate-order-pdf.ts";
@@ -712,6 +713,7 @@ async function sendToN8n(
     let resolvedPhone = customerPhone?.trim() || null;
     let resolvedEmail = customerEmail?.trim() || "";
     let orderSiteId: string | null = null;
+    let orderUserId: string | null = null;
     if (orderId) {
       const { data: orderRow } = await supabaseAdmin
         .from("orders")
@@ -719,6 +721,7 @@ async function sendToN8n(
         .eq("id", orderId)
         .maybeSingle();
       orderSiteId = orderRow?.site_id ?? null;
+      orderUserId = orderRow?.user_id ?? null;
       if (orderRow) {
         if (!resolvedPhone) {
           resolvedPhone = await resolveOrderCustomerPhone(supabaseAdmin, orderRow);
@@ -760,6 +763,11 @@ async function sendToN8n(
         ? `${shippingAddress.postal_code} ${shippingAddress.city}`
         : shippingAddress?.city || null;
 
+      const storefrontBase = (Deno.env.get("STOREFRONT_URL") || "https://www.vis-a-bois.com").replace(/\/$/, "");
+      const trackingUrl = !orderUserId && (resolvedEmail || customerEmail)
+        ? buildGuestOrderTrackingUrl(orderNumber, resolvedEmail || customerEmail!)
+        : `${storefrontBase}/suivi?order=${encodeURIComponent(orderNumber)}`;
+
       await sendOrderConfirmationEmail({
         customerEmail: resolvedEmail || customerEmail!,
         fromEmail,
@@ -780,6 +788,7 @@ async function sendToN8n(
         shippingName,
         shippingAddress: shippingLine,
         shippingCityLine,
+        trackingUrl,
       });
     } else {
       logStep("Skipping customer confirmation email", { hasFrom: !!fromEmail, hasCustomerEmail: !!(resolvedEmail || customerEmail) });

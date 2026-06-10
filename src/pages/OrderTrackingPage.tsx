@@ -121,10 +121,11 @@ const canDownloadCustomerInvoice = (status: OrderStatus) =>
 const OrderTrackingPage = () => {
   const [searchParams] = useSearchParams();
   const orderFromUrl = searchParams.get("order");
+  const emailFromUrl = searchParams.get("email");
   
   const [orderNumber, setOrderNumber] = useState(orderFromUrl || "");
   const [searchTerm, setSearchTerm] = useState(orderFromUrl || "");
-  const [guestEmail, setGuestEmail] = useState("");
+  const [guestEmail, setGuestEmail] = useState(emailFromUrl || "");
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(!!orderFromUrl);
@@ -178,11 +179,13 @@ const OrderTrackingPage = () => {
   useEffect(() => {
     if (orderFromUrl && sessionUserId) {
       searchOrder(orderFromUrl);
+    } else if (orderFromUrl && emailFromUrl && !sessionUserId) {
+      void searchGuestOrder(orderFromUrl, emailFromUrl);
     } else if (sessionUserId && userOrders && userOrders.length > 0 && !order && !searched) {
       const mostRecentOrder = userOrders[0];
       handleSelectOrder(mostRecentOrder.order_number);
     }
-  }, [orderFromUrl, userOrders, sessionUserId]);
+  }, [orderFromUrl, emailFromUrl, userOrders, sessionUserId]);
 
   // Subscribe to realtime updates when order is loaded (not for guest email lookup — RLS blocks anon channel)
   useEffect(() => {

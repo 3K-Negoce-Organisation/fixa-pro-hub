@@ -11,6 +11,7 @@ const OrderConfirmationPage = () => {
   const [searchParams] = useSearchParams();
   const sessionId = searchParams.get("session_id");
   const orderNumber = searchParams.get("order_number");
+  const guestEmail = searchParams.get("email");
   const { clearCart } = useCart();
   const clearedRef = useRef(false);
 
@@ -21,9 +22,10 @@ const OrderConfirmationPage = () => {
     }
   }, [sessionId, orderNumber, clearCart]);
 
-  const suiviHref = orderNumber
-    ? `/suivi?order=${encodeURIComponent(orderNumber)}`
-    : "/suivi";
+  const suiviParams = new URLSearchParams();
+  if (orderNumber) suiviParams.set("order", orderNumber);
+  if (guestEmail) suiviParams.set("email", guestEmail);
+  const suiviHref = suiviParams.toString() ? `/suivi?${suiviParams.toString()}` : "/suivi";
 
   return (
     <PageBackground>

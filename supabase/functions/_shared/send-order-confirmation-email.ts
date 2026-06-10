@@ -25,6 +25,8 @@ export interface OrderConfirmationEmailParams {
   shippingName?: string | null;
   shippingAddress?: string | null;
   shippingCityLine?: string | null;
+  /** Lien direct suivi commande (invité ou connecté) */
+  trackingUrl?: string | null;
 }
 
 function escapeHtml(value: string): string {
@@ -94,6 +96,15 @@ function buildOrderConfirmationHtml(params: OrderConfirmationEmailParams): strin
       <p style="margin:16px 0 4px;text-align:right;"><strong>Total TTC : ${params.totalTTC.toFixed(2)} €</strong></p>
       <p style="margin:0 0 24px;text-align:right;color:#777;">Total HT : ${params.totalHT.toFixed(2)} €</p>
       ${addressBlock ? `<h2 style="font-size:16px;margin:0 0 8px;">Adresse de livraison</h2>${addressBlock}` : ""}
+      ${params.trackingUrl ? `
+      <p style="margin:28px 0 8px;text-align:center;">
+        <a href="${escapeHtml(params.trackingUrl)}" style="display:inline-block;background:#1a1a2e;color:#fff;text-decoration:none;padding:14px 28px;border-radius:6px;font-weight:bold;font-size:15px;">
+          Suivre ma commande
+        </a>
+      </p>
+      <p style="margin:0 0 24px;text-align:center;font-size:12px;color:#777;word-break:break-all;">
+        Ou copiez ce lien : ${escapeHtml(params.trackingUrl)}
+      </p>` : ""}
       <p style="margin-top:24px;">Livraison estimée : 24–48 h. Vous recevrez un email avec le numéro de suivi dès l'expédition.</p>
       <p>Merci pour votre confiance,<br/><strong>${escapeHtml(params.fromName)}</strong></p>
     </div>

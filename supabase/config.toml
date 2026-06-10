@@ -15,6 +15,9 @@ verify_jwt = false
 [functions.complete-checkout-order]
 verify_jwt = false
 
+[functions.resend-order-confirmation]
+verify_jwt = false
+
 [functions.lookup-order-by-email]
 verify_jwt = false
 
