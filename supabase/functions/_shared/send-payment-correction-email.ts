@@ -5,6 +5,7 @@ export interface PaymentCorrectionEmailParams {
   fromEmail: string;
   fromName: string;
   bccEmail?: string | null;
+  replyTo?: string | null;
   orderNumber: string;
   amountTtc: number;
   paymentUrl: string;
@@ -48,8 +49,18 @@ export async function sendPaymentCorrectionEmail(params: PaymentCorrectionEmailP
     return;
   }
 
-  const to = [{ email: params.customerEmail }];
-  const bcc = params.bccEmail ? [{ email: params.bccEmail }] : undefined;
+  const payload: Record<string, unknown> = {
+    from: `${params.fromName} <${params.fromEmail}>`,
+    to: [params.customerEmail.trim()],
+    subject: `Paiement complémentaire — commande ${params.orderNumber}`,
+    html: buildHtml(params),
+  };
+  if (params.bccEmail?.trim()) {
+    payload.bcc = [params.bccEmail.trim()];
+  }
+  if (params.replyTo?.trim()) {
+    payload.reply_to = [params.replyTo.trim()];
+  }
 
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -57,13 +68,7 @@ export async function sendPaymentCorrectionEmail(params: PaymentCorrectionEmailP
       Authorization: `Bearer ${RESEND_API_KEY}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      from: `${params.fromName} <${params.fromEmail}>`,
-      to,
-      bcc,
-      subject: `Paiement complémentaire — commande ${params.orderNumber}`,
-      html: buildHtml(params),
-    }),
+    body: JSON.stringify(payload),
   });
 
   if (!res.ok) {

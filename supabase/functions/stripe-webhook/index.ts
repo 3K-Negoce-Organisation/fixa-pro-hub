@@ -22,9 +22,12 @@ import {
   parseCompactItemsFromMetadata,
 } from "../_shared/stripe-cart-metadata.ts";
 import {
-  checkoutSessionEventExists,
   insertOrderStatusEvent,
 } from "../_shared/order-status-events.ts";
+import {
+  applyAdminCorrectionPayment,
+  resolveAdminCorrectionFromPaymentIntent,
+} from "../_shared/admin-correction-payment.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -189,6 +192,28 @@ serve(async (req) => {
 
         logStep("PaymentIntent processing complete (existing order)");
         return new Response(JSON.stringify({ received: true, existing_order: true }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
+        });
+      }
+
+      const adminCorrectionCtx = await resolveAdminCorrectionFromPaymentIntent(
+        stripe,
+        paymentIntent.id,
+        paymentIntent.metadata as Record<string, string> | undefined,
+      );
+      if (adminCorrectionCtx) {
+        const result = await applyAdminCorrectionPayment(supabaseAdmin, adminCorrectionCtx);
+        logStep("Admin correction applied from PaymentIntent", {
+          orderId: result.orderId,
+          skipped: result.skipped,
+          paymentIntentId: paymentIntent.id,
+        });
+        return new Response(JSON.stringify({
+          received: true,
+          admin_correction: true,
+          skipped: result.skipped,
+        }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
           status: 200,
         });
@@ -365,53 +390,25 @@ serve(async (req) => {
 
       const sessionMetadata = session.metadata || {};
       if (sessionMetadata.admin_correction === "true" && sessionMetadata.order_id) {
-        const orderId = sessionMetadata.order_id;
-        const alreadyProcessed = await checkoutSessionEventExists(supabaseAdmin, session.id);
-        if (alreadyProcessed) {
-          logStep("Admin correction session already processed", { sessionId: session.id });
-          return new Response(JSON.stringify({ received: true, admin_correction: true, skipped: true }), {
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-            status: 200,
-          });
-        }
-
         const correctionAmount = parseFloat(sessionMetadata.correction_amount_ttc || "0");
-        const { data: correctionOrder, error: correctionError } = await supabaseAdmin
-          .from("orders")
-          .select("*")
-          .eq("id", orderId)
-          .maybeSingle();
-
-        if (correctionError || !correctionOrder) {
-          throw new Error(`Admin correction order not found: ${orderId}`);
-        }
-
-        const newTotalTtc = Number(correctionOrder.total_ttc || 0) + (Number.isFinite(correctionAmount) ? correctionAmount : 0);
-        const notesAppend = `\nStripe correction session: ${session.id}`;
-
-        await supabaseAdmin
-          .from("orders")
-          .update({
-            status: "paid",
-            total_ttc: Math.round(newTotalTtc * 100) / 100,
-            stripe_checkout_session_id: session.id,
-            notes: `${correctionOrder.notes || ""}${notesAppend}`.trim(),
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", orderId);
-
-        await insertOrderStatusEvent(supabaseAdmin, {
-          order_id: orderId,
-          status: "paid",
-          event_kind: "payment_received",
-          is_manual: false,
-          note: "Paiement complémentaire reçu",
-          amount_ttc: Number.isFinite(correctionAmount) ? correctionAmount : null,
-          stripe_checkout_session_id: session.id,
+        const result = await applyAdminCorrectionPayment(supabaseAdmin, {
+          orderId: sessionMetadata.order_id,
+          sessionId: session.id,
+          correctionAmountTtc: correctionAmount,
+          paymentIntentId: typeof session.payment_intent === "string"
+            ? session.payment_intent
+            : session.payment_intent?.id ?? null,
         });
-
-        logStep("Admin correction payment applied", { orderId, sessionId: session.id });
-        return new Response(JSON.stringify({ received: true, admin_correction: true }), {
+        logStep("Admin correction payment applied from checkout session", {
+          orderId: result.orderId,
+          sessionId: session.id,
+          skipped: result.skipped,
+        });
+        return new Response(JSON.stringify({
+          received: true,
+          admin_correction: true,
+          skipped: result.skipped,
+        }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
           status: 200,
         });

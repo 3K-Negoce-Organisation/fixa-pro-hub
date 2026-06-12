@@ -4,6 +4,7 @@ import { generateCustomerInvoicePDF } from "../_shared/generate-customer-invoice
 import { loadSiteLogoForOrderPdf } from "../_shared/site-logo.ts";
 import { verifyGuestOrderTrackingToken } from "../_shared/guest-order-tracking-token.ts";
 import { verifyAdminRequest } from "../_shared/verify-admin.ts";
+import { getCustomerVisibleStatus } from "../_shared/customer-visible-status.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -61,7 +62,11 @@ async function buildCustomerInvoiceResponse(
   admin: ReturnType<typeof createClient>,
   order: Record<string, unknown>,
 ) {
-  if ((order.status as string) !== "delivered") {
+  const visibleStatus = getCustomerVisibleStatus({
+    status: order.status as string,
+    status_before_intervention: order.status_before_intervention as string | null,
+  });
+  if (visibleStatus !== "delivered") {
     return {
       error: "La facture client est disponible après livraison.",
       status: 403 as const,

@@ -23,6 +23,7 @@ import { splitOrderTotalsFromItems } from "@/lib/shipping";
 import { getDisplayVariantTitle } from "@/lib/products";
 import { BoxQuantityHint } from "@/components/cart/BoxQuantityHint";
 import { getEdgeFunctionErrorMessage } from "@/lib/edgeFunctionError";
+import { getCustomerVisibleStatus } from "@/lib/customer-visible-status";
 
 const formatPriceHT = (price: number) => {
   return new Intl.NumberFormat("fr-FR", {
@@ -38,7 +39,7 @@ const formatPriceTTC = (price: number) => {
   }).format(price) + " TTC";
 };
 
-type OrderStatus = 'pending' | 'paid' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'manual_intervention' | 'awaiting_payment';
+type OrderStatus = 'pending' | 'paid' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'awaiting_payment';
 
 interface OrderItem {
   id: string;
@@ -67,6 +68,7 @@ interface Order {
   id: string;
   order_number: string;
   status: OrderStatus;
+  status_before_intervention?: string | null;
   total_ht: number;
   total_ttc: number;
   shipping_address: string | null;
@@ -88,7 +90,6 @@ const statusConfig: Record<OrderStatus, { label: string; color: string; icon: Re
   processing: { label: "En préparation", color: "bg-purple-100 text-purple-800", icon: <Package className="h-4 w-4" />, step: 4 },
   shipped: { label: "Expédiée", color: "bg-indigo-100 text-indigo-800", icon: <Truck className="h-4 w-4" />, step: 5 },
   delivered: { label: "Livrée", color: "bg-green-100 text-green-800", icon: <CheckCircle className="h-4 w-4" />, step: 6 },
-  manual_intervention: { label: "Traitement en cours", color: "bg-amber-100 text-amber-900", icon: <Package className="h-4 w-4" />, step: 4 },
   awaiting_payment: { label: "En attente de paiement", color: "bg-orange-100 text-orange-800", icon: <Clock className="h-4 w-4" />, step: 2 },
   cancelled: { label: "Annulée", color: "bg-red-100 text-red-800", icon: <XCircle className="h-4 w-4" />, step: 0 },
 };
@@ -110,7 +111,8 @@ const statusSteps = [
   { key: 'delivered', label: 'Livrée' },
 ];
 
-const canDownloadCustomerInvoice = (status: OrderStatus) => status === "delivered";
+const canDownloadCustomerInvoice = (order: Pick<Order, "status" | "status_before_intervention">) =>
+  getCustomerVisibleStatus(order) === "delivered";
 
 const OrderTrackingPage = () => {
   const [searchParams] = useSearchParams();
@@ -233,7 +235,8 @@ const OrderTrackingPage = () => {
         (payload) => {
           console.log('Order update received:', payload);
           const newData = payload.new as {
-            status: OrderStatus;
+            status: string;
+            status_before_intervention?: string | null;
             tracking_number: string | null;
             carrier: string | null;
             updated_at: string;
@@ -246,22 +249,28 @@ const OrderTrackingPage = () => {
             const documents = Array.isArray(newData.documents)
               ? (newData.documents as OrderDocument[])
               : prev.documents;
-            return {
+            const next = {
               ...prev,
-              status: newData.status,
+              status: newData.status as OrderStatus,
+              status_before_intervention: newData.status_before_intervention ?? prev.status_before_intervention,
               tracking_number: newData.tracking_number,
               carrier: newData.carrier,
               updated_at: newData.updated_at,
               documents,
             };
-          });
 
-          // Show toast notification
-          const statusLabel = getStatusMeta(newData.status).label;
-          toast.success(`Statut mis à jour : ${statusLabel}`, {
-            description: newData.tracking_number 
-              ? `Numéro de suivi : ${newData.tracking_number}` 
-              : undefined,
+            const prevVisible = getCustomerVisibleStatus(prev);
+            const nextVisible = getCustomerVisibleStatus(next);
+            if (prevVisible !== nextVisible) {
+              const statusLabel = getStatusMeta(nextVisible).label;
+              toast.success(`Statut mis à jour : ${statusLabel}`, {
+                description: newData.tracking_number
+                  ? `Numéro de suivi : ${newData.tracking_number}`
+                  : undefined,
+              });
+            }
+
+            return next;
           });
         }
       )
@@ -322,6 +331,7 @@ const OrderTrackingPage = () => {
     setOrder({
       ...orderData,
       status: orderData.status as OrderStatus,
+      status_before_intervention: (orderData as { status_before_intervention?: string | null }).status_before_intervention ?? null,
       order_items: (itemsData || []) as OrderItem[],
       documents,
     });
@@ -644,8 +654,8 @@ const OrderTrackingPage = () => {
                       >
                         <div className="flex items-center justify-between mb-1">
                           <span className="font-medium text-sm">{o.order_number}</span>
-                          <Badge className={`${getStatusMeta(o.status).color} text-xs`}>
-                            {getStatusMeta(o.status).label}
+                          <Badge className={`${getStatusMeta(getCustomerVisibleStatus(o)).color} text-xs`}>
+                            {getStatusMeta(getCustomerVisibleStatus(o)).label}
                           </Badge>
                         </div>
                         <div className="flex items-center justify-between text-xs text-muted-foreground">
@@ -740,16 +750,16 @@ const OrderTrackingPage = () => {
                           Passée le {formatDate(order.created_at)}
                         </p>
                       </div>
-                      <Badge className={`${getStatusMeta(order.status).color} flex items-center gap-1 self-start`}>
-                        {getStatusMeta(order.status).icon}
-                        {getStatusMeta(order.status).label}
+                      <Badge className={`${getStatusMeta(getCustomerVisibleStatus(order)).color} flex items-center gap-1 self-start`}>
+                        {getStatusMeta(getCustomerVisibleStatus(order)).icon}
+                        {getStatusMeta(getCustomerVisibleStatus(order)).label}
                       </Badge>
                     </div>
 
                     {/* Progress bar */}
-                    {renderProgressBar(order.status)}
+                    {renderProgressBar(getCustomerVisibleStatus(order) as OrderStatus)}
 
-                    {canDownloadCustomerInvoice(order.status) && (
+                    {canDownloadCustomerInvoice(order) && (
                       <div className="mt-4 pt-4 border-t">
                         <Button
                           type="button"

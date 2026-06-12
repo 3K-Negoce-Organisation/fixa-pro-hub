@@ -8,6 +8,7 @@ import {
 } from "../_shared/order-stripe-resolve.ts";
 import { resolveOrderCustomerEmail } from "../_shared/order-customer-email.ts";
 import { sendPaymentCorrectionEmail } from "../_shared/send-payment-correction-email.ts";
+import { resolveResendFrom } from "../_shared/resolve-resend-from.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -93,9 +94,21 @@ serve(async (req) => {
     const stripe = new Stripe(secretKey, { apiVersion: "2025-08-27.basil" });
     const origin = Deno.env.get("STOREFRONT_URL") || "https://vis-a-bois.fr";
 
+    const correctionMetadata = {
+      order_id: order.id,
+      order_number: order.order_number,
+      admin_correction: "true",
+      site_id: order.site_id || "",
+      stripe_mode: stripeMode,
+      correction_amount_ttc: String(amount),
+    };
+
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       customer_email: customerEmail,
+      payment_intent_data: {
+        metadata: correctionMetadata,
+      },
       line_items: [{
         quantity: 1,
         price_data: {
@@ -109,14 +122,7 @@ serve(async (req) => {
       }],
       success_url: `${origin}/commande/${order.order_number}?payment=success`,
       cancel_url: `${origin}/commande/${order.order_number}?payment=cancelled`,
-      metadata: {
-        order_id: order.id,
-        order_number: order.order_number,
-        admin_correction: "true",
-        site_id: order.site_id || "",
-        stripe_mode: stripeMode,
-        correction_amount_ttc: String(amount),
-      },
+      metadata: correctionMetadata,
     });
 
     if (!session.url) {
@@ -159,18 +165,23 @@ serve(async (req) => {
       .eq("site_id", order.site_id)
       .maybeSingle();
 
-    const fromEmail = supplierSettings?.customer_service_email;
-    if (fromEmail) {
+    const { fromEmail, fromName, replyTo } = resolveResendFrom(supplierSettings ?? undefined);
+    let emailSent = false;
+    try {
       await sendPaymentCorrectionEmail({
         customerEmail,
         fromEmail,
-        fromName: supplierSettings?.name || "Vis-à-Bois",
+        fromName,
         bccEmail: supplierSettings?.status_email,
+        replyTo,
         orderNumber: order.order_number,
         amountTtc: amount,
         paymentUrl: session.url,
         note: note.trim(),
       });
+      emailSent = true;
+    } catch (emailErr) {
+      console.error("[admin-create-payment-link] email failed:", emailErr);
     }
 
     return new Response(JSON.stringify({
@@ -178,6 +189,7 @@ serve(async (req) => {
       checkout_url: session.url,
       session_id: session.id,
       status: "awaiting_payment",
+      email_sent: emailSent,
     }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
