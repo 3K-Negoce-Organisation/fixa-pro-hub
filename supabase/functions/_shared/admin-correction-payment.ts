@@ -107,7 +107,15 @@ export async function applyAdminCorrectionPayment(
 
   const correctionAmount = Number.isFinite(ctx.correctionAmountTtc) ? ctx.correctionAmountTtc : 0;
   const hadRefund = await orderHasRefundEvent(supabaseAdmin, ctx.orderId);
-  const replaceTotal = correctionOrder.status === "awaiting_payment" || hadRefund;
+  const inManualIntervention = correctionOrder.status === "manual_intervention";
+  const replaceTotal = hadRefund
+    || correctionOrder.status === "awaiting_payment"
+    || inManualIntervention;
+  const nextStatus = inManualIntervention
+    ? "manual_intervention"
+    : correctionOrder.status === "awaiting_payment"
+      ? "paid"
+      : String(correctionOrder.status || "paid");
   const { totalTtc, totalHt } = resolveCorrectionTotals(
     correctionOrder as Record<string, unknown>,
     correctionAmount,
@@ -123,7 +131,7 @@ export async function applyAdminCorrectionPayment(
   }
 
   const updatePayload: Record<string, unknown> = {
-    status: "paid",
+    status: nextStatus,
     total_ttc: totalTtc,
     notes: notesParts.filter(Boolean).join("\n"),
     updated_at: new Date().toISOString(),
@@ -142,7 +150,7 @@ export async function applyAdminCorrectionPayment(
 
   await insertOrderStatusEvent(supabaseAdmin, {
     order_id: ctx.orderId,
-    status: "paid",
+    status: nextStatus,
     event_kind: "payment_received",
     is_manual: false,
     note: replaceTotal ? "Paiement correctif reçu" : "Paiement complémentaire reçu",

@@ -132,10 +132,13 @@ serve(async (req) => {
       });
     }
 
+    const keepIntervention = order.status === "manual_intervention";
+    const nextStatus = keepIntervention ? "manual_intervention" : "awaiting_payment";
+
     const { error: updateError } = await auth.supabaseAdmin
       .from("orders")
       .update({
-        status: "awaiting_payment",
+        status: nextStatus,
         stripe_checkout_session_id: session.id,
         updated_at: new Date().toISOString(),
       })
@@ -150,7 +153,7 @@ serve(async (req) => {
 
     await insertOrderStatusEvent(auth.supabaseAdmin, {
       order_id,
-      status: "awaiting_payment",
+      status: nextStatus,
       event_kind: "payment_link_sent",
       is_manual: true,
       note: note.trim(),
@@ -188,7 +191,7 @@ serve(async (req) => {
       success: true,
       checkout_url: session.url,
       session_id: session.id,
-      status: "awaiting_payment",
+      status: nextStatus,
       email_sent: emailSent,
     }), {
       status: 200,
