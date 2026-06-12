@@ -1,10 +1,15 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
-import { generateCustomerInvoicePDF } from "../_shared/generate-customer-invoice-pdf.ts";
-import { loadSiteLogoForOrderPdf } from "../_shared/site-logo.ts";
 import { verifyGuestOrderTrackingToken } from "../_shared/guest-order-tracking-token.ts";
 import { verifyAdminRequest } from "../_shared/verify-admin.ts";
-import { getCustomerVisibleStatus } from "../_shared/customer-visible-status.ts";
+import {
+  orderEligibleForCustomerInvoice,
+  orderHasStoredCustomerInvoice,
+  persistCustomerInvoiceIfMissing,
+  type OrderDocumentEntry,
+} from "../_shared/persist-customer-invoice.ts";
+import { generateCustomerInvoicePDF } from "../_shared/generate-customer-invoice-pdf.ts";
+import { loadSiteLogoForOrderPdf } from "../_shared/site-logo.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -58,19 +63,60 @@ async function resolveOrderAccess(
   return { order };
 }
 
+async function readStoredCustomerInvoicePdf(
+  admin: ReturnType<typeof createClient>,
+  documents: unknown,
+): Promise<{ pdfBase64: string; filename: string } | null> {
+  if (!Array.isArray(documents)) return null;
+  const stored = documents.find((doc) => {
+    const entry = doc as OrderDocumentEntry;
+    return String(entry.type || "").toUpperCase() === "FACTURE_CLIENT" && entry.path;
+  }) as OrderDocumentEntry | undefined;
+
+  if (!stored?.path) return null;
+
+  const { data, error } = await admin.storage
+    .from("order-documents")
+    .download(stored.path);
+
+  if (error || !data) return null;
+
+  const buffer = await data.arrayBuffer();
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+
+  return {
+    pdfBase64: btoa(binary),
+    filename: stored.name || `FACTURE_CLIENT.pdf`,
+  };
+}
+
 async function buildCustomerInvoiceResponse(
   admin: ReturnType<typeof createClient>,
   order: Record<string, unknown>,
+  persistIfAdmin: boolean,
 ) {
-  const visibleStatus = getCustomerVisibleStatus({
-    status: order.status as string,
-    status_before_intervention: order.status_before_intervention as string | null,
-  });
-  if (visibleStatus !== "delivered") {
+  if (!orderEligibleForCustomerInvoice(order)) {
     return {
       error: "La facture client est disponible après livraison.",
       status: 403 as const,
     };
+  }
+
+  const stored = await readStoredCustomerInvoicePdf(admin, order.documents);
+  if (stored) {
+    return stored;
+  }
+
+  if (persistIfAdmin) {
+    const persisted = await persistCustomerInvoiceIfMissing(admin, order);
+    if (persisted.stored && persisted.document?.path) {
+      const reread = await readStoredCustomerInvoicePdf(admin, [persisted.document]);
+      if (reread) return reread;
+    }
   }
 
   const { data: orderItems, error: itemsErr } = await admin
@@ -105,6 +151,14 @@ async function buildCustomerInvoiceResponse(
 
   const filename = `FACTURE_CLIENT_${order.order_number}.pdf`;
 
+  if (persistIfAdmin && !orderHasStoredCustomerInvoice(order.documents)) {
+    try {
+      await persistCustomerInvoiceIfMissing(admin, { ...order, documents: order.documents });
+    } catch (persistErr) {
+      console.error("[download-customer-invoice] persist failed:", persistErr);
+    }
+  }
+
   return { pdfBase64, filename };
 }
 
@@ -132,8 +186,9 @@ serve(async (req) => {
 
     const adminAuth = await verifyAdminRequest(req);
     let order: Record<string, unknown> | null = null;
+    const isAdmin = adminAuth.ok;
 
-    if (adminAuth.ok) {
+    if (isAdmin) {
       const { data: adminOrder, error: adminOrderErr } = await adminAuth.supabaseAdmin
         .from("orders")
         .select("*")
@@ -188,7 +243,7 @@ serve(async (req) => {
       order = access.order;
     }
 
-    const invoice = await buildCustomerInvoiceResponse(admin, order);
+    const invoice = await buildCustomerInvoiceResponse(admin, order, isAdmin);
     if ("error" in invoice) {
       return new Response(JSON.stringify({ error: invoice.error }), {
         status: invoice.status,

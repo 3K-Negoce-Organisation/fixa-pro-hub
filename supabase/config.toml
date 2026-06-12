@@ -45,6 +45,9 @@ verify_jwt = true
 [functions.admin-delete-orders]
 verify_jwt = true
 
+[functions.admin-persist-customer-invoices]
+verify_jwt = true
+
 [functions.preview-supplier-order-pdf]
 verify_jwt = true
 
