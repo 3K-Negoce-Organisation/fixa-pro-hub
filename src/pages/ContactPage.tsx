@@ -9,6 +9,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { PageBackground } from "@/components/layout/PageBackground";
+import { PageSeo } from "@/components/seo/PageSeo";
+import { STATIC_PAGE_SEO, staticPageCanonical } from "@/lib/staticPageSeo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -76,6 +78,11 @@ const ContactPage = () => {
 
   return (
     <PageBackground>
+      <PageSeo
+        title={STATIC_PAGE_SEO.contact.title}
+        description={STATIC_PAGE_SEO.contact.description}
+        canonical={staticPageCanonical(STATIC_PAGE_SEO.contact.path)}
+      />
       <Header />
       
       <main className="flex-1 container mx-auto px-4 py-8 md:py-12">

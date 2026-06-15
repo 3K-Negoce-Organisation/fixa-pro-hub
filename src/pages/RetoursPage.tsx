@@ -1,11 +1,18 @@
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { PageBackground } from "@/components/layout/PageBackground";
+import { PageSeo } from "@/components/seo/PageSeo";
+import { STATIC_PAGE_SEO, staticPageCanonical } from "@/lib/staticPageSeo";
 import { Link } from "react-router-dom";
 
 const RetoursPage = () => {
   return (
     <PageBackground>
+      <PageSeo
+        title={STATIC_PAGE_SEO.retours.title}
+        description={STATIC_PAGE_SEO.retours.description}
+        canonical={staticPageCanonical(STATIC_PAGE_SEO.retours.path)}
+      />
       <Header />
       <main className="flex-1 container mx-auto px-4 py-12">
         <h1 className="text-3xl font-bold text-foreground mb-8">Retours et échanges</h1>
@@ -44,7 +51,7 @@ const RetoursPage = () => {
             </p>
             <ol className="list-decimal list-inside text-muted-foreground mt-2 space-y-2">
               <li>
-                <strong>Notifiez votre intention de retour</strong> par email à contact@vis-a-bois.fr en indiquant :
+                <strong>Notifiez votre intention de retour</strong> par email à contact@vis-a-bois.com en indiquant :
                 <ul className="list-disc list-inside ml-6 mt-1 space-y-1">
                   <li>Votre numéro de commande</li>
                   <li>Les produits concernés par le retour</li>
@@ -125,7 +132,7 @@ const RetoursPage = () => {
               Pour toute question concernant les retours, contactez-nous :
             </p>
             <ul className="list-none text-muted-foreground mt-2 space-y-1">
-              <li>Email : <a href="mailto:contact@vis-a-bois.fr" className="text-primary hover:underline">contact@vis-a-bois.fr</a></li>
+              <li>Email : <a href="mailto:contact@vis-a-bois.com" className="text-primary hover:underline">contact@vis-a-bois.com</a></li>
               <li>Téléphone : 06 17 91 20 29</li>
             </ul>
             <p className="text-muted-foreground mt-4">

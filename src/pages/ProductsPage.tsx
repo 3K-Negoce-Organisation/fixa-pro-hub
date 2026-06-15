@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { SlidersHorizontal, ChevronLeft, ChevronRight } from "lucide-react";
@@ -17,6 +17,13 @@ import { Footer } from "@/components/layout/Footer";
 import { PageBackground } from "@/components/layout/PageBackground";
 import { ProductFilters } from "@/components/products/ProductFilters";
 import { ProductGrid } from "@/components/products/ProductGrid";
+import { PageSeo } from "@/components/seo/PageSeo";
+import { getCategorySeoIntro } from "@/lib/categorySeoIntros";
+import {
+  buildProductsListCanonical,
+  buildProductsListDescription,
+  buildProductsListTitle,
+} from "@/lib/seo";
 import { fetchProducts, getProductImage, parseVariants, type Product } from "@/lib/products";
 import { useCart } from "@/contexts/CartContext";
 
@@ -58,11 +65,13 @@ const ProductsPage = () => {
     queryFn: () => fetchProducts(query || undefined),
   });
 
-  // Match URL slug to category id
-  const activeCategoryId = useMemo(() => {
+  const activeCategory = useMemo(() => {
     if (!categoryParam) return null;
-    return dbCategories.find((c) => c.slug === categoryParam)?.id || null;
+    return dbCategories.find((c) => c.slug === categoryParam) ?? null;
   }, [categoryParam, dbCategories]);
+
+  // Match URL slug to category id
+  const activeCategoryId = activeCategory?.id ?? null;
 
   // Get products filtered by category (base for filter options)
   const categoryFilteredProducts = useMemo(() => {
@@ -291,8 +300,18 @@ const ProductsPage = () => {
   const startIndex = itemsPerPage === "all" ? 1 : (currentPage - 1) * perPage + 1;
   const endIndex = itemsPerPage === "all" ? totalProducts : Math.min(currentPage * perPage, totalProducts);
 
+  const seoTitle = buildProductsListTitle(query, activeCategory?.name ?? null);
+  const seoDescription = buildProductsListDescription(
+    query,
+    activeCategory?.name ?? null,
+    filteredProducts.length,
+  );
+  const seoCanonical = buildProductsListCanonical(categoryParam, query);
+  const categoryIntro = getCategorySeoIntro(categoryParam, activeCategory?.name);
+
   return (
     <PageBackground>
+      <PageSeo title={seoTitle} description={seoDescription} canonical={seoCanonical} />
       <Header />
 
       <main className="flex-1">
@@ -308,6 +327,11 @@ const ProductsPage = () => {
                 {filteredProducts.length > 1 ? "s" : ""} trouvé
                 {filteredProducts.length > 1 ? "s" : ""}
               </p>
+              {(categoryParam || !query) && (
+                <p className="text-sm text-muted-foreground mt-3 max-w-3xl leading-relaxed">
+                  {categoryIntro}
+                </p>
+              )}
             </div>
 
             <div className="flex flex-wrap items-center gap-2 sm:gap-3">
@@ -507,6 +531,16 @@ const ProductsPage = () => {
               )}
             </div>
           </div>
+
+          {categoryParam && (
+            <p className="mt-8 text-sm text-muted-foreground">
+              Besoin de spécifications détaillées ?{" "}
+              <Link to="/information-technique" className="text-primary hover:underline">
+                Consultez nos fiches techniques vis à bois (VBF, VBHT, QS, VBL)
+              </Link>
+              .
+            </p>
+          )}
         </div>
       </main>
 

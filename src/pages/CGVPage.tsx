@@ -1,12 +1,19 @@
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { PageBackground } from "@/components/layout/PageBackground";
+import { PageSeo } from "@/components/seo/PageSeo";
+import { STATIC_PAGE_SEO, staticPageCanonical } from "@/lib/staticPageSeo";
 import { Link } from "react-router-dom";
 import { FREE_SHIPPING_THRESHOLD_TTC, SHIPPING_FEE_TTC } from "@/lib/shipping";
 
 const CGVPage = () => {
   return (
     <PageBackground>
+      <PageSeo
+        title={STATIC_PAGE_SEO.cgv.title}
+        description={STATIC_PAGE_SEO.cgv.description}
+        canonical={staticPageCanonical(STATIC_PAGE_SEO.cgv.path)}
+      />
       <Header />
       <main className="flex-1 container mx-auto px-4 py-12">
         <h1 className="text-3xl font-bold text-foreground mb-4">Conditions Générales de Vente</h1>
@@ -29,7 +36,7 @@ const CGVPage = () => {
               Téléphone : 06 17 91 20 29
             </p>
             <p className="text-muted-foreground mt-2">
-              Ci-après dénommée "le Vendeur", et toute personne physique ou morale passant commande sur le site vis-a-bois.fr, ci-après dénommée "le Client".
+              Ci-après dénommée "le Vendeur", et toute personne physique ou morale passant commande sur le site vis-a-bois.com, ci-après dénommée "le Client".
             </p>
             <p className="text-muted-foreground mt-2">
               Toute commande passée sur le site implique l'acceptation sans réserve des présentes CGV par le Client.
@@ -39,7 +46,7 @@ const CGVPage = () => {
           <section>
             <h2 className="text-xl font-semibold text-foreground mb-4">2. Produits</h2>
             <p className="text-muted-foreground">
-              Les produits proposés à la vente sont ceux figurant sur le site vis-a-bois.fr au jour de la consultation par le Client. Le Vendeur s'efforce de présenter les caractéristiques essentielles des produits (description, photos, dimensions, matériaux).
+              Les produits proposés à la vente sont ceux figurant sur le site vis-a-bois.com au jour de la consultation par le Client. Le Vendeur s'efforce de présenter les caractéristiques essentielles des produits (description, photos, dimensions, matériaux).
             </p>
             <p className="text-muted-foreground mt-2">
               Les photographies illustrant les produits n'entrent pas dans le champ contractuel et ne sauraient engager la responsabilité du Vendeur. Les produits sont conformes à la législation française en vigueur.

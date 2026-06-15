@@ -22,7 +22,7 @@ function resolveRecoveryRedirect(req: Request, redirectTo?: string | null): stri
     return `${origin.replace(/\/$/, "")}/auth?type=recovery`;
   }
 
-  return "https://vis-a-bois.fr/auth?type=recovery";
+  return "https://www.vis-a-bois.com/auth?type=recovery";
 }
 
 Deno.serve(async (req) => {

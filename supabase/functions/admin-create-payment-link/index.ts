@@ -92,7 +92,7 @@ serve(async (req) => {
     }
 
     const stripe = new Stripe(secretKey, { apiVersion: "2025-08-27.basil" });
-    const origin = Deno.env.get("STOREFRONT_URL") || "https://vis-a-bois.fr";
+    const origin = Deno.env.get("STOREFRONT_URL") || "https://www.vis-a-bois.com";
 
     const correctionMetadata = {
       order_id: order.id,

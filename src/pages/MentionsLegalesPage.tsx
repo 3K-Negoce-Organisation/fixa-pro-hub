@@ -1,10 +1,17 @@
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { PageBackground } from "@/components/layout/PageBackground";
+import { PageSeo } from "@/components/seo/PageSeo";
+import { STATIC_PAGE_SEO, staticPageCanonical } from "@/lib/staticPageSeo";
 
 const MentionsLegalesPage = () => {
   return (
     <PageBackground>
+      <PageSeo
+        title={STATIC_PAGE_SEO.mentions.title}
+        description={STATIC_PAGE_SEO.mentions.description}
+        canonical={staticPageCanonical(STATIC_PAGE_SEO.mentions.path)}
+      />
       <Header />
       <main className="flex-1 container mx-auto px-4 py-12">
         <h1 className="text-3xl font-bold text-foreground mb-8">Mentions légales</h1>
@@ -13,7 +20,7 @@ const MentionsLegalesPage = () => {
           <section>
             <h2 className="text-xl font-semibold text-foreground mb-4">1. Éditeur du site</h2>
             <p className="text-muted-foreground">
-              Le site vis-a-bois.fr est édité par :<br />
+              Le site vis-a-bois.com est édité par :<br />
               <strong>3K-Négoce</strong><br />
               Société par actions simplifiée (SAS)<br />
               Capital social : 90,00 euros<br />

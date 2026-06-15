@@ -194,7 +194,7 @@ serve(async (req) => {
     logStep("Built line items", { count: lineItems.length });
 
     // Create Stripe Checkout session
-    const origin = req.headers.get("origin") || "https://vis-a-bois.fr";
+    const origin = req.headers.get("origin") || "https://www.vis-a-bois.com";
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       customer_email: customerId ? undefined : emailForCheckout,

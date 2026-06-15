@@ -12,3 +12,10 @@ Allow: /
 
 User-agent: *
 Allow: /
+
+Disallow: /auth
+Disallow: /compte
+Disallow: /admin
+Disallow: /panier
+
+Sitemap: https://www.vis-a-bois.com/sitemap.xml
