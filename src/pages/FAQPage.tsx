@@ -1,6 +1,8 @@
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { PageBackground } from "@/components/layout/PageBackground";
+import { PageSeo } from "@/components/seo/PageSeo";
+import { STATIC_PAGE_SEO, staticPageCanonical } from "@/lib/staticPageSeo";
 import {
   Accordion,
   AccordionContent,
@@ -116,6 +118,11 @@ const FAQPage = () => {
 
   return (
     <PageBackground>
+      <PageSeo
+        title={STATIC_PAGE_SEO.faq.title}
+        description={STATIC_PAGE_SEO.faq.description}
+        canonical={staticPageCanonical(STATIC_PAGE_SEO.faq.path)}
+      />
       <Header />
       
       <main className="flex-1 container mx-auto px-4 py-8">

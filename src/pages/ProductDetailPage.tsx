@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { ShoppingCart, Heart, ChevronRight, Truck, Shield, RotateCcw, Loader2, Circle, Ruler, Wrench, Scale, Layers, Target, Settings2, Box, SlidersHorizontal } from "lucide-react";
+import { ShoppingCart, Heart, ChevronRight, Truck, Shield, RotateCcw, Loader2, Circle, Ruler, Wrench, Scale, Layers, Target, Settings2, Box, SlidersHorizontal, Download } from "lucide-react";
 import TorxIcon from "@/components/icons/TorxIcon";
 import { CharacteristicPicto } from "@/components/products/CharacteristicPicto";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,15 @@ import {
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { PageBackground } from "@/components/layout/PageBackground";
+import { PageSeo } from "@/components/seo/PageSeo";
+import {
+  absoluteUrl,
+  buildProductBreadcrumbJsonLd,
+  buildProductJsonLd,
+  buildProductSeoDescription,
+  buildProductTitle,
+} from "@/lib/seo";
+import { getTechnicalSheetForProduct } from "@/lib/technicalSheets";
 import { fetchProductByHandle, getProductImage, parseVariants, formatPriceHT, formatPrice, type ProductVariant } from "@/lib/products";
 import { toast } from "sonner";
 import { useCart } from "@/contexts/CartContext";
@@ -234,8 +243,26 @@ const ProductDetailPage = () => {
     });
   }
 
+  const seoDescription = buildProductSeoDescription(product);
+  const displayDescription = product.description?.trim() || seoDescription;
+  const technicalSheet = getTechnicalSheetForProduct(product);
+  const productJsonLd = buildProductJsonLd(
+    product,
+    productImage,
+    currentVariant?.price_ttc ?? product.price_ttc,
+    currentVariant?.available ?? false,
+  );
+  const breadcrumbJsonLd = buildProductBreadcrumbJsonLd(product);
+
   return (
     <PageBackground>
+      <PageSeo
+        title={buildProductTitle(product)}
+        description={seoDescription}
+        canonical={absoluteUrl(`/produit/${product.handle}`)}
+        ogImage={productImage.startsWith("http") ? productImage : absoluteUrl(productImage)}
+        jsonLd={[productJsonLd, breadcrumbJsonLd]}
+      />
       <Header />
 
       <main className="flex-1">
@@ -320,9 +347,10 @@ const ProductDetailPage = () => {
                 <h1 className="text-xl font-bold text-foreground mb-1">
                   {product.title}
                 </h1>
-                {product.description && (
+                {displayDescription && (
                   <div className="text-muted-foreground text-sm leading-relaxed space-y-2 mt-2">
-                    {product.description.split(/\r?\n/).map((line, index) => {
+                    {product.description?.trim()
+                      ? product.description.split(/\r?\n/).map((line, index) => {
                       const trimmedLine = line.trim();
                       if (!trimmedLine) return null;
                       
@@ -346,7 +374,18 @@ const ProductDetailPage = () => {
                       }
                       
                       return <p key={index}>{trimmedLine}</p>;
-                    })}
+                    })
+                      : <p>{displayDescription}</p>}
+                  </div>
+                )}
+                {technicalSheet && (
+                  <div className="mt-4">
+                    <Button variant="outline" size="sm" asChild>
+                      <a href={technicalSheet.file} download target="_blank" rel="noopener noreferrer">
+                        <Download className="h-4 w-4 mr-2" />
+                        Télécharger la fiche technique ({technicalSheet.title})
+                      </a>
+                    </Button>
                   </div>
                 )}
               </div>

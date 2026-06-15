@@ -1,12 +1,19 @@
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { PageBackground } from "@/components/layout/PageBackground";
+import { PageSeo } from "@/components/seo/PageSeo";
+import { STATIC_PAGE_SEO, staticPageCanonical } from "@/lib/staticPageSeo";
 import { Link } from "react-router-dom";
 import { FREE_SHIPPING_THRESHOLD_TTC, SHIPPING_FEE_TTC } from "@/lib/shipping";
 
 const LivraisonPage = () => {
   return (
     <PageBackground>
+      <PageSeo
+        title={STATIC_PAGE_SEO.livraison.title}
+        description={STATIC_PAGE_SEO.livraison.description}
+        canonical={staticPageCanonical(STATIC_PAGE_SEO.livraison.path)}
+      />
       <Header />
       <main className="flex-1 container mx-auto px-4 py-12">
         <h1 className="text-3xl font-bold text-foreground mb-8">Livraison</h1>
@@ -18,7 +25,7 @@ const LivraisonPage = () => {
               Nous livrons actuellement en <strong>France métropolitaine</strong> uniquement.
             </p>
             <p className="text-muted-foreground mt-2">
-              Pour les livraisons vers les <strong>DOM-TOM</strong> ou <strong>l'étranger</strong>, merci de nous contacter directement à contact@vis-a-bois.fr ou au 06 17 91 20 29 pour obtenir un devis personnalisé.
+              Pour les livraisons vers les <strong>DOM-TOM</strong> ou <strong>l'étranger</strong>, merci de nous contacter directement à contact@vis-a-bois.com ou au 06 17 91 20 29 pour obtenir un devis personnalisé.
             </p>
           </section>
 
@@ -113,7 +120,7 @@ const LivraisonPage = () => {
               <strong>Important</strong> : En l'absence de réserves émises à la réception, aucune réclamation relative à l'état du colis ne pourra être acceptée.
             </p>
             <p className="text-muted-foreground mt-2">
-              Pour toute réclamation, contactez-nous à contact@vis-a-bois.fr en joignant :
+              Pour toute réclamation, contactez-nous à contact@vis-a-bois.com en joignant :
             </p>
             <ul className="list-disc list-inside text-muted-foreground mt-2 space-y-1">
               <li>Votre numéro de commande</li>
@@ -128,7 +135,7 @@ const LivraisonPage = () => {
               Pour toute question concernant la livraison, contactez-nous :
             </p>
             <ul className="list-none text-muted-foreground mt-2 space-y-1">
-              <li>Email : <a href="mailto:contact@vis-a-bois.fr" className="text-primary hover:underline">contact@vis-a-bois.fr</a></li>
+              <li>Email : <a href="mailto:contact@vis-a-bois.com" className="text-primary hover:underline">contact@vis-a-bois.com</a></li>
               <li>Téléphone : 06 17 91 20 29</li>
             </ul>
           </section>

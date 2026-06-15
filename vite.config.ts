@@ -29,7 +29,21 @@ export default defineConfig(({ mode, command }) => {
     host: "::",
     port: 8080,
   },
-  plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
+  plugins: [
+    react(),
+    mode === "development" && componentTagger(),
+    {
+      name: "html-google-site-verification",
+      transformIndexHtml(html: string) {
+        const token = process.env.VITE_GOOGLE_SITE_VERIFICATION;
+        if (!token) return html;
+        return html.replace(
+          "</head>",
+          `    <meta name="google-site-verification" content="${token}" />\n  </head>`,
+        );
+      },
+    },
+  ].filter(Boolean),
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

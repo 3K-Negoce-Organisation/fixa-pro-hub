@@ -9,7 +9,10 @@ import { Footer } from "@/components/layout/Footer";
 import { PageBackground } from "@/components/layout/PageBackground";
 import { CategoryCard } from "@/components/home/CategoryCard";
 import { QuickOrderSection } from "@/components/home/QuickOrderSection";
+import { SeoExploreLinks } from "@/components/home/SeoExploreLinks";
 import { FeaturedProducts } from "@/components/home/FeaturedProducts";
+import { PageSeo } from "@/components/seo/PageSeo";
+import { DEFAULT_DESCRIPTION, DEFAULT_TITLE, SITE_NAME, SITE_URL, absoluteUrl } from "@/lib/seo";
 import { supabase } from "@/integrations/supabase/client";
 import heroScrewsBg from "@/assets/hero-screws-new.jpg";
 import screwsDetailLeft from "@/assets/screws-detail-left-optimized.jpg";
@@ -101,6 +104,23 @@ const Index = () => {
 
   return (
     <PageBackground>
+      <PageSeo
+        title={DEFAULT_TITLE}
+        description={DEFAULT_DESCRIPTION}
+        canonical={absoluteUrl("/")}
+        jsonLd={{
+          "@context": "https://schema.org",
+          "@type": "WebSite",
+          name: SITE_NAME,
+          url: SITE_URL,
+          description: DEFAULT_DESCRIPTION,
+          potentialAction: {
+            "@type": "SearchAction",
+            target: `${SITE_URL}/produits?q={search_term_string}`,
+            "query-input": "required name=search_term_string",
+          },
+        }}
+      />
       <Header />
 
       <main className="flex-1">
@@ -134,7 +154,7 @@ const Index = () => {
               {/* Main Search */}
               <div className="max-w-2xl flex-1">
                 <h1 className="text-3xl md:text-4xl font-bold text-center mb-6 text-foreground">
-                  Vis de qualité professionnelle
+                  Vis à bois de qualité professionnelle
                 </h1>
                 <form onSubmit={handleSearch} className="relative">
                   <Input
@@ -202,6 +222,7 @@ const Index = () => {
         <div className="container">
           <QuickOrderSection />
           <FeaturedProducts />
+          <SeoExploreLinks />
         </div>
       </main>
 

@@ -1,35 +1,15 @@
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { PageBackground } from "@/components/layout/PageBackground";
+import { PageSeo } from "@/components/seo/PageSeo";
+import { TECHNICAL_SHEETS } from "@/lib/technicalSheets";
+import { absoluteUrl } from "@/lib/seo";
 import { FileText, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-const documents = [
-  {
-    id: "vbf",
-    title: "VIS À BOIS VBF",
-    description: "Vis à bois VBF - tête fraisée - galvanisée. Vis Bois tête Fraisée technique pour la construction bois.",
-    file: "/docs/FT-VBF.pdf",
-  },
-  {
-    id: "vbht",
-    title: "VIS BOIS TIREFOND VBHT",
-    description: "Vis à bois tirefond - tête hexagonale - version zinguée. Vis de construction pour les assemblages structurels de composants en bois.",
-    file: "/docs/FT-VBHT.pdf",
-  },
-  {
-    id: "vrac-qs",
-    title: "VIS À BOIS QS",
-    description: "Vis à bois dur sans pré-perçage «QUADRA SPEED» - version INOX C1 et A4. Idéale pour la fixation de terrasses et constructions en bois.",
-    file: "/docs/FT-VRAC-QS.pdf",
-  },
-  {
-    id: "vbl",
-    title: "VIS BOIS LONGUE VBL",
-    description: "Fiche technique des vis bois longues pour charpente et ossature bois.",
-    file: "/docs/FT-VBL.pdf",
-  },
-];
+const SEO_TITLE = "Fiches techniques vis à bois VBF, VBHT, QS, VBL — Vis-à-Bois";
+const SEO_DESCRIPTION =
+  "Téléchargez les fiches techniques PDF de nos gammes de vis à bois professionnelles : VBF, VBHT tirefond, QS terrasse et VBL charpente.";
 
 export default function InformationTechniquePage() {
   const handleDownload = (file: string, title: string) => {
@@ -43,6 +23,11 @@ export default function InformationTechniquePage() {
 
   return (
     <PageBackground>
+      <PageSeo
+        title={SEO_TITLE}
+        description={SEO_DESCRIPTION}
+        canonical={absoluteUrl("/information-technique")}
+      />
       <Header />
       
       <main className="flex-1 container py-8">
@@ -52,12 +37,12 @@ export default function InformationTechniquePage() {
               Informations Techniques
             </h1>
             <p className="text-muted-foreground">
-              Retrouvez toutes les fiches techniques de nos produits pour vous aider dans vos choix.
+              Retrouvez toutes les fiches techniques de nos vis à bois pour vous aider dans vos choix.
             </p>
           </div>
 
           <div className="space-y-3">
-            {documents.map((doc) => (
+            {TECHNICAL_SHEETS.map((doc) => (
               <div 
                 key={doc.id}
                 className="flex items-center justify-between gap-4 p-4 bg-card border border-border rounded-lg hover:bg-muted/50 transition-colors"

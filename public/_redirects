@@ -1,0 +1,4 @@
+# Redirections 301 vers le domaine canonique (Netlify / certains hébergeurs statiques)
+https://vis-a-bois.fr/* https://www.vis-a-bois.com/:splat 301!
+https://www.vis-a-bois.fr/* https://www.vis-a-bois.com/:splat 301!
+https://vis-a-bois.com/* https://www.vis-a-bois.com/:splat 301!

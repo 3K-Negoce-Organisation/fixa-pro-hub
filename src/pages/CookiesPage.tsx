@@ -1,10 +1,17 @@
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { PageBackground } from "@/components/layout/PageBackground";
+import { PageSeo } from "@/components/seo/PageSeo";
+import { STATIC_PAGE_SEO, staticPageCanonical } from "@/lib/staticPageSeo";
 
 const CookiesPage = () => {
   return (
     <PageBackground>
+      <PageSeo
+        title={STATIC_PAGE_SEO.cookies.title}
+        description={STATIC_PAGE_SEO.cookies.description}
+        canonical={staticPageCanonical(STATIC_PAGE_SEO.cookies.path)}
+      />
       <Header />
       <main className="flex-1 container mx-auto px-4 py-12">
         <h1 className="text-3xl font-bold text-foreground mb-8">Politique de cookies</h1>
@@ -116,7 +123,7 @@ const CookiesPage = () => {
           <section>
             <h2 className="text-xl font-semibold text-foreground mb-4">7. Contact</h2>
             <p className="text-muted-foreground">
-              Pour toute question concernant notre utilisation des cookies, contactez-nous à : contact@vis-a-bois.fr
+              Pour toute question concernant notre utilisation des cookies, contactez-nous à : contact@vis-a-bois.com
             </p>
           </section>
         </div>

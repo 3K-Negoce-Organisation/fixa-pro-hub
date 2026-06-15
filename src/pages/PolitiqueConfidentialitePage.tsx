@@ -1,10 +1,17 @@
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { PageBackground } from "@/components/layout/PageBackground";
+import { PageSeo } from "@/components/seo/PageSeo";
+import { STATIC_PAGE_SEO, staticPageCanonical } from "@/lib/staticPageSeo";
 
 const PolitiqueConfidentialitePage = () => {
   return (
     <PageBackground>
+      <PageSeo
+        title={STATIC_PAGE_SEO.privacy.title}
+        description={STATIC_PAGE_SEO.privacy.description}
+        canonical={staticPageCanonical(STATIC_PAGE_SEO.privacy.path)}
+      />
       <Header />
       <main className="flex-1 container mx-auto px-4 py-12">
         <h1 className="text-3xl font-bold text-foreground mb-8">Politique de confidentialité</h1>
@@ -15,7 +22,7 @@ const PolitiqueConfidentialitePage = () => {
             <h2 className="text-xl font-semibold text-foreground mb-4">1. Objet</h2>
             <p className="text-muted-foreground">
               La présente politique de confidentialité a pour objet d'informer les utilisateurs du site internet 
-              vis-a-bois.fr (ci-après le « Site ») et les clients de Vis à Bois (ci-après la « Société ») de la 
+              vis-a-bois.com (ci-après le « Site ») et les clients de Vis à Bois (ci-après la « Société ») de la 
               manière dont leurs données personnelles sont collectées et traitées, conformément au Règlement (UE) 
               2016/679 du 27 avril 2016 relatif à la protection des personnes physiques à l'égard du traitement 
               des données à caractère personnel (RGPD) et à la loi n° 78-17 du 6 janvier 1978 modifiée dite 
@@ -176,7 +183,7 @@ const PolitiqueConfidentialitePage = () => {
             </ul>
             <p className="text-muted-foreground mt-4">
               Vous pouvez obtenir une copie des garanties mises en place en nous contactant à l'adresse 
-              contact@vis-a-bois.fr.
+              contact@vis-a-bois.com.
             </p>
           </section>
 
@@ -213,7 +220,7 @@ const PolitiqueConfidentialitePage = () => {
               <li><strong>Droit de définir des directives post-mortem :</strong> relatives à la conservation, l'effacement et la communication de vos données après votre décès</li>
             </ul>
             <p className="text-muted-foreground mt-4">
-              Pour exercer ces droits, vous pouvez nous contacter par email à contact@vis-a-bois.fr ou par courrier 
+              Pour exercer ces droits, vous pouvez nous contacter par email à contact@vis-a-bois.com ou par courrier 
               à l'adresse du siège social. Une pièce d'identité pourra vous être demandée.
             </p>
             <p className="text-muted-foreground mt-2">
