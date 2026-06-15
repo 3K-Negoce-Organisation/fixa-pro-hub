@@ -4,7 +4,7 @@
 
 **Emplacement canonique :** versionné à la **racine de ce dépôt** (`AI-WORKSPACE-CONTEXT.md`). Workspace multi-dépôts local : scripts partagés `../scripts/`, admin `../admin-hub-central/`, docs transverses `../docs/`.
 
-**Last updated:** 2026-06-10 (snapshot `order_items`, suivi invité signé, emails confirmation, changelog centralisé `docs/CHANGELOG.md`)
+**Last updated:** 2026-06-15 (SEO vis à bois prod, commandes admin remboursement/annulation, facture client Storage, changelog [`docs/CHANGELOG.md`](../docs/CHANGELOG.md))
 
 ---
 
@@ -50,6 +50,8 @@
 **Simulation panier / PDF fournisseur (admin-hub-central, 2026-05-23) :** page **`/simulation-commande`** — voir **[Simulation commande (admin)](#simulation-commande-admin)** et **[PDF fournisseur — calculs Qté / Tarif UV](#pdf-fournisseur--calculs-qté--tarif-uv)**.
 
 **Diagrammes acteurs (Mermaid, présentation) :** `[../docs/ORDER_WORKFLOW_ACTORS.md](../docs/ORDER_WORKFLOW_ACTORS.md)` — vue d’ensemble, séquence commande payée → fournisseur → client, chemins admin vs n8n.
+
+**SEO vitrine « vis à bois » (fixa-pro-hub, 2026-06) :** domaine canonique **`https://www.vis-a-bois.com`**. Voir section **[SEO référencement (storefront)](#seo-référencement-storefront)** et guide ops **[`docs/SEO_SETUP.md`](docs/SEO_SETUP.md)** (GSC, redirections 301, `storefront_public`, enrichissement contenu produits).
 
 **CI / GitHub Actions:** not in use for these repos (no workflows to rely on; any schema-sync docs in-repo are legacy reference only).
 
@@ -630,9 +632,51 @@ Depuis **admin-hub-central** → **Commandes** → action **Renvoyer** : appelle
 
 ---
 
+## SEO référencement (storefront)
+
+Domaine canonique : **`https://www.vis-a-bois.com`**. Ciblage éditorial : **particuliers / bricoleurs** (titres, descriptions, H1 accueil).
+
+| Élément | Fichier / URL |
+|---------|----------------|
+| Meta dynamiques | `react-helmet-async`, `src/components/seo/PageSeo.tsx`, `HelmetProvider` dans `App.tsx` |
+| Helpers SEO | `src/lib/seo.ts`, `staticPageSeo.ts`, `categorySeoIntros.ts`, `productSeoFallbacks.ts` |
+| OG image | `public/og-image.jpg` (1200×630), référencée dans `index.html` |
+| Sitemap build | `scripts/generate-sitemap.mjs` (avant `vite build`) → `public/sitemap.xml` (~229 URLs) |
+| Sitemap Edge (secours) | `supabase/functions/sitemap/index.ts` — **ne pas** soumettre l’URL Supabase dans GSC |
+| robots.txt | `Disallow` `/auth`, `/compte`, `/admin`, `/panier` ; `Sitemap: https://www.vis-a-bois.com/sitemap.xml` |
+| JSON-LD | `Product` + `BreadcrumbList` sur fiches produit ; `WebSite` + `SearchAction` sur l’accueil |
+| Fiches PDF | `src/lib/technicalSheets.ts` — lien « Télécharger la fiche technique » par gamme (VBF/VBHT/QS/VBL) |
+| Maillage interne | `src/components/home/SeoExploreLinks.tsx` ; lien fiches techniques sur pages catégories |
+| Redirections | `public/_redirects`, `deploy/nginx-seo-redirects.conf` ; fallbacks `.fr` dans Edge checkout/payment |
+| Vérif Google | `VITE_GOOGLE_SITE_VERIFICATION` → balise injectée au build (`vite.config.ts`) |
+| Actions manuelles | **[`docs/SEO_SETUP.md`](docs/SEO_SETUP.md)** — Search Console, 301 `.fr`/sans-www, descriptions top produits en admin |
+
+**Déploiement prod (2026-06-15) :** merge PR **#4** → **`main`** ; rebuild Railway `vis-a-bois-production` ; fix build **`bun.lock`** synchronisé avec `react-helmet-async` (`65d43c8`). Edge **`sitemap`** déployée prod `lqsbsinycyewdvdtbruy` + staging `lhrwjnieojuempxjbgql` (`--no-verify-jwt`).
+
+**Contenu métier (sans code) :** compléter les **descriptions produits** dans l’admin (priorité top 20) ; intros catégories déjà en code pour terrasse/charpente/agglo/tirefond.
+
+---
+
+## Commandes — annulation, remboursement, facture client (2026-06)
+
+| Fonctionnalité | Détail |
+|----------------|--------|
+| **Snapshot produit** | Voir changelog 2026-06-10 — colonnes figées sur `order_items` à la commande |
+| **Facture client admin** | Edge `download-customer-invoice` avec `verify-admin` ; nom `FACTURE_CLIENT_{VIS}.pdf` |
+| **Facture client à la livraison** | Persistance Storage à la livraison (`a455d3e`) — bucket `order-documents` |
+| **Paiement correctif** | Edge `admin-create-payment-link` — montant sur commande existante ; conserve statut **intervention manuelle** si actif (`571f5eb`, `fe62b0e`) |
+| **Annulation admin + remboursement** | Edge `admin-stripe-refund` ; UI admin **Annuler la commande** (double confirmation) |
+| **Suppression archives** | Suppression définitive des commandes archivées (admin + Edge) |
+| **Suivi invité** | Jeton signé `t` sur `/suivi` ; emails confirmation Resend `commandes@mail.vis-a-bois.com` |
+
+**Edge à redeployer après changement :** `stripe-webhook`, `complete-checkout-order`, `download-customer-invoice`, `admin-stripe-refund`, `admin-create-payment-link`, `admin-manual-order-action`, `simulate-order-webhook`, `lookup-order-by-email`, `resend-order-confirmation`.
+
+---
+
 ## Remaining details to capture later
 
 - **Alignement `VITE_STRIPE_*` Railway** (fixa + admin) avec le **switch Stripe** (`pk_live` / `pk_test` séparés) ; compléter les **secrets Edge staging** sur `lhrwjnieojuempxjbgql` pour reproduire la prod.
+- **SEO :** redirections 301 **`.fr` / sans-www** → `www` si pas encore faites chez OVH/Railway ; enrichissement descriptions produits (GSC soumis, sitemap OK).
 
 ---
 
@@ -641,6 +685,8 @@ Depuis **admin-hub-central** → **Commandes** → action **Renvoyer** : appelle
 
 | Date       | Change                                                                                                                                                                                                                                                                                       |
 | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-06-15 | **SEO prod :** PR **#4** merge **`main`** — meta dynamiques, canonical/OG `.com`, `og-image.jpg`, sitemap 229 URLs, JSON-LD, robots.txt, maillage, PDF fiches techniques, pages légales `.com`. **Railway** rebuild prod (fix **`bun.lock`** + `react-helmet-async`). **Edge** `sitemap` prod + staging. **Copywriting** particuliers (`294e5d5`). **GSC** : propriété `vis-a-bois.com` + sitemap soumis (ops manuel). Détail : [`docs/CHANGELOG.md`](../docs/CHANGELOG.md#2026-06-15). |
+| 2026-06-12 | **Commandes :** facture client persistée Storage à livraison ; annulation admin + remboursement Stripe ; suppression définitive archives ; paiement correctif sans perdre intervention manuelle ; accès admin téléchargement facture. **Git** `1d7db12`→`a455d3e` **main**. **Edge** : `admin-stripe-refund`, `admin-create-payment-link`, `download-customer-invoice`. Détail : [`docs/CHANGELOG.md`](../docs/CHANGELOG.md#2026-06-12). |
 | 2026-06-10 | **Snapshot commande :** migration `20260610120000_order_items_product_snapshot.sql` ; `_shared/order-item-snapshot.ts` ; plus de relecture live `products` pour suivi/emails/PDF si snapshot présent. **Emails confirmation** Resend + lien suivi invité signé (`t`) ; `/suivi` hors garde vitrine ; `lookup-order-by-email`, `complete-checkout-order`, `resend-order-confirmation`. **Git** `a62fc54`→`b718177` **main**. **Changelog détaillé :** [`docs/CHANGELOG.md`](../docs/CHANGELOG.md#2026-06-10). **À déployer :** migration prod + Edge listées dans CHANGELOG. |
 | 2026-06-09 | **Remboursement / paiement correctif :** Edge `admin-stripe-refund`, `admin-create-payment-link` ; migrations événements statut. Voir [`docs/CHANGELOG.md`](../docs/CHANGELOG.md#2026-06-09). |
 | 2026-06-08 | **PDF fournisseur :** email client sur le bon. Voir [`docs/CHANGELOG.md`](../docs/CHANGELOG.md#2026-06-08). |
