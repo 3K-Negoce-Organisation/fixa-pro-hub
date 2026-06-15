@@ -4,9 +4,9 @@ import { getProductSeoFallbackDescription } from "@/lib/productSeoFallbacks";
 export const SITE_URL = "https://www.vis-a-bois.com";
 export const SITE_NAME = "Vis-à-Bois";
 export const DEFAULT_OG_IMAGE = `${SITE_URL}/og-image.jpg`;
-export const DEFAULT_TITLE = "Vis à bois professionnelles — Vis-à-Bois | Livraison 24/48h";
+export const DEFAULT_TITLE = "Vis à bois — Vis-à-Bois | Livraison 24/48h";
 export const DEFAULT_DESCRIPTION =
-  "Spécialiste des vis à bois pour professionnels du bâtiment : terrasse, charpente, tirefond. +5000 références en stock. Livraison 24/48h. Prix HT.";
+  "Spécialiste des vis à bois pour particuliers et bricoleurs : terrasse, charpente, tirefond. +5000 références en stock. Livraison 24/48h.";
 
 export function absoluteUrl(path: string): string {
   if (path.startsWith("http")) return path;
@@ -51,13 +51,13 @@ export function buildCategoryDescription(categoryName: string, productCount?: nu
     productCount && productCount > 0
       ? `${productCount} références de vis à bois`
       : "Large gamme de vis à bois";
-  return `${countText} pour ${categoryName.toLowerCase()}. Acier zingué, inox A2/A4, livraison 24/48h aux professionnels. Commandez sur Vis-à-Bois.`;
+  return `${countText} pour ${categoryName.toLowerCase()}. Acier zingué, inox A2/A4, livraison 24/48h. Commandez sur Vis-à-Bois.`;
 }
 
 export function buildProductsListTitle(query?: string | null, categoryName?: string | null): string {
   if (query) return `Recherche « ${query} » — Vis à bois | ${SITE_NAME}`;
   if (categoryName) return buildCategoryTitle(categoryName);
-  return `Catalogue vis à bois professionnelles — ${SITE_NAME}`;
+  return `Catalogue vis à bois — ${SITE_NAME}`;
 }
 
 export function buildProductsListDescription(
@@ -66,10 +66,10 @@ export function buildProductsListDescription(
   productCount?: number,
 ): string {
   if (query) {
-    return `Résultats pour « ${query} » dans notre catalogue de vis à bois professionnelles. Livraison 24/48h, prix HT.`;
+    return `Résultats pour « ${query} » dans notre catalogue de vis à bois. Livraison 24/48h.`;
   }
   if (categoryName) return buildCategoryDescription(categoryName, productCount);
-  return "Parcourez notre catalogue de vis à bois pour professionnels : terrasse, charpente, agglo, tirefond. Livraison 24/48h.";
+  return "Parcourez notre catalogue de vis à bois pour particuliers : terrasse, charpente, agglo, tirefond. Livraison 24/48h.";
 }
 
 export function buildProductsListCanonical(

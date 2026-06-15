@@ -17,7 +17,7 @@ const CATEGORY_INTROS: Record<string, string> = {
   boulonnerie: `En complément de nos vis à bois, Vis-à-Bois propose une sélection de boulonnerie pour la construction bois et métal. Boulons, écrous et fixations associées pour vos assemblages structurels. Idéal pour les professionnels qui cherchent un fournisseur unique en fixation bois. Livraison 24/48h sur l'ensemble du catalogue.`,
 };
 
-const DEFAULT_INTRO = `Vis-à-Bois est le spécialiste des vis à bois pour professionnels du bâtiment. Terrasse, charpente, agglo, tirefond : plus de 5000 références en stock, prix HT, livraison 24/48h. Filtrez par diamètre, longueur et matériau pour trouver la vis à bois adaptée à votre chantier.`;
+const DEFAULT_INTRO = `Vis-à-Bois est le spécialiste des vis à bois pour particuliers et bricoleurs. Terrasse, charpente, agglo, tirefond : plus de 5000 références en stock, livraison 24/48h. Filtrez par diamètre, longueur et matériau pour trouver la vis à bois adaptée à votre projet.`;
 
 export function getCategorySeoIntro(slug: string | null | undefined, categoryName?: string | null): string {
   if (!slug) return DEFAULT_INTRO;
@@ -28,7 +28,7 @@ export function getCategorySeoIntro(slug: string | null | undefined, categoryNam
   if (nameKey && CATEGORY_INTROS[nameKey]) return CATEGORY_INTROS[nameKey];
 
   if (categoryName) {
-    return `Découvrez notre sélection de vis à bois ${categoryName.toLowerCase()} pour professionnels. ${DEFAULT_INTRO}`;
+    return `Découvrez notre sélection de vis à bois ${categoryName.toLowerCase()} pour particuliers. ${DEFAULT_INTRO}`;
   }
 
   return DEFAULT_INTRO;
