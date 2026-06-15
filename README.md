@@ -1,6 +1,11 @@
 ## Welcome
 
-**Assistants / déploiement 3K :** lire **[`AI-WORKSPACE-CONTEXT.md`](AI-WORKSPACE-CONTEXT.md)** (source de vérité — Supabase, Railway, PDF fournisseur, pictos, simulation admin). Admin : **[`../admin-hub-central/AI-WORKSPACE-CONTEXT.md`](../admin-hub-central/AI-WORKSPACE-CONTEXT.md)**.
+**Assistants / déploiement 3K :** lire **[`AI-WORKSPACE-CONTEXT.md`](AI-WORKSPACE-CONTEXT.md)** (source de vérité — Supabase, Railway, SEO, commandes, PDF fournisseur). Admin : **[`../admin-hub-central/AI-WORKSPACE-CONTEXT.md`](../admin-hub-central/AI-WORKSPACE-CONTEXT.md)**.
+
+### SEO (vis-a-bois.com)
+
+- Domaine canonique **`https://www.vis-a-bois.com`** — meta dynamiques, sitemap (~229 URLs), JSON-LD, OG image.
+- Guide ops manuel : [`docs/SEO_SETUP.md`](docs/SEO_SETUP.md) (Google Search Console, redirections 301, contenu produits).
 
 ### Déploiement vitrine (Railway)
 
