@@ -1,7 +1,7 @@
 import { jsPDF } from "https://esm.sh/jspdf@2.5.1";
 import autoTable from "https://esm.sh/jspdf-autotable@3.8.2";
 import { getBoxQuantityLabel } from "./box-quantity.ts";
-import { splitOrderTotals } from "./order-totals.ts";
+import { normalizeInvoiceLineItems } from "./order-totals.ts";
 import { roundMoney } from "./money.ts";
 import { getDisplayVariantTitle } from "./variant-title.ts";
 import type { PdfSiteLogo } from "./site-logo.ts";
@@ -68,7 +68,12 @@ export type CustomerInvoiceParams = {
 
 /** Facture / reçu client — prix boutique et détail panier (pas le PDF fournisseur). */
 export function generateCustomerInvoicePDF(params: CustomerInvoiceParams): string {
-  const { productsHT, shippingHT } = splitOrderTotals(params.items, params.totalHT);
+  const normalized = normalizeInvoiceLineItems(
+    params.items,
+    params.totalHT,
+    params.totalTTC,
+  );
+  const { items: displayItems, productsHT, shippingHT } = normalized;
   const tvaAmount = roundMoney(params.totalTTC - params.totalHT);
 
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
@@ -103,7 +108,7 @@ export function generateCustomerInvoicePDF(params: CustomerInvoiceParams): strin
   }
   y += 4;
 
-  const tableData = params.items.map((item) => {
+  const tableData = displayItems.map((item) => {
     const variant = getDisplayVariantTitle(item.variant_title);
     let label = item.product_title;
     if (variant) label += ` (${variant})`;

@@ -2,6 +2,9 @@ import {
   checkoutSessionEventExists,
   insertOrderStatusEvent,
 } from "./order-status-events.ts";
+import { decomposeOrderTotalTtc, syncOrderItemsToOrderTotal } from "./order-totals.ts";
+import { invalidateStoredCustomerInvoice } from "./persist-customer-invoice.ts";
+import { roundMoney } from "./money.ts";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type SupabaseAdmin = { from: (table: string) => any };
@@ -71,9 +74,8 @@ function resolveCorrectionTotals(
 
   if (replaceTotal && correctionAmount > 0) {
     const totalTtc = Math.round(correctionAmount * 100) / 100;
-    const totalHt = oldTtc > 0 && oldHt > 0
-      ? Math.round((correctionAmount * oldHt / oldTtc) * 100) / 100
-      : null;
+    const { productsTTC, shippingTTC } = decomposeOrderTotalTtc(totalTtc);
+    const totalHt = roundMoney(productsTTC / 1.2 + shippingTTC / 1.2);
     return { totalTtc, totalHt };
   }
 
@@ -147,6 +149,23 @@ export async function applyAdminCorrectionPayment(
   }
 
   await supabaseAdmin.from("orders").update(updatePayload).eq("id", ctx.orderId);
+
+  if (replaceTotal && correctionAmount > 0) {
+    try {
+      await syncOrderItemsToOrderTotal(supabaseAdmin, ctx.orderId, totalTtc);
+    } catch (syncErr) {
+      console.error("[admin-correction] sync order_items failed:", syncErr);
+    }
+    try {
+      await invalidateStoredCustomerInvoice(supabaseAdmin, {
+        ...(correctionOrder as Record<string, unknown>),
+        ...updatePayload,
+        id: ctx.orderId,
+      });
+    } catch (invErr) {
+      console.error("[admin-correction] invalidate customer invoice failed:", invErr);
+    }
+  }
 
   await insertOrderStatusEvent(supabaseAdmin, {
     order_id: ctx.orderId,

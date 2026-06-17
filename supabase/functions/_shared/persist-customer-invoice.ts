@@ -39,13 +39,60 @@ export function orderEligibleForCustomerInvoice(order: Record<string, unknown>):
   return visibleStatus === "delivered";
 }
 
+function filterOutCustomerInvoices(documents: OrderDocumentEntry[]): {
+  kept: OrderDocumentEntry[];
+  removed: OrderDocumentEntry[];
+} {
+  const kept: OrderDocumentEntry[] = [];
+  const removed: OrderDocumentEntry[] = [];
+  for (const doc of documents) {
+    const type = String(doc.type || "").toUpperCase();
+    if (type === "FACTURE_CLIENT" && (doc.path || doc.url)) {
+      removed.push(doc);
+    } else {
+      kept.push(doc);
+    }
+  }
+  return { kept, removed };
+}
+
+/** Supprime la facture client stockée (Storage + entrée documents) pour forcer une régénération. */
+export async function invalidateStoredCustomerInvoice(
+  admin: SupabaseClient,
+  order: Record<string, unknown>,
+): Promise<void> {
+  const documents = Array.isArray(order.documents)
+    ? (order.documents as OrderDocumentEntry[])
+    : [];
+  const { kept, removed } = filterOutCustomerInvoices(documents);
+  if (removed.length === 0) return;
+
+  const paths = removed.map((doc) => doc.path).filter((p): p is string => !!p);
+  if (paths.length > 0) {
+    const { error: storageErr } = await admin.storage.from("order-documents").remove(paths);
+    if (storageErr) {
+      console.warn("[invalidateStoredCustomerInvoice] storage remove:", storageErr.message);
+    }
+  }
+
+  const { error: updateError } = await admin
+    .from("orders")
+    .update({
+      documents: kept,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", order.id as string);
+
+  if (updateError) throw new Error(updateError.message);
+}
+
 async function buildCustomerInvoicePdfBase64(
   admin: SupabaseClient,
   order: Record<string, unknown>,
 ): Promise<string> {
   const { data: orderItems, error: itemsErr } = await admin
     .from("order_items")
-    .select("product_title, variant_title, quantity, unit_price_ht, box_quantity")
+    .select("product_title, variant_title, quantity, unit_price_ht, unit_price_ttc, box_quantity")
     .eq("order_id", order.id as string);
 
   if (itemsErr) throw itemsErr;

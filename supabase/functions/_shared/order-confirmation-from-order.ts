@@ -106,6 +106,7 @@ async function sendOrderConfirmationForOrderRow(
       quantity: item.quantity,
     })),
     Number(order.total_ht),
+    Number(order.total_ttc),
   );
 
   const shippingCityLine = order.shipping_postal_code && order.shipping_city

@@ -121,7 +121,7 @@ async function buildCustomerInvoiceResponse(
 
   const { data: orderItems, error: itemsErr } = await admin
     .from("order_items")
-    .select("product_title, variant_title, quantity, unit_price_ht, box_quantity")
+    .select("product_title, variant_title, quantity, unit_price_ht, unit_price_ttc, box_quantity")
     .eq("order_id", order.id as string);
 
   if (itemsErr) throw itemsErr;
