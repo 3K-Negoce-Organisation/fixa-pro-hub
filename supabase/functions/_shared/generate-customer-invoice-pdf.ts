@@ -5,6 +5,10 @@ import { normalizeInvoiceLineItems } from "./order-totals.ts";
 import { roundMoney } from "./money.ts";
 import { getDisplayVariantTitle } from "./variant-title.ts";
 import type { PdfSiteLogo } from "./site-logo.ts";
+import {
+  CUSTOMER_INVOICE_LEGAL_LINES,
+  CUSTOMER_INVOICE_SELLER,
+} from "./customer-invoice-seller.ts";
 
 const LOGO_MAX_WIDTH_MM = 40;
 const LOGO_MAX_HEIGHT_MM = 12;
@@ -46,6 +50,26 @@ function drawSiteLogo(
   }
 }
 
+function drawBlock(
+  doc: InstanceType<typeof jsPDF>,
+  x: number,
+  y: number,
+  title: string,
+  lines: string[],
+): number {
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "bold");
+  doc.text(title, x, y);
+  let lineY = y + 5;
+  doc.setFont("helvetica", "normal");
+  for (const line of lines) {
+    if (!line) continue;
+    doc.text(line, x, lineY);
+    lineY += 4.5;
+  }
+  return lineY;
+}
+
 export type CustomerInvoiceItem = {
   product_title: string;
   variant_title?: string | null;
@@ -55,8 +79,9 @@ export type CustomerInvoiceItem = {
 };
 
 export type CustomerInvoiceParams = {
+  invoiceNumber: string;
+  invoiceDate: string;
   orderNumber: string;
-  orderDate: string;
   customerName?: string | null;
   shippingAddress?: string | null;
   shippingCityLine?: string | null;
@@ -78,7 +103,10 @@ export function generateCustomerInvoicePDF(params: CustomerInvoiceParams): strin
 
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
   const margin = 18;
+  const colGap = 8;
+  const colWidth = (pageWidth - margin * 2 - colGap) / 2;
 
   const logoBottom = drawSiteLogo(doc, margin, params.siteLogo);
   let y = Math.max(logoBottom + 6, 28);
@@ -86,27 +114,35 @@ export function generateCustomerInvoicePDF(params: CustomerInvoiceParams): strin
   doc.setFontSize(18);
   doc.setFont("helvetica", "bold");
   doc.text("Facture client", margin, y);
-  y += 10;
+  y += 12;
+
+  const sellerLines = [
+    CUSTOMER_INVOICE_SELLER.name,
+    CUSTOMER_INVOICE_SELLER.addressLine1,
+    `${CUSTOMER_INVOICE_SELLER.postalCode} ${CUSTOMER_INVOICE_SELLER.city}`,
+    CUSTOMER_INVOICE_SELLER.country,
+    `SIRET : ${CUSTOMER_INVOICE_SELLER.siret}`,
+    `TVA intracom. : ${CUSTOMER_INVOICE_SELLER.vatNumber}`,
+  ];
+
+  const clientLines: string[] = [];
+  if (params.customerName?.trim()) clientLines.push(params.customerName.trim());
+  if (params.shippingAddress?.trim()) clientLines.push(params.shippingAddress.trim());
+  if (params.shippingCityLine?.trim()) clientLines.push(params.shippingCityLine.trim());
+  if (clientLines.length === 0) clientLines.push("—");
+
+  const blockStartY = y;
+  const sellerBottom = drawBlock(doc, margin, blockStartY, "Vendeur", sellerLines);
+  const clientBottom = drawBlock(doc, margin + colWidth + colGap, blockStartY, "Client", clientLines);
+  y = Math.max(sellerBottom, clientBottom) + 8;
 
   doc.setFontSize(10);
   doc.setFont("helvetica", "normal");
+  doc.text(`N° de facture : ${params.invoiceNumber}`, margin, y);
+  doc.text(`Date de facture : ${params.invoiceDate}`, pageWidth - margin, y, { align: "right" });
+  y += 6;
   doc.text(`Commande ${params.orderNumber}`, margin, y);
-  doc.text(`Date : ${params.orderDate}`, pageWidth - margin, y, { align: "right" });
   y += 8;
-
-  if (params.customerName) {
-    doc.text(params.customerName, margin, y);
-    y += 5;
-  }
-  if (params.shippingAddress) {
-    doc.text(params.shippingAddress, margin, y);
-    y += 5;
-  }
-  if (params.shippingCityLine) {
-    doc.text(params.shippingCityLine, margin, y);
-    y += 5;
-  }
-  y += 4;
 
   const tableData = displayItems.map((item) => {
     const variant = getDisplayVariantTitle(item.variant_title);
@@ -163,6 +199,20 @@ export function generateCustomerInvoicePDF(params: CustomerInvoiceParams): strin
   doc.setFontSize(11);
   doc.text("Total TTC", totalsX, y);
   doc.text(`${formatMoneyFr(params.totalTTC)} €`, pageWidth - margin, y, { align: "right" });
+  y += 14;
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  const legalText = CUSTOMER_INVOICE_LEGAL_LINES.join(" ");
+  const legalLines = doc.splitTextToSize(legalText, pageWidth - margin * 2);
+  for (const line of legalLines) {
+    if (y > pageHeight - margin) {
+      doc.addPage();
+      y = margin;
+    }
+    doc.text(line, margin, y);
+    y += 3.5;
+  }
 
   return doc.output("datauristring").split(",")[1];
 }

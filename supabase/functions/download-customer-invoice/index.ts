@@ -8,8 +8,8 @@ import {
   persistCustomerInvoiceIfMissing,
   type OrderDocumentEntry,
 } from "../_shared/persist-customer-invoice.ts";
+import { buildCustomerInvoiceParams } from "../_shared/customer-invoice-from-order.ts";
 import { generateCustomerInvoicePDF } from "../_shared/generate-customer-invoice-pdf.ts";
-import { loadSiteLogoForOrderPdf } from "../_shared/site-logo.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -17,14 +17,6 @@ const corsHeaders = {
 };
 
 const SITE_SLUG = Deno.env.get("STOREFRONT_SITE_SLUG") || "vis-a-bois";
-
-function formatOrderDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("fr-FR", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
-}
 
 async function resolveOrderAccess(
   admin: ReturnType<typeof createClient>,
@@ -119,36 +111,8 @@ async function buildCustomerInvoiceResponse(
     }
   }
 
-  const { data: orderItems, error: itemsErr } = await admin
-    .from("order_items")
-    .select("product_title, variant_title, quantity, unit_price_ht, unit_price_ttc, box_quantity")
-    .eq("order_id", order.id as string);
-
-  if (itemsErr) throw itemsErr;
-
-  const siteLogo = await loadSiteLogoForOrderPdf(admin, order.site_id as string | null);
-  const shippingCityLine = [order.shipping_postal_code, order.shipping_city]
-    .filter(Boolean)
-    .join(" ");
-
-  const pdfBase64 = generateCustomerInvoicePDF({
-    orderNumber: order.order_number as string,
-    orderDate: formatOrderDate(order.created_at as string),
-    customerName: null,
-    shippingAddress: order.shipping_address as string | null,
-    shippingCityLine: shippingCityLine || null,
-    items: (orderItems ?? []).map((item) => ({
-      product_title: item.product_title as string,
-      variant_title: item.variant_title as string | null,
-      quantity: item.quantity as number,
-      unit_price_ht: Number(item.unit_price_ht),
-      box_quantity: (item.box_quantity as number | null) ?? null,
-    })),
-    totalHT: Number(order.total_ht),
-    totalTTC: Number(order.total_ttc),
-    siteLogo,
-  });
-
+  const params = await buildCustomerInvoiceParams(admin, order);
+  const pdfBase64 = generateCustomerInvoicePDF(params);
   const filename = `FACTURE_CLIENT_${order.order_number}.pdf`;
 
   if (persistIfAdmin && !orderHasStoredCustomerInvoice(order.documents)) {
