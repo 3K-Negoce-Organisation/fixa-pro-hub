@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
-import { verifyAdminRequest } from "../_shared/verify-admin.ts";
+import { verifyAdminRequest, isServiceRoleBearer } from "../_shared/verify-admin.ts";
 import {
   orderEligibleForCustomerInvoice,
   orderHasStoredCustomerInvoice,
@@ -23,10 +23,10 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
     const authHeader = req.headers.get("Authorization");
-    const isInternal = !!serviceKey && authHeader === `Bearer ${serviceKey}`;
+    const isInternal = isServiceRoleBearer(authHeader);
 
     const auth = isInternal
-      ? { ok: true as const, supabaseAdmin: createClient(supabaseUrl, serviceKey) }
+      ? { ok: true as const, supabaseAdmin: createClient(supabaseUrl, serviceKey || authHeader!.replace(/^Bearer\s+/i, "")) }
       : await verifyAdminRequest(req);
 
     if (!auth.ok) {
