@@ -1,17 +1,9 @@
-import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
-
-export function formatCustomerInvoiceNumber(sequence: number, date = new Date()): string {
-  const year = date.getFullYear();
-  return `FC-${year}-${String(sequence).padStart(5, "0")}`;
+/** FACTURE-VIS-202606-OOVA6L-001 */
+export function formatCustomerInvoiceNumber(orderNumber: string, sequence = 1): string {
+  const safeOrder = orderNumber.trim().toUpperCase().replace(/[^A-Z0-9-]/g, "-").replace(/-+/g, "-");
+  return `FACTURE-${safeOrder}-${String(sequence).padStart(3, "0")}`;
 }
 
-export async function nextCustomerInvoiceSequence(
-  admin: SupabaseClient,
-  siteId: string,
-): Promise<number> {
-  const { data, error } = await admin.rpc("next_site_customer_invoice_sequence", {
-    p_site_id: siteId,
-  });
-  if (error) throw error;
-  return data as number;
+export function isLegacyCustomerInvoiceNumber(num: string): boolean {
+  return /^FC-\d{4}-/i.test(num.trim());
 }

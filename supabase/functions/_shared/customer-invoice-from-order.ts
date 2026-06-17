@@ -5,7 +5,7 @@ import {
 } from "./generate-customer-invoice-pdf.ts";
 import {
   formatCustomerInvoiceNumber,
-  nextCustomerInvoiceSequence,
+  isLegacyCustomerInvoiceNumber,
 } from "./customer-invoice-number.ts";
 import { loadSiteLogoForOrderPdf } from "./site-logo.ts";
 
@@ -33,7 +33,7 @@ export async function ensureCustomerInvoiceMetadata(
   order: Record<string, unknown>,
 ): Promise<{ invoiceNumber: string; invoiceDateIso: string }> {
   const orderId = order.id as string;
-  const siteId = order.site_id as string | null;
+  const orderNumber = String(order.order_number || "").trim().toUpperCase();
   let invoiceNumber = String(order.customer_invoice_number || "").trim();
   let invoiceDateIso = String(order.customer_invoice_issued_at || "").trim();
 
@@ -41,10 +41,10 @@ export async function ensureCustomerInvoiceMetadata(
     invoiceDateIso = getSupplierInvoiceIssuedAt(order) ?? new Date().toISOString();
   }
 
-  if (!invoiceNumber) {
-    if (!siteId) throw new Error("site_id manquant pour attribuer un numéro de facture");
-    const seq = await nextCustomerInvoiceSequence(admin, siteId);
-    invoiceNumber = formatCustomerInvoiceNumber(seq, new Date(invoiceDateIso));
+  const needsNumber = !invoiceNumber || isLegacyCustomerInvoiceNumber(invoiceNumber);
+  if (needsNumber) {
+    if (!orderNumber) throw new Error("order_number manquant pour attribuer un numéro de facture");
+    invoiceNumber = formatCustomerInvoiceNumber(orderNumber, 1);
     const { error } = await admin
       .from("orders")
       .update({

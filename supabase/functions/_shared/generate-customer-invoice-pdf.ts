@@ -12,6 +12,9 @@ import {
 
 const LOGO_MAX_WIDTH_MM = 40;
 const LOGO_MAX_HEIGHT_MM = 12;
+const FOOTER_FONT_SIZE = 8;
+const FOOTER_LINE_HEIGHT = 3.5;
+const PAGE_NUM_BAND_MM = 8;
 
 function formatMoneyFr(value: number): string {
   const rounded = roundMoney(value);
@@ -70,6 +73,55 @@ function drawBlock(
   return lineY;
 }
 
+function drawPageFooters(
+  doc: InstanceType<typeof jsPDF>,
+  margin: number,
+  contentEndY: number,
+): void {
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const legalText = CUSTOMER_INVOICE_LEGAL_LINES.join(" ");
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(FOOTER_FONT_SIZE);
+  const legalLines = doc.splitTextToSize(legalText, pageWidth - margin * 2);
+  const legalBlockHeight = legalLines.length * FOOTER_LINE_HEIGHT;
+
+  let totalPages = doc.getNumberOfPages();
+  doc.setPage(totalPages);
+
+  let pageNumBand = totalPages > 1 ? PAGE_NUM_BAND_MM : 0;
+  let legalTopY = pageHeight - margin - pageNumBand - legalBlockHeight;
+
+  if (legalTopY < contentEndY + 6) {
+    doc.addPage();
+    totalPages = doc.getNumberOfPages();
+    pageNumBand = totalPages > 1 ? PAGE_NUM_BAND_MM : 0;
+    legalTopY = pageHeight - margin - pageNumBand - legalBlockHeight;
+  }
+
+  for (let page = 1; page <= totalPages; page += 1) {
+    doc.setPage(page);
+    if (page === totalPages) {
+      doc.setFontSize(FOOTER_FONT_SIZE);
+      doc.setFont("helvetica", "normal");
+      for (let i = 0; i < legalLines.length; i += 1) {
+        doc.text(legalLines[i], margin, legalTopY + i * FOOTER_LINE_HEIGHT);
+      }
+    }
+    if (totalPages > 1) {
+      doc.setFontSize(FOOTER_FONT_SIZE);
+      doc.setFont("helvetica", "normal");
+      doc.text(
+        `Page ${page} / ${totalPages}`,
+        pageWidth / 2,
+        pageHeight - margin + 2,
+        { align: "center" },
+      );
+    }
+  }
+}
+
 export type CustomerInvoiceItem = {
   product_title: string;
   variant_title?: string | null;
@@ -103,10 +155,18 @@ export function generateCustomerInvoicePDF(params: CustomerInvoiceParams): strin
 
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const pageWidth = doc.internal.pageSize.getWidth();
-  const pageHeight = doc.internal.pageSize.getHeight();
   const margin = 18;
   const colGap = 8;
   const colWidth = (pageWidth - margin * 2 - colGap) / 2;
+
+  const tableLeft = margin;
+  const tableWidth = pageWidth - margin * 2;
+  const colArticle = 85;
+  const colQty = 15;
+  const colUnit = 35;
+  const colTotal = tableWidth - colArticle - colQty - colUnit;
+  const colTotalStart = tableLeft + colArticle + colQty + colUnit;
+  const tableRight = tableLeft + tableWidth;
 
   const logoBottom = drawSiteLogo(doc, margin, params.siteLogo);
   let y = Math.max(logoBottom + 6, 28);
@@ -161,58 +221,41 @@ export function generateCustomerInvoicePDF(params: CustomerInvoiceParams): strin
 
   autoTable(doc, {
     startY: y,
-    margin: { left: margin, right: margin },
+    margin: { left: tableLeft, right: margin },
+    tableWidth,
     head: [["Article", "Qté", "Prix unit. HT", "Total HT"]],
     body: tableData,
     theme: "striped",
     styles: { fontSize: 9, cellPadding: 3 },
     headStyles: { fillColor: [30, 58, 95], textColor: [255, 255, 255], fontStyle: "bold" },
     columnStyles: {
-      0: { cellWidth: 85 },
-      1: { halign: "center", cellWidth: 15 },
-      2: { halign: "right", cellWidth: 35 },
-      3: { halign: "right", cellWidth: 35 },
+      0: { cellWidth: colArticle },
+      1: { halign: "center", cellWidth: colQty },
+      2: { halign: "right", cellWidth: colUnit },
+      3: { halign: "right", cellWidth: colTotal },
     },
   });
 
   y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 10;
 
-  const totalsX = pageWidth - margin - 70;
-  doc.setFontSize(10);
-  doc.text("Sous-total produits HT", totalsX, y);
-  doc.text(`${formatMoneyFr(productsHT)} €`, pageWidth - margin, y, { align: "right" });
-  y += 6;
+  const drawTotalLine = (label: string, value: string, bold = false) => {
+    doc.setFont("helvetica", bold ? "bold" : "normal");
+    doc.setFontSize(bold ? 11 : 10);
+    doc.text(label, colTotalStart - 2, y, { align: "right" });
+    doc.text(value, tableRight, y, { align: "right" });
+    y += bold ? 8 : 6;
+  };
 
-  doc.text("Frais de livraison HT", totalsX, y);
-  doc.text(shippingHT > 0 ? `${formatMoneyFr(shippingHT)} €` : "Gratuite", pageWidth - margin, y, { align: "right" });
-  y += 6;
+  drawTotalLine("Sous-total produits HT", `${formatMoneyFr(productsHT)} €`);
+  drawTotalLine(
+    "Frais de livraison HT",
+    shippingHT > 0 ? `${formatMoneyFr(shippingHT)} €` : "Gratuite",
+  );
+  drawTotalLine("Total HT", `${formatMoneyFr(params.totalHT)} €`);
+  drawTotalLine("TVA (20 %)", `${formatMoneyFr(tvaAmount)} €`);
+  drawTotalLine("Total TTC", `${formatMoneyFr(params.totalTTC)} €`, true);
 
-  doc.text("Total HT", totalsX, y);
-  doc.text(`${formatMoneyFr(params.totalHT)} €`, pageWidth - margin, y, { align: "right" });
-  y += 6;
-
-  doc.text("TVA (20 %)", totalsX, y);
-  doc.text(`${formatMoneyFr(tvaAmount)} €`, pageWidth - margin, y, { align: "right" });
-  y += 8;
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(11);
-  doc.text("Total TTC", totalsX, y);
-  doc.text(`${formatMoneyFr(params.totalTTC)} €`, pageWidth - margin, y, { align: "right" });
-  y += 14;
-
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
-  const legalText = CUSTOMER_INVOICE_LEGAL_LINES.join(" ");
-  const legalLines = doc.splitTextToSize(legalText, pageWidth - margin * 2);
-  for (const line of legalLines) {
-    if (y > pageHeight - margin) {
-      doc.addPage();
-      y = margin;
-    }
-    doc.text(line, margin, y);
-    y += 3.5;
-  }
+  drawPageFooters(doc, margin, y);
 
   return doc.output("datauristring").split(",")[1];
 }
