@@ -98,7 +98,7 @@ const LivraisonPage = () => {
           <section>
             <h2 className="text-xl font-semibold text-foreground mb-4">5. Suivi de commande</h2>
             <p className="text-muted-foreground">
-              Dès l'expédition de votre commande, vous recevez un email de confirmation contenant votre <strong>numéro de suivi</strong>.
+              Dès l'expédition de votre commande, vous recevez un SMS contenant votre <strong>numéro de suivi</strong>.
             </p>
             <p className="text-muted-foreground mt-2">
               Vous pouvez suivre l'acheminement de votre colis directement sur le site du transporteur ou depuis votre espace client sur notre site, dans la section <Link to="/suivi" className="text-primary hover:underline">Suivi de commande</Link>.

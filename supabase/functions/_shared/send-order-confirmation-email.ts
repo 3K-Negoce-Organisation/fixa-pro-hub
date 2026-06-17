@@ -115,7 +115,7 @@ function buildOrderConfirmationHtml(params: OrderConfirmationEmailParams): strin
       <p style="margin:0 0 24px;text-align:center;font-size:12px;color:#777;word-break:break-all;">
         Ou copiez ce lien : ${escapeHtml(params.trackingUrl)}
       </p>` : ""}
-      <p style="margin-top:24px;">Livraison estimée : 24–48 h. Vous recevrez un email avec le numéro de suivi dès l'expédition.</p>
+      <p style="margin-top:24px;">Livraison estimée : 24–48 h. Vous recevrez un SMS avec le numéro de suivi dès l'expédition.</p>
       <p>Merci pour votre confiance,<br/><strong>${escapeHtml(params.fromName)}</strong></p>
     </div>
     <div style="background:#f9f9f9;padding:16px 32px;font-size:12px;color:#aaa;text-align:center;">

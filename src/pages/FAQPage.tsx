@@ -47,7 +47,7 @@ const FAQPage = () => {
         },
         {
           question: "Comment suivre ma commande ?",
-          answer: "Une fois votre commande expédiée, vous recevrez un email avec un numéro de suivi. Vous pouvez également suivre l'état de votre commande depuis votre espace client dans la section 'Suivi de commandes'."
+          answer: "Une fois votre commande expédiée, vous recevrez un SMS avec un numéro de suivi. Vous pouvez également suivre l'état de votre commande depuis votre espace client dans la section 'Suivi de commandes'."
         },
         {
           question: "Livrez-vous à l'international ?",
