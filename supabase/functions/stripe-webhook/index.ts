@@ -28,6 +28,7 @@ import {
   applyAdminCorrectionPayment,
   resolveAdminCorrectionFromPaymentIntent,
 } from "../_shared/admin-correction-payment.ts";
+import { decrementProductsStock } from "../_shared/decrement-product-stock.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -357,6 +358,19 @@ serve(async (req) => {
           logStep("Error creating order items", { error: itemsError.message });
         } else {
           logStep("Order items created", { count: orderItems.length });
+          const stockResult = await decrementProductsStock(
+            supabaseAdmin,
+            orderItems.map((item) => ({
+              product_id: String(item.product_id),
+              quantity: Number(item.quantity),
+            })),
+            { order_id: order.id, order_number: orderNumber },
+          );
+          if (stockResult.warnings.length > 0) {
+            logStep("Stock decrement warnings", { warnings: stockResult.warnings });
+          } else {
+            logStep("Stock decremented", { products_updated: stockResult.products_updated });
+          }
         }
       }
 
@@ -591,6 +605,19 @@ serve(async (req) => {
           logStep("Error creating order items", { error: itemsError.message });
         } else {
           logStep("Order items created", { count: orderItems.length });
+          const stockResult = await decrementProductsStock(
+            supabaseAdmin,
+            orderItems.map((item) => ({
+              product_id: String(item.product_id),
+              quantity: Number(item.quantity),
+            })),
+            { order_id: order.id, order_number: orderNumber },
+          );
+          if (stockResult.warnings.length > 0) {
+            logStep("Stock decrement warnings", { warnings: stockResult.warnings });
+          } else {
+            logStep("Stock decremented", { products_updated: stockResult.products_updated });
+          }
         }
       }
 

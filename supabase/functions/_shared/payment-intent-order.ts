@@ -11,6 +11,7 @@ import {
 } from "./stripe-cart-metadata.ts";
 import { insertOrderStatusEvent } from "./order-status-events.ts";
 import { sendOrderToN8n } from "./n8n-fulfill-order.ts";
+import { decrementProductsStock } from "./decrement-product-stock.ts";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -231,7 +232,20 @@ export async function fulfillPaymentIntentOrder(
       }),
     );
 
-    await supabaseAdmin.from("order_items").insert(orderItems);
+    const { error: itemsError } = await supabaseAdmin.from("order_items").insert(orderItems);
+    if (!itemsError) {
+      const stockResult = await decrementProductsStock(
+        supabaseAdmin,
+        orderItems.map((item) => ({
+          product_id: String(item.product_id),
+          quantity: Number(item.quantity),
+        })),
+        { order_id: order.id, order_number: orderNumber },
+      );
+      if (stockResult.warnings.length > 0) {
+        console.warn("[fulfillPaymentIntentOrder] stock warnings", stockResult.warnings);
+      }
+    }
   }
 
   if (n8nWebhookUrl) {
