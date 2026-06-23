@@ -24,6 +24,8 @@ export async function decrementProductsStock(
   const warnings: string[] = [];
   let productsUpdated = 0;
 
+  const updatedProductIds: string[] = [];
+
   for (const [productId, qty] of totals) {
     const { data: product, error: fetchError } = await supabaseAdmin
       .from("products")
@@ -56,6 +58,7 @@ export async function decrementProductsStock(
     }
 
     productsUpdated++;
+    updatedProductIds.push(productId);
     console.log("[decrement-product-stock]", {
       order_id: context?.order_id,
       order_number: context?.order_number,
@@ -65,6 +68,18 @@ export async function decrementProductsStock(
       qty,
       to: nextStock,
     });
+  }
+
+  if (updatedProductIds.length > 0) {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const apiKey = Deno.env.get("MARKETPLACE_HUB_API_KEY") ?? Deno.env.get("VAB_API_KEY");
+    if (supabaseUrl && apiKey) {
+      fetch(`${supabaseUrl}/functions/v1/marketplace-push-stock`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-api-key": apiKey },
+        body: JSON.stringify({ product_ids: [...new Set(updatedProductIds)] }),
+      }).catch((e) => console.warn("[decrement-product-stock] marketplace push:", e));
+    }
   }
 
   return { products_updated: productsUpdated, warnings };
