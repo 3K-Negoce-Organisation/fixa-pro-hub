@@ -1,0 +1,48 @@
+name: KPMC import reunions themes
+
+on:
+  workflow_dispatch:
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout KPMC
+        uses: actions/checkout@v4
+        with:
+          repository: 3K-Negoce-Organisation/KPMC
+          path: kpmc
+          token: ${{ secrets.KPMC_REPO_CHECKOUT_TOKEN }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: kpmc/app/package-lock.json
+
+      - working-directory: kpmc/app
+        run: npm ci
+
+      - name: Resolve Supabase service_role key
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN_2 }}
+        run: |
+          set -euo pipefail
+          KEYS=$(curl -sS -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" \
+            "https://api.supabase.com/v1/projects/lhrwjnieojuempxjbgql/api-keys")
+          SERVICE=$(echo "$KEYS" | jq -r '.[] | select(.name == "service_role") | .api_key')
+          echo "SUPABASE_SERVICE_ROLE_KEY=$SERVICE" >> "$GITHUB_ENV"
+          echo "SUPABASE_URL=https://lhrwjnieojuempxjbgql.supabase.co" >> "$GITHUB_ENV"
+
+      - name: Setup SSH key
+        env:
+          HOSTINGER_SSH_KEY: ${{ secrets.KPMC_HOSTINGER_SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "${HOSTINGER_SSH_KEY}" | tr -d '\r' > ~/.ssh/hostinger_key
+          chmod 600 ~/.ssh/hostinger_key
+          echo "HOSTINGER_SSH_KEY_FILE=$HOME/.ssh/hostinger_key" >> "$GITHUB_ENV"
+
+      - name: Import themes
+        working-directory: kpmc/app
+        run: npm run import:reunions-themes
