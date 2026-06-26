@@ -17,6 +17,7 @@ jobs:
         with:
           repository: 3K-Negoce-Organisation/KPMC
           path: kpmc
+          token: ${{ secrets.KPMC_REPO_CHECKOUT_TOKEN }}
 
       - name: Setup Node
         uses: actions/setup-node@v4
