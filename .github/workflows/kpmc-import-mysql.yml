@@ -7,6 +7,10 @@ on:
         description: "Simulation sans écriture Supabase"
         type: boolean
         default: false
+      only:
+        description: "Modules ciblés (ex. auth) — vide = import complet"
+        type: string
+        default: ""
 
 jobs:
   import:
@@ -54,8 +58,12 @@ jobs:
           MYSQL_PASSWORD: ${{ secrets.KPMC_MYSQL_PASSWORD }}
           MYSQL_DATABASE: ${{ secrets.KPMC_MYSQL_DATABASE }}
         run: |
+          set -euo pipefail
+          args=()
           if [[ "${{ inputs.dry_run }}" == "true" ]]; then
-            npm run import:mysql -- --dry-run
-          else
-            npm run import:mysql
+            args+=(--dry-run)
           fi
+          if [[ -n "${{ inputs.only }}" ]]; then
+            args+=(--only="${{ inputs.only }}")
+          fi
+          npm run import:mysql -- "${args[@]}"
