@@ -1,0 +1,45 @@
+name: KPMC sync migration manifest
+
+on:
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout KPMC
+        uses: actions/checkout@v4
+        with:
+          repository: 3K-Negoce-Organisation/KPMC
+          path: kpmc
+          token: ${{ secrets.KPMC_REPO_CHECKOUT_TOKEN }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: kpmc/app/package-lock.json
+
+      - name: Install dependencies
+        working-directory: kpmc/app
+        run: npm ci
+
+      - name: Resolve Supabase service_role key
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN_2 }}
+        run: |
+          set -euo pipefail
+          KEYS=$(curl -sS -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" \
+            "https://api.supabase.com/v1/projects/lhrwjnieojuempxjbgql/api-keys")
+          SERVICE=$(echo "$KEYS" | jq -r '.[] | select(.name == "service_role") | .api_key')
+          if [[ -z "$SERVICE" || "$SERVICE" == "null" ]]; then
+            echo "Impossible de récupérer service_role" >&2
+            exit 1
+          fi
+          echo "SUPABASE_SERVICE_ROLE_KEY=$SERVICE" >> "$GITHUB_ENV"
+          echo "SUPABASE_URL=https://lhrwjnieojuempxjbgql.supabase.co" >> "$GITHUB_ENV"
+
+      - name: Sync manifest
+        working-directory: kpmc/app
+        run: npm run sync:migration-manifest
