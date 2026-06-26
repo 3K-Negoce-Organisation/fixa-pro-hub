@@ -34,15 +34,6 @@ jobs:
           echo "SUPABASE_SERVICE_ROLE_KEY=$SERVICE" >> "$GITHUB_ENV"
           echo "SUPABASE_URL=https://lhrwjnieojuempxjbgql.supabase.co" >> "$GITHUB_ENV"
 
-      - name: Setup SSH key
-        env:
-          HOSTINGER_SSH_KEY: ${{ secrets.KPMC_HOSTINGER_SSH_KEY }}
-        run: |
-          mkdir -p ~/.ssh
-          echo "${HOSTINGER_SSH_KEY}" | tr -d '\r' > ~/.ssh/hostinger_key
-          chmod 600 ~/.ssh/hostinger_key
-          echo "HOSTINGER_SSH_KEY_FILE=$HOME/.ssh/hostinger_key" >> "$GITHUB_ENV"
-
-      - name: Import themes
+      - name: Import themes from bundle
         working-directory: kpmc/app
-        run: npm run import:reunions-themes
+        run: npm run import:reunions-themes -- --local-dir=../data/reunions-bundle
