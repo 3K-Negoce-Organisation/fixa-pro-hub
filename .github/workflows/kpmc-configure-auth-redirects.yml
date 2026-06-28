@@ -3,10 +3,17 @@ name: KPMC configure Supabase Auth redirects
 on:
   workflow_dispatch:
     inputs:
+      target:
+        description: Environnement Supabase
+        type: choice
+        options:
+          - staging
+          - production
+        default: production
       kpmc_url:
         description: "URL Railway KPMC (wildcard redirect)"
         type: string
-        default: "https://kpmc-staging-staging.up.railway.app/**"
+        default: "https://kpmc-production-production.up.railway.app/**"
 
 jobs:
   configure:
@@ -15,10 +22,20 @@ jobs:
       - name: Merge KPMC URL into Supabase Auth redirect list
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN_2 }}
-          PROJECT_REF: lhrwjnieojuempxjbgql
           KPMC_REDIRECT: ${{ inputs.kpmc_url }}
         run: |
           set -euo pipefail
+          case "${{ inputs.target }}" in
+            staging)
+              PROJECT_REF="${{ secrets.SUPABASE_REF_STAGING }}"
+              if [[ -z "$PROJECT_REF" ]]; then PROJECT_REF="lhrwjnieojuempxjbgql"; fi
+              ;;
+            production)
+              PROJECT_REF="${{ secrets.SUPABASE_REF_PRODUCTION }}"
+              if [[ -z "$PROJECT_REF" ]]; then PROJECT_REF="lqsbsinycyewdvdtbruy"; fi
+              ;;
+          esac
+          echo "Projet Supabase: $PROJECT_REF"
           AUTH=$(curl -sS -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" \
             "https://api.supabase.com/v1/projects/${PROJECT_REF}/config/auth")
           CURRENT=$(echo "$AUTH" | jq -r '.uri_allow_list // ""')
