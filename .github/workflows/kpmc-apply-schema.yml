@@ -36,15 +36,16 @@ jobs:
               if [[ -z "$PROJECT_REF" ]]; then PROJECT_REF="lqsbsinycyewdvdtbruy"; fi
               ;;
           esac
-          echo "Cible: $PROJECT_REF"
           shopt -s nullglob
           files=(supabase/migrations/202606*kpmc*.sql)
           if [[ ${#files[@]} -eq 0 ]]; then
             echo "Aucune migration kpmc trouvée" >&2
             exit 1
           fi
+          echo "Cible: $PROJECT_REF — ${#files[@]} fichier(s)"
+          supabase link --project-ref "$PROJECT_REF" --yes
           for sql in "${files[@]}"; do
             echo "→ $sql"
-            supabase db execute --project-ref "$PROJECT_REF" -f "$sql"
+            supabase db query --linked -f "$sql"
           done
           echo "✓ ${#files[@]} migration(s) kpmc appliquée(s)"
