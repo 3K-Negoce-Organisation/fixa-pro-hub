@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { SITE_SLUG } from "@/lib/siteSlug";
+import { useStorefrontSite } from "@/contexts/StorefrontSiteContext";
 
 /**
  * Reads `sites.storefront_public` for the storefront slug.
@@ -8,14 +8,16 @@ import { SITE_SLUG } from "@/lib/siteSlug";
  * so the app se comporte comme « boutique fermée » : pas de page d’erreur bloquante.
  */
 export function useStorefrontPublic() {
+  const { siteSlug } = useStorefrontSite();
+
   return useQuery({
-    queryKey: ["storefront-public", SITE_SLUG],
+    queryKey: ["storefront-public", siteSlug],
     queryFn: async () => {
       try {
         const { data, error } = await supabase
           .from("sites")
           .select("storefront_public")
-          .eq("slug", SITE_SLUG)
+          .eq("slug", siteSlug)
           .eq("is_active", true)
           .maybeSingle();
 

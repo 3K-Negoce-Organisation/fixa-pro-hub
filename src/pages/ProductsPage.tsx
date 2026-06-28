@@ -26,6 +26,7 @@ import {
 } from "@/lib/seo";
 import { fetchProducts, getProductImage, parseVariants, type Product } from "@/lib/products";
 import { useCart } from "@/contexts/CartContext";
+import { useStorefrontSite } from "@/contexts/StorefrontSiteContext";
 
 type ItemsPerPage = "12" | "25" | "50" | "all";
 
@@ -34,6 +35,7 @@ const ProductsPage = () => {
   const categoryParam = searchParams.get("category");
   const query = searchParams.get("q");
   const { isOpen: isCartOpen } = useCart();
+  const { siteId, loading: siteLoading } = useStorefrontSite();
 
   const [filters, setFilters] = useState<Record<string, string[]>>({
     diameter: [],
@@ -47,22 +49,26 @@ const ProductsPage = () => {
 
   // Fetch categories from categories table
   const { data: dbCategories = [] } = useQuery({
-    queryKey: ["categories"],
+    queryKey: ["categories", siteId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let q = supabase
         .from("categories")
         .select("id, name, slug")
         .eq("is_active", true);
+      if (siteId) q = q.eq("site_id", siteId);
+      const { data, error } = await q;
       if (error) throw error;
       return data || [];
     },
     staleTime: 5 * 60 * 1000,
+    enabled: !siteLoading,
   });
 
   // Fetch products from Supabase
   const { data: products = [], isLoading } = useQuery({
-    queryKey: ["products", query],
-    queryFn: () => fetchProducts(query || undefined),
+    queryKey: ["products", siteId, query],
+    queryFn: () => fetchProducts(query || undefined, siteId),
+    enabled: !siteLoading,
   });
 
   const activeCategory = useMemo(() => {

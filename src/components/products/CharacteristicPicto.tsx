@@ -6,6 +6,8 @@ import {
   resolvePictoDisplay,
   type PictoDisplayConfig,
 } from "@/lib/picto-display";
+import { FallbackImage } from "@/components/ui/FallbackImage";
+import { TREX_FALLBACK_SRC } from "@/lib/imageFallback";
 
 type CharacteristicPictoProps = {
   iconUrl?: string | null;
@@ -28,39 +30,23 @@ export function CharacteristicPicto({
   iconUrl,
   value,
   label,
-  fallback,
+  fallback: _fallback,
   display,
   className,
 }: CharacteristicPictoProps) {
   const displayText = formatDisplayText(value, label);
   const cfg = resolvePictoDisplay(display);
+  const pictoSrc = iconUrl?.trim() || TREX_FALLBACK_SRC;
 
-  if (iconUrl) {
-    if (cfg.textPlacement === "inside") {
-      return (
-        <div
-          className={cn("relative inline-block shrink-0 align-middle", className)}
-          title={displayText}
-        >
-          <img src={iconUrl} alt="" style={pictoImageStyle(cfg)} loading="lazy" />
-          <span
-            className="pointer-events-none absolute font-semibold whitespace-nowrap tabular-nums text-foreground"
-            style={pictoTextStyle(cfg)}
-          >
-            {displayText}
-          </span>
-        </div>
-      );
-    }
-
+  if (cfg.textPlacement === "inside") {
     return (
       <div
-        className={cn("inline-flex shrink-0 items-start align-middle", className)}
+        className={cn("relative inline-block shrink-0 align-middle", className)}
         title={displayText}
       >
-        <img src={iconUrl} alt="" style={pictoImageStyle(cfg)} loading="lazy" />
+        <FallbackImage src={pictoSrc} alt="" style={pictoImageStyle(cfg)} loading="lazy" />
         <span
-          className="font-semibold whitespace-nowrap tabular-nums text-foreground"
+          className="pointer-events-none absolute font-semibold whitespace-nowrap tabular-nums text-foreground"
           style={pictoTextStyle(cfg)}
         >
           {displayText}
@@ -71,18 +57,13 @@ export function CharacteristicPicto({
 
   return (
     <div
-      className={cn("inline-flex shrink-0 items-start gap-2 align-middle", className)}
+      className={cn("inline-flex shrink-0 items-start align-middle", className)}
       title={displayText}
     >
+      <FallbackImage src={pictoSrc} alt="" style={pictoImageStyle(cfg)} loading="lazy" />
       <span
-        className="inline-flex items-center justify-center rounded-md border border-border bg-secondary text-primary"
-        style={{ height: cfg.pictoHeightPx, width: cfg.pictoHeightPx }}
-      >
-        {fallback}
-      </span>
-      <span
-        className="font-semibold whitespace-nowrap text-secondary-foreground"
-        style={{ fontSize: cfg.textFontSizePx, marginTop: cfg.textOffsetY }}
+        className="font-semibold whitespace-nowrap tabular-nums text-foreground"
+        style={pictoTextStyle(cfg)}
       >
         {displayText}
       </span>
