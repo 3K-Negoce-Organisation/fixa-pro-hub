@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { ProductCard, DisplayProduct } from "@/components/products/ProductCard";
 import { fetchProducts, getProductImage, Product } from "@/lib/products";
 import { useCart } from "@/contexts/CartContext";
+import { useStorefrontSite } from "@/contexts/StorefrontSiteContext";
 import { toast } from "sonner";
 
 function mapProductToDisplay(product: Product): DisplayProduct {
@@ -30,9 +31,11 @@ function mapProductToDisplay(product: Product): DisplayProduct {
 
 export function FeaturedProducts() {
   const { addItem } = useCart();
+  const { siteId, loading: siteLoading } = useStorefrontSite();
   const { data: products, isLoading } = useQuery({
-    queryKey: ["featured-products"],
-    queryFn: () => fetchProducts(),
+    queryKey: ["featured-products", siteId],
+    queryFn: () => fetchProducts(undefined, siteId),
+    enabled: !siteLoading,
   });
 
   const featuredProducts: DisplayProduct[] = (products?.slice(0, 4) || []).map(mapProductToDisplay);

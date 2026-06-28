@@ -1,48 +1,30 @@
 import { useCallback, useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { SITE_SLUG } from "@/lib/siteSlug";
+import { useStorefrontSite } from "@/contexts/StorefrontSiteContext";
 
 export type SiteStripeMode = "live" | "test";
 
 /**
- * Lit `public.sites.stripe_mode` pour le storefront (`SITE_SLUG` / `VITE_SITE_SLUG`).
- * Le serveur (Edge Functions) reste la source de vérité pour les secrets ; ce hook sert uniquement au choix de la clé publique et à l’UX (bandeau test).
+ * Lit `public.sites.stripe_mode` pour le site storefront sélectionné.
  */
 export function useSiteStripeMode(enabled = true) {
+  const { site, loading, refreshSite } = useStorefrontSite();
   const [stripeMode, setStripeMode] = useState<SiteStripeMode | null>(null);
 
   const load = useCallback(async () => {
     if (!enabled) return;
-    const { data, error } = await supabase
-      .from("sites")
-      .select("stripe_mode")
-      .eq("slug", SITE_SLUG)
-      .eq("is_active", true)
-      .maybeSingle();
-
-    if (error) {
-      console.warn("[STRIPE] Could not load sites.stripe_mode, defaulting to live", error);
-      setStripeMode("live");
-      return;
-    }
-    const mode = (data as { stripe_mode?: string } | null)?.stripe_mode === "test" ? "test" : "live";
+    await refreshSite();
+    const mode = site?.stripe_mode === "test" ? "test" : "live";
     setStripeMode(mode);
-  }, [enabled]);
+  }, [enabled, refreshSite, site?.stripe_mode]);
 
   useEffect(() => {
     if (!enabled) {
       setStripeMode(null);
       return;
     }
-    let cancelled = false;
-    void (async () => {
-      await load();
-      if (cancelled) return;
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [enabled, load]);
+    if (loading) return;
+    setStripeMode(site?.stripe_mode === "test" ? "test" : "live");
+  }, [enabled, loading, site?.stripe_mode]);
 
   useEffect(() => {
     if (!enabled) return;

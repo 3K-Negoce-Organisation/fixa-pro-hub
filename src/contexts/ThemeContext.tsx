@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { SiteTheme, DEFAULT_THEME, hexToHsl } from '@/types/theme';
+import { useStorefrontSite } from '@/contexts/StorefrontSiteContext';
 
 interface SiteAsset {
   id: string;
@@ -160,21 +161,27 @@ function applyThemeToCSS(theme: Partial<SiteTheme>) {
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
+  const { siteId, loading: siteLoading } = useStorefrontSite();
   const [theme, setTheme] = useState<Partial<SiteTheme>>(DEFAULT_THEME);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [faviconUrl, setFaviconUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   async function loadTheme() {
+    if (siteLoading) return;
     setLoading(true);
     
     try {
-      // Charger le thème actif depuis site_themes
-      const themeResponse = await supabase
+      let themeQuery = supabase
         .from('site_themes' as any)
         .select('*')
-        .eq('is_active', true)
-        .maybeSingle();
+        .eq('is_active', true);
+
+      if (siteId) {
+        themeQuery = themeQuery.eq('site_id', siteId);
+      }
+
+      const themeResponse = await themeQuery.maybeSingle();
       
       const themeData = themeResponse.data as unknown as Partial<SiteTheme> | null;
       const themeError = themeResponse.error;
@@ -184,12 +191,12 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         setTheme(mergedTheme);
         applyThemeToCSS(mergedTheme);
         
-        // Si le thème a un site_id, charger les assets sélectionnés
-        if (themeData.site_id) {
+        const resolvedSiteId = themeData.site_id || siteId;
+        if (resolvedSiteId) {
           const assetsResponse = await supabase
             .from('site_assets' as any)
             .select('*')
-            .eq('site_id', themeData.site_id)
+            .eq('site_id', resolvedSiteId)
             .eq('is_selected', true);
           
           const assets = assetsResponse.data as unknown as SiteAsset[] | null;
@@ -208,7 +215,6 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
           }
         }
         
-        // Fallback sur les URLs legacy du thème si pas d'assets
         if (!logoUrl && themeData.logo_url) {
           setLogoUrl(themeData.logo_url);
         }
@@ -217,8 +223,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
           applyFavicon(themeData.favicon_url);
         }
       } else {
-        // Utiliser le thème par défaut si aucun thème actif trouvé
         applyThemeToCSS(DEFAULT_THEME);
+        setLogoUrl(null);
+        setFaviconUrl(null);
       }
     } catch (err) {
       console.error('Erreur lors du chargement du thème:', err);
@@ -229,8 +236,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   }
 
   useEffect(() => {
-    loadTheme();
-  }, []);
+    void loadTheme();
+  }, [siteId, siteLoading]);
 
   return (
     <ThemeContext.Provider value={{ theme, logoUrl, faviconUrl, loading, refreshTheme: loadTheme }}>

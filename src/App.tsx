@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { CartProvider } from "@/contexts/CartContext";
 import { FavoritesProvider } from "@/contexts/FavoritesContext";
 import { AdminErrorProvider } from "@/contexts/AdminErrorContext";
+import { StorefrontSiteProvider } from "@/contexts/StorefrontSiteContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 
 import AuthGuard from "@/components/auth/AuthGuard";
@@ -41,6 +42,7 @@ const queryClient = new QueryClient();
 const App = () => (
   <HelmetProvider>
   <QueryClientProvider client={queryClient}>
+    <StorefrontSiteProvider>
     <ThemeProvider>
       <TooltipProvider>
         <CartProvider>
@@ -83,6 +85,7 @@ const App = () => (
         </CartProvider>
       </TooltipProvider>
     </ThemeProvider>
+    </StorefrontSiteProvider>
   </QueryClientProvider>
   </HelmetProvider>
 );

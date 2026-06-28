@@ -25,11 +25,12 @@ import {
   buildProductTitle,
 } from "@/lib/seo";
 import { getTechnicalSheetForProduct } from "@/lib/technicalSheets";
-import { fetchProductByHandle, getProductImage, parseVariants, formatPriceHT, formatPrice, type ProductVariant } from "@/lib/products";
+import { resolveProductImageUrl } from "@/lib/imageFallback";
 import { toast } from "sonner";
 import { useCart } from "@/contexts/CartContext";
 import { useFavorites } from "@/contexts/FavoritesContext";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useStorefrontSite } from "@/contexts/StorefrontSiteContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 
@@ -50,14 +51,15 @@ const ProductDetailPage = () => {
   const { addItem } = useCart();
   const { isFavorite, toggleFavorite } = useFavorites();
   const { theme } = useTheme();
+  const { siteId: storefrontSiteId, loading: siteLoading } = useStorefrontSite();
   const [quantity, setQuantity] = useState(1);
   const [selectedVariantId, setSelectedVariantId] = useState<string>("");
-  const siteId = theme.site_id || null;
+  const siteId = theme.site_id || storefrontSiteId || null;
 
   const { data: product, isLoading, error } = useQuery({
-    queryKey: ["product", handle],
-    queryFn: () => fetchProductByHandle(handle!),
-    enabled: !!handle,
+    queryKey: ["product", handle, siteId],
+    queryFn: () => fetchProductByHandle(handle!, siteId),
+    enabled: !!handle && !siteLoading,
   });
 
   const { data: characteristicIcons = [] } = useQuery({
@@ -84,7 +86,7 @@ const ProductDetailPage = () => {
   // Parse variants from product
   const variants: ProductVariant[] = product ? parseVariants(product) : [];
   const currentVariant = variants.find(v => v.id === selectedVariantId) || variants[0];
-  const productImage = product ? getProductImage(product) : "/placeholder.svg";
+  const productImage = product ? getProductImage(product) : resolveProductImageUrl(null);
   const characteristicIconMap = new Map(
     characteristicIcons.map((item) => [item.characteristic_key, item]),
   );

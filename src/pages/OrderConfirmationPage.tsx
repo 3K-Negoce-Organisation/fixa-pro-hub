@@ -72,7 +72,7 @@ const OrderConfirmationPage = () => {
             </div>
 
             <p className="text-sm text-muted-foreground">
-              Livraison estimée : 24-48h. Vous recevrez un email avec le numéro de suivi dès l&apos;expédition.
+              Livraison estimée : 24-48h. Vous recevrez un SMS avec le numéro de suivi dès l&apos;expédition.
             </p>
           </div>
 

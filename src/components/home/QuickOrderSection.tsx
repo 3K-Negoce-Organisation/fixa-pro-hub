@@ -4,15 +4,18 @@ import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { fetchProducts, getProductImage, formatPrice } from "@/lib/products";
 import { useCart } from "@/contexts/CartContext";
+import { useStorefrontSite } from "@/contexts/StorefrontSiteContext";
 import { useToast } from "@/hooks/use-toast";
 
 export function QuickOrderSection() {
   const { addItem } = useCart();
   const { toast } = useToast();
+  const { siteId, loading: siteLoading } = useStorefrontSite();
   
   const { data: products, isLoading } = useQuery({
-    queryKey: ["quick-order-products"],
-    queryFn: () => fetchProducts(),
+    queryKey: ["quick-order-products", siteId],
+    queryFn: () => fetchProducts(undefined, siteId),
+    enabled: !siteLoading,
   });
 
   const recentProducts = (products?.slice(0, 4) || []).map((product) => ({

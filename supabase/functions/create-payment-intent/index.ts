@@ -91,7 +91,11 @@ serve(async (req) => {
     }
 
     // Parse request body
-    const { items, guestEmail } = await req.json() as { items: CartItem[]; guestEmail?: string };
+    const { items, guestEmail, site_slug: rawSiteSlug } = await req.json() as {
+      items: CartItem[];
+      guestEmail?: string;
+      site_slug?: string;
+    };
     logStep("Received cart items", { itemCount: items.length, isGuest: !userId, guestEmail });
 
     const payableItems = filterPayableCartLines(items ?? []);
@@ -107,7 +111,7 @@ serve(async (req) => {
       throw new Error("SUPABASE_SERVICE_ROLE_KEY is not configured");
     }
     const admin = createClient(Deno.env.get("SUPABASE_URL") ?? "", serviceKey);
-    const siteSlug = Deno.env.get("STOREFRONT_SITE_SLUG") || "vis-a-bois";
+    const siteSlug = (rawSiteSlug ?? "").trim() || Deno.env.get("STOREFRONT_SITE_SLUG") || "vis-a-bois";
     const { data: site, error: siteErr } = await admin
       .from("sites")
       .select("id, storefront_public, stripe_mode")

@@ -80,9 +80,10 @@ serve(async (req) => {
     }
 
     // Parse request body
-    const { items, guestEmail: rawGuestEmail } = await req.json() as {
+    const { items, guestEmail: rawGuestEmail, site_slug: rawSiteSlug } = await req.json() as {
       items: CartItem[];
       guestEmail?: string;
+      site_slug?: string;
     };
     const guestEmail = (rawGuestEmail ?? "").trim().toLowerCase();
     logStep("Received cart items", { itemCount: items.length, hasGuestEmail: !!guestEmail });
@@ -97,7 +98,7 @@ serve(async (req) => {
       throw new Error("SUPABASE_SERVICE_ROLE_KEY is not configured");
     }
     const admin = createClient(Deno.env.get("SUPABASE_URL") ?? "", serviceKey);
-    const siteSlug = Deno.env.get("STOREFRONT_SITE_SLUG") || "vis-a-bois";
+    const siteSlug = (rawSiteSlug ?? "").trim() || Deno.env.get("STOREFRONT_SITE_SLUG") || "vis-a-bois";
     const { data: site, error: siteErr } = await admin
       .from("sites")
       .select("id, storefront_public, stripe_mode")
@@ -168,7 +169,7 @@ serve(async (req) => {
           product_data: {
             name: item.title,
             description: item.variantTitle !== "Unité" ? item.variantTitle : undefined,
-            images: item.image && item.image !== "/placeholder.svg" ? [item.image] : undefined,
+            images: item.image && !item.image.endsWith("/trex-fallback.png") && item.image !== "/placeholder.svg" ? [item.image] : undefined,
             metadata: {
               product_id: item.id,
               variant_id: item.variantId,

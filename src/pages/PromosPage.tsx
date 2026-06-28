@@ -7,18 +7,24 @@ import { PageBackground } from "@/components/layout/PageBackground";
 import { ProductGrid } from "@/components/products/ProductGrid";
 import { supabase } from "@/integrations/supabase/client";
 import { getProductImage, parseVariants, type Product } from "@/lib/products";
+import { resolveProductImageUrl } from "@/lib/imageFallback";
+import { useStorefrontSite } from "@/contexts/StorefrontSiteContext";
 
 const PromosPage = () => {
+  const { siteId, loading: siteLoading } = useStorefrontSite();
   // Fetch promo products from Supabase
   const { data: products = [], isLoading } = useQuery({
-    queryKey: ["promo-products"],
+    queryKey: ["promo-products", siteId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let q = supabase
         .from("products")
         .select("*")
         .eq("is_active", true)
         .eq("is_promo", true)
         .order("title");
+      if (siteId) q = q.eq("site_id", siteId);
+
+      const { data, error } = await q;
 
       if (error) throw error;
       const promoRows = (data || []) as Product[];
@@ -43,14 +49,15 @@ const PromosPage = () => {
               handle: g.handle,
               image:
                 Array.isArray(g.images) && g.images.length > 0
-                  ? (typeof g.images[0] === "string" ? g.images[0] : g.images[0]?.url || "/placeholder.svg")
-                  : "/placeholder.svg",
+                  ? (typeof g.images[0] === "string" ? g.images[0] : resolveProductImageUrl(g.images[0]?.url))
+                  : resolveProductImageUrl(null),
             },
           ]),
         );
       }
       return promoRows.map((row) => ({ ...row, _giftMeta: giftMap[(row as any).promo_gift_product_id] }));
     },
+    enabled: !siteLoading,
   });
 
   // Transform Supabase products to display format (filter out expired promos)

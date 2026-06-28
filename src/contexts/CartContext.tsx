@@ -6,6 +6,7 @@ import {
   cartProductsTTC,
   normalizeCartLinePricing,
 } from "@/lib/cartPricing";
+import { resolveProductImageUrl } from "@/lib/imageFallback";
 export interface CartItem {
   id: string;
   variantId: string;
@@ -94,8 +95,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
       Array.isArray(data.images) && data.images.length > 0
         ? typeof data.images[0] === "string"
           ? data.images[0]
-          : (data.images[0] as { url?: string }).url || "/placeholder.svg"
-        : "/placeholder.svg";
+          : (data.images[0] as { url?: string }).url
+        : null;
+
+    const imageUrl = resolveProductImageUrl(firstImage);
 
     setItems((prev) => {
       const existingGift = prev.find((i) => i.isGift && i.id === giftProductId);
@@ -114,7 +117,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
           variantTitle: "Article offert",
           priceHT: 0,
           priceTTC: 0,
-          image: firstImage,
+          image: imageUrl,
           quantity,
           isGift: true,
           giftFromProductId: null,

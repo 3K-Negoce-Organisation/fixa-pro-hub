@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { Save, Building2, Mail, MapPin, Phone, Hash, Store } from "lucide-react";
-import { SITE_SLUG } from "@/lib/siteSlug";
+import { useStorefrontSite } from "@/contexts/StorefrontSiteContext";
 import {
   Dialog,
   DialogContent,
@@ -35,6 +35,7 @@ interface SupplierSettingsDialogProps {
 
 export function SupplierSettingsDialog({ open, onOpenChange }: SupplierSettingsDialogProps) {
   const queryClient = useQueryClient();
+  const { siteSlug } = useStorefrontSite();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [settings, setSettings] = useState<SupplierSettings | null>(null);
@@ -55,7 +56,7 @@ export function SupplierSettingsDialog({ open, onOpenChange }: SupplierSettingsD
         supabase
           .from("sites")
           .select("id, storefront_public")
-          .eq("slug", SITE_SLUG)
+          .eq("slug", siteSlug)
           .eq("is_active", true)
           .maybeSingle(),
       ]);
@@ -109,7 +110,7 @@ export function SupplierSettingsDialog({ open, onOpenChange }: SupplierSettingsD
           .update({ storefront_public: storefrontPublic })
           .eq("id", siteId);
         if (siteErr) throw siteErr;
-        await queryClient.invalidateQueries({ queryKey: ["storefront-public", SITE_SLUG] });
+        await queryClient.invalidateQueries({ queryKey: ["storefront-public", siteSlug] });
       }
 
       toast.success("Paramètres enregistrés");

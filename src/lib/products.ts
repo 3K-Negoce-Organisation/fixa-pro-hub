@@ -1,6 +1,7 @@
 // Supabase Products Service
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
+import { resolveProductImageUrl } from "@/lib/imageFallback";
 
 export type CategoryRef = {
   id: string;
@@ -56,13 +57,17 @@ export function buildProductsSearchOrFilter(searchQuery: string): string {
   ].join(",");
 }
 
-// Fetch all active products (with joined category)
-export async function fetchProducts(searchQuery?: string) {
+// Fetch all active products (with joined category), optionally scoped to a site
+export async function fetchProducts(searchQuery?: string, siteId?: string | null) {
   let query = supabase
     .from("products")
     .select("*, categories(id, name, slug)")
     .eq("is_active", true)
     .order("title");
+
+  if (siteId) {
+    query = query.eq("site_id", siteId);
+  }
 
   const term = searchQuery?.trim();
   if (term) {
@@ -80,13 +85,18 @@ export async function fetchProducts(searchQuery?: string) {
 }
 
 // Fetch a single product by handle (with joined category)
-export async function fetchProductByHandle(handle: string) {
-  const { data, error } = await supabase
+export async function fetchProductByHandle(handle: string, siteId?: string | null) {
+  let query = supabase
     .from("products")
     .select("*, categories(id, name, slug)")
     .eq("handle", handle)
-    .eq("is_active", true)
-    .maybeSingle();
+    .eq("is_active", true);
+
+  if (siteId) {
+    query = query.eq("site_id", siteId);
+  }
+
+  const { data, error } = await query.maybeSingle();
 
   if (error) {
     console.error("Error fetching product:", error);
@@ -123,10 +133,11 @@ export function parseVariants(product: Product): ProductVariant[] {
 // Get primary image URL from product
 export function getProductImage(product: Product): string {
   if (!product.images || !Array.isArray(product.images) || product.images.length === 0) {
-    return "/placeholder.svg";
+    return resolveProductImageUrl(null);
   }
   const firstImage = product.images[0] as { url?: string } | string;
-  return typeof firstImage === "string" ? firstImage : firstImage?.url || "/placeholder.svg";
+  const url = typeof firstImage === "string" ? firstImage : firstImage?.url;
+  return resolveProductImageUrl(url);
 }
 
 // Price formatting utilities

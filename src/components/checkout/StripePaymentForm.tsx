@@ -25,6 +25,7 @@ import {
   clearStripePromiseCache,
 } from "@/lib/stripePublishableKey";
 import { useSiteStripeMode, type SiteStripeMode } from "@/hooks/useSiteStripeMode";
+import { useStorefrontSite } from "@/contexts/StorefrontSiteContext";
 import { StripeTestModeBanner } from "@/components/checkout/StripeTestModeBanner";
 
 interface CheckoutFormProps {
@@ -544,6 +545,7 @@ export const StripePaymentForm = ({ items, totalTTC, totalHT, onSuccess, onCance
   const [error, setError] = useState<string | null>(null);
   const [stripeLoaded, setStripeLoaded] = useState<boolean | null>(null);
   const { stripeMode } = useSiteStripeMode(true);
+  const { siteSlug } = useStorefrontSite();
   const [stripePromiseState, setStripePromiseState] = useState<Promise<Stripe | null> | null>(null);
   const [retryCount, setRetryCount] = useState(0);
   const [paymentEpoch, setPaymentEpoch] = useState(0);
@@ -574,7 +576,7 @@ export const StripePaymentForm = ({ items, totalTTC, totalHT, onSuccess, onCance
         user?.email ?? (isGuest ? userEmail : undefined);
 
       const { data, error: invokeError } = await supabase.functions.invoke("create-stripe-checkout", {
-        body: { items: payableItems, guestEmail: guestEmailBody },
+        body: { items: payableItems, guestEmail: guestEmailBody, site_slug: siteSlug },
       });
 
       if (invokeError || data?.error) {
@@ -715,7 +717,7 @@ export const StripePaymentForm = ({ items, totalTTC, totalHT, onSuccess, onCance
 
         console.log("[STRIPE] Calling create-payment-intent edge function...");
         const { data, error: invokeError } = await supabase.functions.invoke("create-payment-intent", {
-          body: { items: payableItems, guestEmail: guestEmailPayload },
+          body: { items: payableItems, guestEmail: guestEmailPayload, site_slug: siteSlug },
         });
 
         if (timeoutRef.current) {

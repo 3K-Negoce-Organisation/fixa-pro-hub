@@ -4,6 +4,21 @@ export type AdminAuthResult =
   | { ok: true; userId: string; supabaseAdmin: ReturnType<typeof createClient> }
   | { ok: false; status: number; message: string };
 
+/** Requête interne (n8n, update-order-status) avec JWT service_role. */
+export function isServiceRoleBearer(authHeader: string | null): boolean {
+  if (!authHeader?.startsWith("Bearer ")) return false;
+  const token = authHeader.slice(7).trim();
+  if (!token) return false;
+  const parts = token.split(".");
+  if (parts.length < 2) return false;
+  try {
+    const payload = JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")));
+    return payload.role === "service_role";
+  } catch {
+    return false;
+  }
+}
+
 export async function verifyAdminRequest(req: Request): Promise<AdminAuthResult> {
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
