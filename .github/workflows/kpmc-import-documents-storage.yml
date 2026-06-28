@@ -7,6 +7,10 @@ on:
         description: "Simulation sans upload"
         type: boolean
         default: false
+      repair:
+        description: "Ré-upload tous les PDF (corrige binaires corrompus par SSH)"
+        type: boolean
+        default: false
       limit:
         description: "Nombre max de fichiers (vide = tous)"
         type: string
@@ -65,11 +69,20 @@ jobs:
 
       - name: Copy GED to Storage
         working-directory: kpmc/app
+        env:
+          MYSQL_HOST: ${{ secrets.KPMC_MYSQL_HOST }}
+          MYSQL_PORT: ${{ secrets.KPMC_MYSQL_PORT }}
+          MYSQL_USER: ${{ secrets.KPMC_MYSQL_USER }}
+          MYSQL_PASSWORD: ${{ secrets.KPMC_MYSQL_PASSWORD }}
+          MYSQL_DATABASE: ${{ secrets.KPMC_MYSQL_DATABASE }}
         run: |
           set -euo pipefail
           args=()
           if [[ "${{ inputs.dry_run }}" == "true" ]]; then
             args+=(--dry-run)
+          fi
+          if [[ "${{ inputs.repair }}" == "true" ]]; then
+            args+=(--repair)
           fi
           if [[ -n "${{ inputs.limit }}" ]]; then
             args+=(--limit="${{ inputs.limit }}")
