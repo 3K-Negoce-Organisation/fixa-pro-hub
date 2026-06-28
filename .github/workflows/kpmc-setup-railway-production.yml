@@ -14,9 +14,13 @@ jobs:
         run: |
           set -euo pipefail
           echo "${SUPABASE_ACCESS_TOKEN}" | gh secret set SUPABASE_ACCESS_TOKEN \
-            --repo 3K-Negoce-Organisation/KPMC --visibility private
+            --repo 3K-Negoce-Organisation/KPMC
           echo "✓ SUPABASE_ACCESS_TOKEN synchronisé vers KPMC"
 
-  setup:
-    needs: bootstrap
-    uses: 3K-Negoce-Organisation/KPMC/.github/workflows/setup-railway-production.yml@main
+      - name: Trigger KPMC Railway setup
+        env:
+          GH_TOKEN: ${{ secrets.KPMC_REPO_CHECKOUT_TOKEN }}
+        run: |
+          gh workflow run setup-railway-production.yml \
+            --repo 3K-Negoce-Organisation/KPMC --ref main
+          echo "✓ Workflow setup-railway-production lancé sur KPMC"
