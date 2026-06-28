@@ -8,7 +8,7 @@ const DIST = path.join(__dirname, "..", "dist");
 const PORT = Number(process.env.PORT || 8080);
 const DEFAULT_SITE = "vis-a-bois";
 
-function normalizeSiteSlug(raw: string): string {
+function normalizeSiteSlug(raw) {
   return raw
     .trim()
     .toLowerCase()
@@ -17,7 +17,7 @@ function normalizeSiteSlug(raw: string): string {
     .replace(/^-|-$/g, "");
 }
 
-function siteSelectHtml(slug: string): string {
+function siteSelectHtml(slug) {
   const safe = JSON.stringify(slug);
   return `<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><title>Chargement…</title></head><body><script>
 sessionStorage.setItem("storefront_site_slug", ${safe});
@@ -25,20 +25,20 @@ location.replace("/");
 </script></body></html>`;
 }
 
-function readBody(req: http.IncomingMessage): Promise<string> {
+function readBody(req) {
   return new Promise((resolve, reject) => {
-    const chunks: Buffer[] = [];
+    const chunks = [];
     req.on("data", (chunk) => chunks.push(chunk));
     req.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
     req.on("error", reject);
   });
 }
 
-function parseSiteFromBody(body: string, contentType: string): string | null {
+function parseSiteFromBody(body, contentType) {
   const ct = contentType.toLowerCase();
   if (ct.includes("application/json")) {
     try {
-      const json = JSON.parse(body) as { site?: string };
+      const json = JSON.parse(body);
       return json.site?.trim() || null;
     } catch {
       return null;
@@ -48,7 +48,7 @@ function parseSiteFromBody(body: string, contentType: string): string | null {
   return params.get("site")?.trim() || null;
 }
 
-const MIME: Record<string, string> = {
+const MIME = {
   ".html": "text/html; charset=utf-8",
   ".js": "application/javascript; charset=utf-8",
   ".css": "text/css; charset=utf-8",
@@ -64,14 +64,14 @@ const MIME: Record<string, string> = {
   ".xml": "application/xml",
 };
 
-function sendFile(res: http.ServerResponse, filePath: string) {
+function sendFile(res, filePath) {
   const ext = path.extname(filePath).toLowerCase();
   const type = MIME[ext] || "application/octet-stream";
   res.writeHead(200, { "Content-Type": type });
   fs.createReadStream(filePath).pipe(res);
 }
 
-function resolveFile(urlPath: string): string | null {
+function resolveFile(urlPath) {
   const safePath = path.normalize(urlPath).replace(/^(\.\.[/\\])+/, "");
   const candidate = path.join(DIST, safePath);
   if (!candidate.startsWith(DIST)) return null;
