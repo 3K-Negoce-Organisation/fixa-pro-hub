@@ -1,0 +1,30 @@
+---
+description: Workflow staging — développement et commit automatique, production sur validation
+alwaysApply: true
+---
+
+# Workflow staging KPMC / vis-a-bois
+
+## Environnement de travail
+
+- Travailler **uniquement sur staging** tant que l’utilisateur n’a pas validé.
+- **Production** (`main` / déploiement prod) : seulement après validation explicite de l’utilisateur.
+
+## Branches Git
+
+| Dépôt | Branche de travail | Production |
+|-------|-------------------|------------|
+| `fixa-pro-hub` | `staging` | `main` |
+| `simthok_pro` (app KPMC React) | `staging` | `main` |
+
+## Après chaque demande développée
+
+1. Finaliser le code sur la branche **staging** du dépôt concerné.
+2. **Créer un commit** avec un message clair (pourquoi, pas seulement quoi).
+3. Ne **pas** pousser ni déployer en production sans demande explicite.
+4. Ne **pas** merger vers `main` sans validation.
+
+## Déploiements
+
+- Migrations Supabase / Edge Functions : workflows GitHub en mode **staging** d’abord.
+- Railway rebuild : suit le push sur `staging` (quand l’utilisateur demande le push).
