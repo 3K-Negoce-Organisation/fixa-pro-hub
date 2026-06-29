@@ -44,6 +44,18 @@ Configurer au niveau **Railway** (domaines personnalisés) ou **OVH** (DNS / hé
 
 Le serveur Node (`scripts/storefront-server.mjs`) renvoie aussi une **301** pour ces hôtes si le trafic atteint Railway (complément des domaines custom Railway).
 
+### DNS OVH — apex `vis-a-bois.com` (2026-06-29)
+
+Domaine ajouté sur Railway (`vis-a-bois-production`). Enregistrement requis chez OVH :
+
+| Type | Nom | Cible |
+|------|-----|--------|
+| CNAME | `@` (ou vide) | `76hqqw6n.up.railway.app` |
+
+Si OVH refuse le CNAME sur la racine, utiliser l’**ALIAS** / redirection apex proposée par OVH vers `76hqqw6n.up.railway.app`, ou un enregistrement **A** vers l’IP indiquée par Railway dans le dashboard **Domains**.
+
+Après propagation DNS + certificat TLS, `http://vis-a-bois.com/robots.txt` répondra (301 → `https://www.vis-a-bois.com/robots.txt`).
+
 Voir `deploy/nginx-seo-redirects.conf` pour un exemple nginx.
 
 ## 4. Variables Railway / Supabase
