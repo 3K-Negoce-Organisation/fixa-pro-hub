@@ -23,21 +23,54 @@ export type CharacteristicIconLike = {
   text_font_size_px?: number | null;
 };
 
-/** Résout le picto : valeur exacte, puis repli sur picto générique (characteristic_value vide). */
+function isGenericPictoRow(row: CharacteristicIconLike): boolean {
+  return normalizeCharacteristicValue(row.characteristic_value) === "";
+}
+
+function pickGenericPicto<T extends CharacteristicIconLike>(rows: T[]): T | undefined {
+  const genericRows = rows.filter(isGenericPictoRow);
+  return genericRows.find((row) => row.icon_url) ?? genericRows[0];
+}
+
+function pickDisplayFields<T extends CharacteristicIconLike>(row: T): Partial<T> {
+  return {
+    picto_height_px: row.picto_height_px,
+    picto_width_px: row.picto_width_px,
+    text_placement: row.text_placement,
+    text_offset_x: row.text_offset_x,
+    text_offset_y: row.text_offset_y,
+    text_font_size_px: row.text_font_size_px,
+  } as Partial<T>;
+}
+
+/**
+ * Résout le picto pour une caractéristique produit :
+ * - usage / matériau : picto + affichage de la valeur exacte si configurés, sinon repli générique
+ * - autres clés : picto générique (characteristic_value vide)
+ */
 export function resolveCharacteristicIcon<T extends CharacteristicIconLike>(
   icons: T[],
   characteristicKey: string,
   productValue?: string | null,
 ): T | undefined {
-  const siteScoped = icons.filter((i) => i.characteristic_key === characteristicKey);
+  const rows = icons.filter((icon) => icon.characteristic_key === characteristicKey);
+  if (rows.length === 0) return undefined;
+
+  const generic = pickGenericPicto(rows);
+
   if (isValueBasedCharacteristicKey(characteristicKey)) {
     const normalized = normalizeCharacteristicValue(productValue);
     if (normalized) {
-      const exact = siteScoped.find(
-        (i) => normalizeCharacteristicValue(i.characteristic_value) === normalized,
+      const exact = rows.find(
+        (row) => normalizeCharacteristicValue(row.characteristic_value) === normalized,
       );
       if (exact?.icon_url) return exact;
+      if (exact && generic?.icon_url) {
+        return { ...generic, ...pickDisplayFields(exact) };
+      }
     }
+    return generic;
   }
-  return siteScoped.find((i) => !i.characteristic_value || i.characteristic_value === "");
+
+  return generic ?? rows[0];
 }

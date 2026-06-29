@@ -23,6 +23,8 @@ import {
   buildProductJsonLd,
   buildProductSeoDescription,
   buildProductTitle,
+  DEFAULT_DESCRIPTION,
+  DEFAULT_TITLE,
 } from "@/lib/seo";
 import { getTechnicalSheetForProduct } from "@/lib/technicalSheets";
 import { resolveProductImageUrl } from "@/lib/imageFallback";
@@ -91,6 +93,7 @@ const ProductDetailPage = () => {
       if (error) throw error;
       return (data || []) as CharacteristicIconRow[];
     },
+    enabled: !siteLoading,
   });
 
   // Parse variants from product
@@ -101,6 +104,11 @@ const ProductDetailPage = () => {
   if (isLoading) {
     return (
       <PageBackground>
+        <PageSeo
+          title={handle ? `${handle} — Vis-à-Bois` : DEFAULT_TITLE}
+          description={DEFAULT_DESCRIPTION}
+          canonical={handle ? absoluteUrl(`/produit/${handle}`) : undefined}
+        />
         <Header />
         <main className="flex-1 container py-16 flex items-center justify-center">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -113,6 +121,12 @@ const ProductDetailPage = () => {
   if (error || !product) {
     return (
       <PageBackground>
+        <PageSeo
+          title="Produit introuvable — Vis-à-Bois"
+          description={DEFAULT_DESCRIPTION}
+          canonical={handle ? absoluteUrl(`/produit/${handle}`) : absoluteUrl("/produits")}
+          noindex
+        />
         <Header />
         <main className="flex-1 container py-16 text-center">
           <h1 className="text-2xl font-bold mb-4">Produit non trouvé</h1>
