@@ -26,6 +26,14 @@ import {
 } from "@/lib/seo";
 import { getTechnicalSheetForProduct } from "@/lib/technicalSheets";
 import { resolveProductImageUrl } from "@/lib/imageFallback";
+import {
+  fetchProductByHandle,
+  formatPrice,
+  formatPriceHT,
+  getProductImage,
+  parseVariants,
+  type ProductVariant,
+} from "@/lib/products";
 import { toast } from "sonner";
 import { useCart } from "@/contexts/CartContext";
 import { useFavorites } from "@/contexts/FavoritesContext";
