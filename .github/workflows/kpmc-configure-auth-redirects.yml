@@ -1,0 +1,63 @@
+name: KPMC configure Supabase Auth redirects
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Environnement Supabase
+        type: choice
+        options:
+          - staging
+          - production
+        default: production
+      kpmc_url:
+        description: "URL Railway KPMC (wildcard redirect)"
+        type: string
+        default: "https://kpmc-production.up.railway.app/**"
+
+jobs:
+  configure:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Merge KPMC URL into Supabase Auth redirect list
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN_2 }}
+          KPMC_REDIRECT: ${{ inputs.kpmc_url }}
+        run: |
+          set -euo pipefail
+          case "${{ inputs.target }}" in
+            staging)
+              PROJECT_REF="${{ secrets.SUPABASE_REF_STAGING }}"
+              if [[ -z "$PROJECT_REF" ]]; then PROJECT_REF="lhrwjnieojuempxjbgql"; fi
+              ;;
+            production)
+              PROJECT_REF="${{ secrets.SUPABASE_REF_PRODUCTION }}"
+              if [[ -z "$PROJECT_REF" ]]; then PROJECT_REF="lqsbsinycyewdvdtbruy"; fi
+              ;;
+          esac
+          echo "Projet Supabase: $PROJECT_REF"
+          AUTH=$(curl -sS -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" \
+            "https://api.supabase.com/v1/projects/${PROJECT_REF}/config/auth")
+          CURRENT=$(echo "$AUTH" | jq -r '.uri_allow_list // ""')
+          echo "Redirects actuels:"
+          echo "$CURRENT" | tr ',' '\n' | sed 's/^/  /'
+          if echo "$CURRENT" | grep -Fq "${KPMC_REDIRECT}"; then
+            echo "✓ Déjà présent: ${KPMC_REDIRECT}"
+            exit 0
+          fi
+          if [[ -z "$CURRENT" || "$CURRENT" == "null" ]]; then
+            NEW_LIST="${KPMC_REDIRECT}"
+          else
+            NEW_LIST="${CURRENT},${KPMC_REDIRECT}"
+          fi
+          PATCH=$(curl -sS -X PATCH \
+            -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" \
+            -H "Content-Type: application/json" \
+            "https://api.supabase.com/v1/projects/${PROJECT_REF}/config/auth" \
+            -d "$(jq -nc --arg u "$NEW_LIST" '{uri_allow_list: $u}')")
+          if echo "$PATCH" | jq -e '.message' >/dev/null 2>&1 && [[ "$(echo "$PATCH" | jq -r '.message // empty')" != "" ]]; then
+            echo "$PATCH" | jq .
+            exit 1
+          fi
+          echo "✓ Redirect ajouté: ${KPMC_REDIRECT}"
+          echo "$PATCH" | jq -r '.uri_allow_list' | tr ',' '\n' | sed 's/^/  /'

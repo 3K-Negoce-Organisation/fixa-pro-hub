@@ -1,0 +1,26 @@
+name: KPMC setup Railway production
+
+on:
+  workflow_dispatch:
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sync Supabase PAT to KPMC repo
+        env:
+          GH_TOKEN: ${{ secrets.KPMC_REPO_CHECKOUT_TOKEN }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN_2 }}
+        run: |
+          set -euo pipefail
+          echo "${SUPABASE_ACCESS_TOKEN}" | gh secret set SUPABASE_ACCESS_TOKEN \
+            --repo 3K-Negoce-Organisation/KPMC
+          echo "✓ SUPABASE_ACCESS_TOKEN synchronisé vers KPMC"
+
+      - name: Trigger KPMC Railway setup
+        env:
+          GH_TOKEN: ${{ secrets.KPMC_REPO_CHECKOUT_TOKEN }}
+        run: |
+          gh workflow run setup-railway-production.yml \
+            --repo 3K-Negoce-Organisation/KPMC --ref main
+          echo "✓ Workflow setup-railway-production lancé sur KPMC"

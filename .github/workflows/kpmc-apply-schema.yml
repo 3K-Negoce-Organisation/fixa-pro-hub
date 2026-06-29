@@ -1,0 +1,51 @@
+name: KPMC apply Supabase schema
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Environnement Supabase
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Apply kpmc migrations
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN_2 || secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          set -euo pipefail
+          case "${{ inputs.target }}" in
+            staging)
+              PROJECT_REF="${{ secrets.SUPABASE_REF_STAGING }}"
+              if [[ -z "$PROJECT_REF" ]]; then PROJECT_REF="lhrwjnieojuempxjbgql"; fi
+              ;;
+            production)
+              PROJECT_REF="${{ secrets.SUPABASE_REF_PRODUCTION }}"
+              if [[ -z "$PROJECT_REF" ]]; then PROJECT_REF="lqsbsinycyewdvdtbruy"; fi
+              ;;
+          esac
+          shopt -s nullglob
+          files=(supabase/migrations/202606*kpmc*.sql)
+          if [[ ${#files[@]} -eq 0 ]]; then
+            echo "Aucune migration kpmc trouvée" >&2
+            exit 1
+          fi
+          echo "Cible: $PROJECT_REF — ${#files[@]} fichier(s)"
+          supabase link --project-ref "$PROJECT_REF" --yes
+          for sql in "${files[@]}"; do
+            echo "→ $sql"
+            supabase db query --linked -f "$sql"
+          done
+          echo "✓ ${#files[@]} migration(s) kpmc appliquée(s)"
