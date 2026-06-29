@@ -1,13 +1,14 @@
--- Fiche société KPMC : versions holding (3K-Négoce) + versions optionnelles par site vitrine.
--- Ne modifie aucune table public.* hors lecture FK ; aucun impact sur le fonctionnement des boutiques.
+-- Correctif si la première version de 20260629180000 avait déjà été appliquée :
+-- site_id redevient nullable ; holding 3K-Négoce conservé sans site_id.
 
 ALTER TABLE kpmc.company_info_revisions
-  ADD COLUMN IF NOT EXISTS site_id UUID REFERENCES public.sites(id) ON DELETE CASCADE;
+  ALTER COLUMN site_id DROP NOT NULL;
 
--- Les révisions existantes restent la fiche holding (site_id NULL) — pas de rattachement à vis-a-bois.
-
-ALTER TABLE kpmc.company_info_revisions
-  DROP CONSTRAINT IF EXISTS company_info_revisions_version_key;
+-- Si toutes les révisions pointent vers le même site (artefact de migration), rétablir le holding.
+UPDATE kpmc.company_info_revisions
+SET site_id = NULL
+WHERE site_id IS NOT NULL
+  AND (SELECT COUNT(DISTINCT site_id) FROM kpmc.company_info_revisions) = 1;
 
 DROP INDEX IF EXISTS kpmc.uk_kpmc_company_info_holding_version;
 CREATE UNIQUE INDEX uk_kpmc_company_info_holding_version
@@ -19,11 +20,6 @@ CREATE UNIQUE INDEX uk_kpmc_company_info_site_version
   ON kpmc.company_info_revisions(site_id, version)
   WHERE site_id IS NOT NULL;
 
-CREATE INDEX IF NOT EXISTS idx_kpmc_company_info_revisions_site
-  ON kpmc.company_info_revisions(site_id, version DESC)
-  WHERE site_id IS NOT NULL;
-
--- Nouvelle signature : p_site_id NULL = holding 3K-Négoce (comportement historique).
 CREATE OR REPLACE FUNCTION kpmc.company_info_save_revision(
   p_payload JSONB,
   p_comment TEXT DEFAULT NULL,
@@ -66,7 +62,6 @@ $$;
 
 GRANT EXECUTE ON FUNCTION kpmc.company_info_save_revision(JSONB, TEXT, UUID) TO authenticated, service_role;
 
--- Retire la surcharge intermédiaire (site_id obligatoire) si déjà appliquée en staging.
 DROP FUNCTION IF EXISTS kpmc.company_info_save_revision(UUID, JSONB, TEXT);
 
 NOTIFY pgrst, 'reload schema';
