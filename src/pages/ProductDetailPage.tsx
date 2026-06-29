@@ -41,9 +41,11 @@ import { useTheme } from "@/contexts/ThemeContext";
 import { useStorefrontSite } from "@/contexts/StorefrontSiteContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
+import { resolveCharacteristicIcon } from "@/lib/characteristic-pictos";
 
 type CharacteristicIconRow = {
   characteristic_key: string;
+  characteristic_value?: string | null;
   icon_url: string | null;
   site_id: string | null;
   picto_height_px?: number | null;
@@ -76,7 +78,7 @@ const ProductDetailPage = () => {
       let query = supabase
         .from("product_characteristic_icons" as any)
         .select(
-          "characteristic_key, icon_url, site_id, picto_height_px, picto_width_px, text_placement, text_offset_x, text_offset_y, text_font_size_px",
+          "characteristic_key, characteristic_value, icon_url, site_id, picto_height_px, picto_width_px, text_placement, text_offset_x, text_offset_y, text_font_size_px",
         );
 
       if (siteId) {
@@ -95,9 +97,6 @@ const ProductDetailPage = () => {
   const variants: ProductVariant[] = product ? parseVariants(product) : [];
   const currentVariant = variants.find(v => v.id === selectedVariantId) || variants[0];
   const productImage = product ? getProductImage(product) : resolveProductImageUrl(null);
-  const characteristicIconMap = new Map(
-    characteristicIcons.map((item) => [item.characteristic_key, item]),
-  );
 
   if (isLoading) {
     return (
@@ -315,10 +314,14 @@ const ProductDetailPage = () => {
               {technicalSpecs.length > 0 && (
                 <div className="mt-4 flex flex-wrap items-start gap-3 sm:gap-4">
                   {technicalSpecs.map((spec) => {
-                    const iconConfig = characteristicIconMap.get(spec.key);
+                    const iconConfig = resolveCharacteristicIcon(
+                      characteristicIcons,
+                      spec.key,
+                      spec.value,
+                    );
                     return (
                     <CharacteristicPicto
-                      key={spec.key}
+                      key={`${spec.key}-${spec.value}`}
                       iconUrl={iconConfig?.icon_url}
                       display={iconConfig}
                       value={spec.value}
