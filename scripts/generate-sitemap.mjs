@@ -19,6 +19,7 @@ const supabaseKey =
 const STATIC_PATHS = [
   "/",
   "/produits",
+  "/promos",
   "/information-technique",
   "/contact",
   "/faq",

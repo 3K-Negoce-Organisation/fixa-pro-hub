@@ -40,7 +40,7 @@ import NotFound from "./pages/NotFound";
 const queryClient = new QueryClient();
 
 const App = () => (
-  <HelmetProvider>
+  <HelmetProvider prioritizeSeoTags>
   <QueryClientProvider client={queryClient}>
     <StorefrontSiteProvider>
     <ThemeProvider>

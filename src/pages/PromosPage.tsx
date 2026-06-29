@@ -5,6 +5,8 @@ import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { PageBackground } from "@/components/layout/PageBackground";
 import { ProductGrid } from "@/components/products/ProductGrid";
+import { PageSeo } from "@/components/seo/PageSeo";
+import { STATIC_PAGE_SEO, staticPageCanonical } from "@/lib/staticPageSeo";
 import { supabase } from "@/integrations/supabase/client";
 import { getProductImage, parseVariants, type Product } from "@/lib/products";
 import { resolveProductImageUrl } from "@/lib/imageFallback";
@@ -117,6 +119,11 @@ const PromosPage = () => {
 
   return (
     <PageBackground>
+      <PageSeo
+        title={STATIC_PAGE_SEO.promos.title}
+        description={STATIC_PAGE_SEO.promos.description}
+        canonical={staticPageCanonical(STATIC_PAGE_SEO.promos.path)}
+      />
       <Header />
 
       <main className="flex-1">

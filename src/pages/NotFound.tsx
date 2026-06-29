@@ -3,6 +3,8 @@ import { useEffect } from "react";
 import { PageBackground } from "@/components/layout/PageBackground";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
+import { PageSeo } from "@/components/seo/PageSeo";
+import { DEFAULT_DESCRIPTION, absoluteUrl } from "@/lib/seo";
 
 const NotFound = () => {
   const location = useLocation();
@@ -13,6 +15,12 @@ const NotFound = () => {
 
   return (
     <PageBackground>
+      <PageSeo
+        title="Page introuvable — Vis-à-Bois"
+        description={DEFAULT_DESCRIPTION}
+        canonical={absoluteUrl(location.pathname)}
+        noindex
+      />
       <Header />
       <main className="flex-1 flex items-center justify-center">
         <div className="text-center">

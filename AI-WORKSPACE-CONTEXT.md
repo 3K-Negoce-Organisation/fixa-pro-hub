@@ -638,10 +638,11 @@ Domaine canonique : **`https://www.vis-a-bois.com`**. Ciblage éditorial : **par
 
 | Élément | Fichier / URL |
 |---------|----------------|
-| Meta dynamiques | `react-helmet-async`, `src/components/seo/PageSeo.tsx`, `HelmetProvider` dans `App.tsx` |
+| Meta dynamiques | `react-helmet-async` (`prioritizeSeoTags`), `src/components/seo/PageSeo.tsx` |
+| HTML initial crawlers | `scripts/generate-seo-manifest.mjs` → `public/seo-manifest.json` ; injection dans `scripts/storefront-server.mjs` (title + canonical par URL avant JS) |
 | Helpers SEO | `src/lib/seo.ts`, `staticPageSeo.ts`, `categorySeoIntros.ts`, `productSeoFallbacks.ts` |
 | OG image | `public/og-image.jpg` (1200×630), référencée dans `index.html` |
-| Sitemap build | `scripts/generate-sitemap.mjs` (avant `vite build`) → `public/sitemap.xml` (~229 URLs) |
+| Sitemap build | `scripts/generate-sitemap.mjs` + `scripts/generate-seo-manifest.mjs` (avant `vite build`) → `public/sitemap.xml` + `public/seo-manifest.json` |
 | Sitemap Edge (secours) | `supabase/functions/sitemap/index.ts` — **ne pas** soumettre l’URL Supabase dans GSC |
 | robots.txt | `Disallow` `/auth`, `/compte`, `/admin`, `/panier` ; `Sitemap: https://www.vis-a-bois.com/sitemap.xml` |
 | JSON-LD | `Product` + `BreadcrumbList` sur fiches produit ; `WebSite` + `SearchAction` sur l’accueil |
@@ -685,6 +686,7 @@ Domaine canonique : **`https://www.vis-a-bois.com`**. Ciblage éditorial : **par
 
 | Date       | Change                                                                                                                                                                                                                                                                                       |
 | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-06-29 | **GSC canonical/title :** manifest SEO build (`generate-seo-manifest.mjs`) + injection HTML serveur (`storefront-server.mjs`) ; retrait meta statiques du shell `index.html` ; `HelmetProvider prioritizeSeoTags` ; 301 hôtes sans-www/.fr → `www.vis-a-bois.com`. **Railway prod** : seul `www.vis-a-bois.com` en domaine custom — ajouter `vis-a-bois.com` (apex) + DNS OVH. |
 | 2026-06-29 | **Pictos usage/matière par valeur :** fiche produit — picto selon `usage` / `material` du produit (`resolveCharacteristicIcon`, repli générique) ; migration `20260629120000_characteristic_icons_value.sql`. **Git** **staging** → **main**. |
 | 2026-06-15 | **SEO prod :** PR **#4** merge **`main`** — meta dynamiques, canonical/OG `.com`, `og-image.jpg`, sitemap 229 URLs, JSON-LD, robots.txt, maillage, PDF fiches techniques, pages légales `.com`. **Railway** rebuild prod (fix **`bun.lock`** + `react-helmet-async`). **Edge** `sitemap` prod + staging. **Copywriting** particuliers (`294e5d5`). **GSC** : propriété `vis-a-bois.com` + sitemap soumis (ops manuel). Détail : [`docs/CHANGELOG.md`](../docs/CHANGELOG.md#2026-06-15). |
 | 2026-06-12 | **Commandes :** facture client persistée Storage à livraison ; annulation admin + remboursement Stripe ; suppression définitive archives ; paiement correctif sans perdre intervention manuelle ; accès admin téléchargement facture. **Git** `1d7db12`→`a455d3e` **main**. **Edge** : `admin-stripe-refund`, `admin-create-payment-link`, `download-customer-invoice`. Détail : [`docs/CHANGELOG.md`](../docs/CHANGELOG.md#2026-06-12). |

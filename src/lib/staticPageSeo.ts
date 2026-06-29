@@ -7,6 +7,11 @@ export type StaticPageSeo = {
 };
 
 export const STATIC_PAGE_SEO = {
+  promos: {
+    title: "Promotions vis à bois — Vis-à-Bois",
+    description: "Offres et promotions sur une sélection de vis à bois. Livraison 24/48h chez Vis-à-Bois.",
+    path: "/promos",
+  },
   faq: {
     title: "FAQ vis à bois professionnelles — Vis-à-Bois",
     description:

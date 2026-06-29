@@ -30,3 +30,6 @@ scripts/migration-3k/.env.migration
 scripts/migration-3k/.railway-dump/
 scripts/migration-3k/.generated/
 supabase/.temp/
+
+# Généré au build (scripts/generate-seo-manifest.mjs)
+public/seo-manifest.json

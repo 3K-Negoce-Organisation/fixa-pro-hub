@@ -2,6 +2,14 @@
 
 Domaine canonique : **https://www.vis-a-bois.com**
 
+## Meta par page (canonical / title)
+
+Au **build**, `scripts/generate-seo-manifest.mjs` produit `public/seo-manifest.json` (une entrée par URL publique : accueil, catégories, fiches produit, pages légales).
+
+Au **runtime**, `scripts/storefront-server.mjs` injecte dans `index.html` le `<title>`, la `<link rel="canonical">`, la description et les balises Open Graph **avant** le chargement React — c’est ce que Google Search Console lit en priorité sur une SPA.
+
+Côté client, `PageSeo` + `HelmetProvider prioritizeSeoTags` mettent à jour les meta après navigation.
+
 ## 1. Google Search Console
 
 1. Créer un compte sur [Google Search Console](https://search.google.com/search-console)
@@ -31,6 +39,10 @@ Configurer au niveau **Railway** (domaines personnalisés) ou **OVH** (DNS / hé
 | `https://vis-a-bois.fr` | `https://www.vis-a-bois.com` |
 | `https://www.vis-a-bois.fr` | `https://www.vis-a-bois.com` |
 | `https://vis-a-bois.com` | `https://www.vis-a-bois.com` |
+| `http://vis-a-bois.com` | `https://www.vis-a-bois.com` |
+| `http://vis-a-bois.fr` | `https://www.vis-a-bois.com` |
+
+Le serveur Node (`scripts/storefront-server.mjs`) renvoie aussi une **301** pour ces hôtes si le trafic atteint Railway (complément des domaines custom Railway).
 
 Voir `deploy/nginx-seo-redirects.conf` pour un exemple nginx.
 
