@@ -84,6 +84,8 @@ CREATE INDEX IF NOT EXISTS idx_kpmc_company_info_revisions_entity
 ALTER TABLE kpmc.company_info_revisions
   DROP COLUMN IF EXISTS site_id;
 
+DROP FUNCTION IF EXISTS kpmc.company_info_save_revision(JSONB, TEXT, UUID);
+
 CREATE OR REPLACE FUNCTION kpmc.company_info_save_revision(
   p_payload JSONB,
   p_comment TEXT DEFAULT NULL,
