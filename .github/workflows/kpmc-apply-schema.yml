@@ -10,6 +10,12 @@ on:
         options:
           - staging
           - production
+  push:
+    branches:
+      - staging
+    paths:
+      - "supabase/migrations/202606*kpmc*.sql"
+      - ".github/workflows/kpmc-apply-schema.yml"
 
 jobs:
   apply:
@@ -17,7 +23,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.target == 'staging' && 'staging' || 'main' }}
+          ref: ${{ github.event_name == 'push' && 'staging' || (inputs.target == 'staging' && 'staging' || 'main') }}
 
       - uses: supabase/setup-cli@v1
         with:
@@ -26,9 +32,10 @@ jobs:
       - name: Apply kpmc migrations
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN_2 || secrets.SUPABASE_ACCESS_TOKEN }}
+          DEPLOY_TARGET: ${{ github.event_name == 'push' && 'staging' || inputs.target }}
         run: |
           set -euo pipefail
-          case "${{ inputs.target }}" in
+          case "${DEPLOY_TARGET}" in
             staging)
               PROJECT_REF="${{ secrets.SUPABASE_REF_STAGING }}"
               if [[ -z "$PROJECT_REF" ]]; then PROJECT_REF="lhrwjnieojuempxjbgql"; fi

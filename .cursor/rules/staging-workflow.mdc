@@ -21,10 +21,13 @@ alwaysApply: true
 
 1. Finaliser le code sur la branche **staging** du dépôt concerné.
 2. **Créer un commit automatiquement** (sans demander confirmation) avec un message clair (pourquoi, pas seulement quoi).
-3. Ne **pas** pousser ni déployer en production sans demande explicite.
-4. Ne **pas** merger vers `main` sans validation.
+3. **Pousser automatiquement** sur `origin/staging` (sans demander confirmation) pour déclencher le déploiement staging.
+4. Ne **pas** pousser ni déployer en **production** sans demande explicite.
+5. Ne **pas** merger vers `main` sans validation.
 
-## Déploiements
+## Déploiements staging (automatiques après push)
 
-- Migrations Supabase / Edge Functions : workflows GitHub en mode **staging** d’abord.
-- Railway rebuild : suit le push sur `staging` (quand l’utilisateur demande le push).
+| Dépôt | Déclencheur | Effet |
+|-------|-------------|-------|
+| `simthok_pro` | push `staging` (`app/**`) | Railway `kpmc-staging` |
+| `fixa-pro-hub` | push `staging` (`supabase/migrations/202606*kpmc*.sql`) | workflow `KPMC apply Supabase schema` → staging |
