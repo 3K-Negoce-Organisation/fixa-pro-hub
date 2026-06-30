@@ -46,12 +46,22 @@ jobs:
               ;;
           esac
           shopt -s nullglob
-          files=(supabase/migrations/202606*kpmc*.sql)
-          if [[ ${#files[@]} -eq 0 ]]; then
-            echo "Aucune migration kpmc trouvée" >&2
-            exit 1
+          files=()
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            BEFORE="${{ github.event.before }}"
+            if [[ -z "$BEFORE" || "$BEFORE" == "0000000000000000000000000000000000000000" ]]; then
+              mapfile -t files < <(git show --pretty='' --name-only --diff-filter=AM "${{ github.sha }}" -- 'supabase/migrations/202606*kpmc*.sql')
+            else
+              mapfile -t files < <(git diff --name-only "$BEFORE" "${{ github.sha }}" -- 'supabase/migrations/202606*kpmc*.sql')
+            fi
+          else
+            mapfile -t files < <(git log -1 --pretty='' --name-only -- 'supabase/migrations/202606*kpmc*.sql')
           fi
-          echo "Cible: $PROJECT_REF — ${#files[@]} fichier(s)"
+          if [[ ${#files[@]} -eq 0 ]]; then
+            echo "Aucune migration kpmc à appliquer pour cet événement."
+            exit 0
+          fi
+          echo "Cible: $PROJECT_REF — ${#files[@]} fichier(s) : ${files[*]}"
           supabase link --project-ref "$PROJECT_REF" --yes
           for sql in "${files[@]}"; do
             echo "→ $sql"
