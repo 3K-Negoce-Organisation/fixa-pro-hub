@@ -20,7 +20,7 @@ alwaysApply: true
 ## Après chaque demande développée
 
 1. Finaliser le code sur la branche **staging** du dépôt concerné.
-2. **Créer un commit** avec un message clair (pourquoi, pas seulement quoi).
+2. **Créer un commit automatiquement** (sans demander confirmation) avec un message clair (pourquoi, pas seulement quoi).
 3. Ne **pas** pousser ni déployer en production sans demande explicite.
 4. Ne **pas** merger vers `main` sans validation.
 
