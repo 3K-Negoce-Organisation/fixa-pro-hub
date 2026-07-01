@@ -9,7 +9,6 @@ ORDER BY created_at;
 
 SELECT count(*)::int AS fc_total FROM kpmc.factures_clients;
 
-SELECT numero_facture, commande_ref, statut
+SELECT id, numero_facture, commande_ref, client_nom, date_facture, total_ht, total_ttc, statut
 FROM kpmc.factures_clients
-WHERE numero_facture ILIKE 'VIS-202606-%' OR commande_ref ILIKE 'VIS-202606-%'
-ORDER BY numero_facture;
+ORDER BY date_facture DESC, id DESC;
