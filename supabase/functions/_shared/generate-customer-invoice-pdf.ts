@@ -9,6 +9,7 @@ import {
   CUSTOMER_INVOICE_LEGAL_LINES,
   CUSTOMER_INVOICE_SELLER,
 } from "./customer-invoice-seller.ts";
+import { drawMerchantLegalBlock } from "./document-branding.ts";
 
 const LOGO_MAX_WIDTH_MM = 40;
 const LOGO_MAX_HEIGHT_MM = 12;
@@ -168,6 +169,7 @@ export function generateCustomerInvoicePDF(params: CustomerInvoiceParams): strin
   const colTotalStart = tableLeft + colArticle + colQty + colUnit;
   const tableRight = tableLeft + tableWidth;
 
+  drawMerchantLegalBlock(doc, pageWidth, margin);
   const logoBottom = drawSiteLogo(doc, margin, params.siteLogo);
   let y = Math.max(logoBottom + 6, 28);
 

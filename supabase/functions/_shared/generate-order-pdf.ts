@@ -9,6 +9,7 @@ import {
   supplierTarifUv,
 } from "./order-supplier-quantity.ts";
 import type { PdfSiteLogo } from "./site-logo.ts";
+import { drawMerchantLegalBlock } from "./document-branding.ts";
 
 const LOGO_MAX_WIDTH_MM = 45;
 const LOGO_MAX_HEIGHT_MM = 14;
@@ -119,6 +120,7 @@ export function generateOrderPDF(
   const totalGreen: [number, number, number] = [212, 237, 218];
   const infoDarkBlue = [25, 50, 85];
 
+  drawMerchantLegalBlock(doc, pageWidth, margin);
   const logoBottom = drawSiteLogo(doc, margin, siteLogo);
   const dateY = logoBottom + 4;
   const orderLabelY = dateY + 7;
