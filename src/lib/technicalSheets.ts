@@ -65,3 +65,30 @@ export function getTechnicalSheetForProduct(product: {
 
   return TECHNICAL_SHEETS.find((s) => s.id === "vbf") ?? null;
 }
+
+/** Fiche affichée sur la page produit : assignation explicite (datasheet_url) ou règle automatique. */
+export function resolveTechnicalSheetForProduct(product: {
+  datasheet_url?: string | null;
+  title?: string | null;
+  handle?: string | null;
+  code_alsafix?: string | null;
+  categories?: { name?: string | null; slug?: string | null } | null;
+}): TechnicalSheet | null {
+  const assigned = product.datasheet_url?.trim();
+  if (assigned) {
+    const normalized = assigned.toLowerCase();
+    const matched = TECHNICAL_SHEETS.find(
+      (sheet) =>
+        normalized.endsWith(sheet.file.toLowerCase()) ||
+        normalized.includes(sheet.id),
+    );
+    if (matched) return matched;
+    return {
+      id: "custom",
+      title: assigned.split("/").pop()?.replace(/\.pdf$/i, "") || "Fiche technique",
+      description: "",
+      file: /^https?:\/\//i.test(assigned) ? assigned : assigned,
+    };
+  }
+  return getTechnicalSheetForProduct(product);
+}

@@ -26,7 +26,7 @@ import {
   DEFAULT_DESCRIPTION,
   DEFAULT_TITLE,
 } from "@/lib/seo";
-import { getTechnicalSheetForProduct } from "@/lib/technicalSheets";
+import { resolveTechnicalSheetForProduct } from "@/lib/technicalSheets";
 import { resolveProductImageUrl } from "@/lib/imageFallback";
 import {
   fetchProductByHandle,
@@ -268,7 +268,7 @@ const ProductDetailPage = () => {
 
   const seoDescription = buildProductSeoDescription(product);
   const displayDescription = product.description?.trim() || seoDescription;
-  const technicalSheet = getTechnicalSheetForProduct(product);
+  const technicalSheet = resolveTechnicalSheetForProduct(product);
   const productJsonLd = buildProductJsonLd(
     product,
     productImage,
