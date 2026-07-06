@@ -51,6 +51,19 @@ export async function resolveOrderSiteId(
   return (site?.id as string | undefined) ?? null;
 }
 
+async function loadCartItemsForOrder(
+  supabaseAdmin: SupabaseClient,
+  orderId: string,
+): Promise<Array<Record<string, unknown>>> {
+  const { data: rows } = await supabaseAdmin
+    .from("order_items")
+    .select("*")
+    .eq("order_id", orderId);
+  return (rows || []).map((item) =>
+    orderItemRowToEnrichmentLine(item as Record<string, unknown>),
+  );
+}
+
 export async function findOrderByPaymentIntentId(
   supabaseAdmin: SupabaseClient,
   paymentIntentId: string,
@@ -81,16 +94,9 @@ export async function fulfillPaymentIntentOrder(
 
   const existingOrder = await findOrderByPaymentIntentId(supabaseAdmin, paymentIntentId);
   if (existingOrder) {
-    const { data: existingItems } = await supabaseAdmin
-      .from("order_items")
-      .select("*")
-      .eq("order_id", existingOrder.id);
+    const cartItems = await loadCartItemsForOrder(supabaseAdmin, existingOrder.id);
 
-    if (n8nWebhookUrl) {
-      const cartItems = (existingItems || []).map((item) =>
-        orderItemRowToEnrichmentLine(item as Record<string, unknown>),
-      );
-
+    if (n8nWebhookUrl && cartItems.length > 0) {
       await sendOrderToN8n({
         n8nWebhookUrl,
         supabaseAdmin,
@@ -111,6 +117,11 @@ export async function fulfillPaymentIntentOrder(
         totalHT: Number(existingOrder.total_ht),
         totalTTC: Number(existingOrder.total_ttc),
       });
+    } else if (n8nWebhookUrl && cartItems.length === 0) {
+      console.warn(
+        "[fulfillPaymentIntentOrder] existing order has no items yet, skipping n8n",
+        { orderId: existingOrder.id, paymentIntentId },
+      );
     }
 
     return {
@@ -249,22 +260,30 @@ export async function fulfillPaymentIntentOrder(
   }
 
   if (n8nWebhookUrl) {
-    await sendOrderToN8n({
-      n8nWebhookUrl,
-      supabaseAdmin,
-      orderNumber,
-      orderId: order.id,
-      stripeId: paymentIntentId,
-      customerName,
-      customerEmail: userEmail,
-      customerPhone,
-      shippingAddress: shippingLine1
-        ? { line1: shippingLine1, city: shippingCity, postal_code: shippingPostalCode }
-        : null,
-      cartItems,
-      totalHT,
-      totalTTC,
-    });
+    const cartItemsForN8n = await loadCartItemsForOrder(supabaseAdmin, order.id);
+    if (cartItemsForN8n.length > 0) {
+      await sendOrderToN8n({
+        n8nWebhookUrl,
+        supabaseAdmin,
+        orderNumber,
+        orderId: order.id,
+        stripeId: paymentIntentId,
+        customerName,
+        customerEmail: userEmail,
+        customerPhone,
+        shippingAddress: shippingLine1
+          ? { line1: shippingLine1, city: shippingCity, postal_code: shippingPostalCode }
+          : null,
+        cartItems: cartItemsForN8n,
+        totalHT,
+        totalTTC,
+      });
+    } else {
+      console.error(
+        "[fulfillPaymentIntentOrder] order created without items, skipping n8n",
+        { orderId: order.id, paymentIntentId },
+      );
+    }
   }
 
   return { order_number: orderNumber, order_id: order.id, existing: false };

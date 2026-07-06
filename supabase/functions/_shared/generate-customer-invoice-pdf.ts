@@ -5,6 +5,7 @@ import { splitOrderTotals } from "./order-totals.ts";
 import { roundMoney } from "./money.ts";
 import { getDisplayVariantTitle } from "./variant-title.ts";
 import type { PdfSiteLogo } from "./site-logo.ts";
+import { drawMerchantLegalBlock } from "./document-branding.ts";
 
 const LOGO_MAX_WIDTH_MM = 40;
 const LOGO_MAX_HEIGHT_MM = 12;
@@ -75,6 +76,7 @@ export function generateCustomerInvoicePDF(params: CustomerInvoiceParams): strin
   const pageWidth = doc.internal.pageSize.getWidth();
   const margin = 18;
 
+  drawMerchantLegalBlock(doc, pageWidth, margin);
   const logoBottom = drawSiteLogo(doc, margin, params.siteLogo);
   let y = Math.max(logoBottom + 6, 28);
 

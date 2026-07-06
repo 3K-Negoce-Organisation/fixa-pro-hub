@@ -1,22 +1,11 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
-import { splitOrderTotals } from "../_shared/order-totals.ts";
-import { sendOrderConfirmationEmail } from "../_shared/send-order-confirmation-email.ts";
-import { buildOrderTrackingUrlForEmail } from "../_shared/guest-order-tracking-url.ts";
-import { resolveResendFrom } from "../_shared/resolve-resend-from.ts";
-import { resolveSiteLogoUrlForEmail } from "../_shared/site-logo.ts";
 import {
   buildOrderItemInsert,
   enrichCartLinesWithProductSnapshots,
   orderItemRowToEnrichmentLine,
 } from "../_shared/order-item-snapshot.ts";
-import { enrichItemsWithAlsafixCodes } from "../_shared/alsafix-code.ts";
-import { roundMoney } from "../_shared/money.ts";
-import { generateOrderPDF } from "../_shared/generate-order-pdf.ts";
-import { loadSiteLogoForOrderPdf } from "../_shared/site-logo.ts";
-import { resolveOrderCustomerPhone } from "../_shared/order-customer-phone.ts";
-import { resolveOrderCustomerEmail } from "../_shared/order-customer-email.ts";
 import {
   compactItemsToOrderLines,
   parseCompactItemsFromMetadata,
@@ -29,6 +18,8 @@ import {
   resolveAdminCorrectionFromPaymentIntent,
 } from "../_shared/admin-correction-payment.ts";
 import { decrementProductsStock } from "../_shared/decrement-product-stock.ts";
+import { fulfillPaymentIntentOrder } from "../_shared/payment-intent-order.ts";
+import { sendOrderToN8n } from "../_shared/n8n-fulfill-order.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -145,59 +136,6 @@ serve(async (req) => {
       const paymentIntent = event.data.object as Stripe.PaymentIntent;
       logStep("Processing PaymentIntent succeeded", { paymentIntentId: paymentIntent.id });
 
-      // Check if order already exists with this PaymentIntent ID
-      // (Frontend may have already created the order)
-      const { data: existingOrder } = await supabaseAdmin
-        .from("orders")
-        .select("id, order_number, total_ht, total_ttc, user_email, shipping_address, shipping_city, shipping_postal_code, shipping_name")
-        .ilike("notes", `%${paymentIntent.id}%`)
-        .maybeSingle();
-
-      if (existingOrder) {
-        logStep("Order already exists for this PaymentIntent", { 
-          orderId: existingOrder.id, 
-          orderNumber: existingOrder.order_number 
-        });
-
-        // Get order items for n8n webhook
-        const { data: existingItems } = await supabaseAdmin
-          .from("order_items")
-          .select("*")
-          .eq("order_id", existingOrder.id);
-
-        // Send webhook to n8n for fulfillment (even if order already exists)
-        if (n8nWebhookUrl) {
-          const cartItems = (existingItems || []).map((item) =>
-            orderItemRowToEnrichmentLine(item as Record<string, unknown>),
-          );
-
-          await sendToN8n(
-            n8nWebhookUrl,
-            supabaseAdmin,
-            existingOrder.order_number,
-            existingOrder.id,
-            paymentIntent.id,
-            existingOrder.shipping_name,
-            existingOrder.user_email,
-            null, // phone
-            existingOrder.shipping_address ? {
-              line1: existingOrder.shipping_address,
-              city: existingOrder.shipping_city,
-              postal_code: existingOrder.shipping_postal_code,
-            } : null,
-            cartItems,
-            existingOrder.total_ht,
-            existingOrder.total_ttc
-          );
-        }
-
-        logStep("PaymentIntent processing complete (existing order)");
-        return new Response(JSON.stringify({ received: true, existing_order: true }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 200,
-        });
-      }
-
       const adminCorrectionCtx = await resolveAdminCorrectionFromPaymentIntent(
         stripe,
         paymentIntent.id,
@@ -220,181 +158,8 @@ serve(async (req) => {
         });
       }
 
-      // No existing order found - create new one
-      const metadata = paymentIntent.metadata || {};
-      const userId = metadata.user_id !== "guest" ? metadata.user_id : null;
-      const userEmail = metadata.user_email || null;
-      const totalHT = parseFloat(metadata.total_ht || "0");
-      const totalTTC = parseFloat(metadata.total_ttc || "0");
-      logStep("PaymentIntent metadata", { userId, userEmail, totalHT, totalTTC });
-
-      const orderSiteId = await resolveOrderSiteId(supabaseAdmin, metadata);
-      logStep("Resolved order site_id", { orderSiteId });
-
-      // Parse compact items from metadata (single key or chunked)
-      let cartItems: any[] = [];
-      try {
-        const compactItems = parseCompactItemsFromMetadata(metadata);
-        cartItems = compactItemsToOrderLines(compactItems);
-        logStep("Parsed compact items", { count: cartItems.length });
-      } catch (e) {
-        logStep("Failed to parse items_compact", { error: String(e) });
-      }
-
-      cartItems = await enrichCartLinesWithProductSnapshots(
-        supabaseAdmin,
-        cartItems.map((item: Record<string, unknown>) => ({
-          id: item.id as string,
-          quantity: item.quantity as number,
-          priceHT: item.priceHT as number,
-          priceTTC: item.priceTTC as number | undefined,
-          variantId: (item.variantId as string | undefined) || (item.id as string),
-          variantTitle: (item.variantTitle as string | undefined) || "Default",
-          title: item.title as string | undefined,
-          handle: item.handle as string | undefined,
-          image: item.image as string | undefined,
-        })),
-      );
-      logStep("Enriched cart items with product snapshot");
-
-      // Get shipping details from PaymentIntent (if collected via Stripe Elements)
-      // Note: For PaymentIntent flow, shipping is typically collected separately
-      // We'll try to get it from the associated charges
-      let shippingAddress: any = null;
-      let customerName: string | null = null;
-      let customerPhone: string | null = null;
-
-      // Try to get shipping from the latest charge
-      if (paymentIntent.latest_charge) {
-        try {
-          const charge = await stripe.charges.retrieve(paymentIntent.latest_charge as string);
-          if (charge.shipping) {
-            shippingAddress = charge.shipping.address;
-            customerName = charge.shipping.name;
-            logStep("Got shipping from charge", { address: shippingAddress, name: customerName });
-          }
-          customerPhone = charge.billing_details?.phone || null;
-          if (customerPhone) {
-            logStep("Got phone from charge billing details", { phone: customerPhone });
-          }
-        } catch (e) {
-          logStep("Could not retrieve charge shipping", { error: String(e) });
-        }
-      }
-
-      // Generate order number
-      const orderNumber = generateOrderNumber();
-      logStep("Generated order number", { orderNumber });
-
-      // Create order in Supabase
-      const stripeModeFromMetadata = metadata.stripe_mode === "test" ? "test" : "live";
-      const insertPayload: Record<string, unknown> = {
-        order_number: orderNumber,
-        user_id: userId,
-        user_email: userEmail,
-        status: "paid",
-        total_ht: totalHT,
-        total_ttc: totalTTC,
-        shipping_address: shippingAddress
-          ? `${shippingAddress.line1 || ""}${shippingAddress.line2 ? ", " + shippingAddress.line2 : ""}`
-          : null,
-        shipping_city: shippingAddress?.city || null,
-        shipping_postal_code: shippingAddress?.postal_code || null,
-        shipping_name: customerName,
-        stripe_payment_intent_id: paymentIntent.id,
-        notes: `Stripe PaymentIntent: ${paymentIntent.id} | stripe_mode:${stripeModeFromMetadata}`,
-      };
-      if (orderSiteId) insertPayload.site_id = orderSiteId;
-
-      const { data: order, error: orderError } = await supabaseAdmin
-        .from("orders")
-        .insert(insertPayload as any)
-        .select()
-        .single();
-
-      if (orderError) {
-        logStep("Error creating order", { error: orderError.message });
-        throw new Error(`Failed to create order: ${orderError.message}`);
-      }
-
-      logStep("Order created", { orderId: order.id, orderNumber });
-
-      await insertOrderStatusEvent(supabaseAdmin, {
-        order_id: order.id,
-        status: "paid",
-        event_kind: "auto_stripe",
-        is_manual: false,
-        note: "Paiement Stripe reçu",
-        amount_ttc: totalTTC,
-      });
-
-      // Create order items
-      if (cartItems.length > 0) {
-        const orderItems = cartItems.map((item: Record<string, unknown>) =>
-          buildOrderItemInsert(order.id, {
-            id: item.id as string,
-            quantity: item.quantity as number,
-            priceHT: item.priceHT as number,
-            priceTTC: item.priceTTC as number | undefined,
-            title: item.title as string,
-            handle: item.handle as string,
-            image: item.image as string,
-            variantId: item.variantId as string,
-            variantTitle: item.variantTitle as string,
-            code_alsafix: item.code_alsafix,
-            box_quantity: item.box_quantity,
-            product_description: item.product_description,
-            designation_fr: item.designation_fr,
-            snapshot_purchase_price_ht: item.snapshot_purchase_price_ht,
-            snapshot_unite_de_vente: item.snapshot_unite_de_vente,
-          }),
-        );
-
-        const { error: itemsError } = await supabaseAdmin
-          .from("order_items")
-          .insert(orderItems);
-
-        if (itemsError) {
-          logStep("Error creating order items", { error: itemsError.message });
-        } else {
-          logStep("Order items created", { count: orderItems.length });
-          const stockResult = await decrementProductsStock(
-            supabaseAdmin,
-            orderItems.map((item) => ({
-              product_id: String(item.product_id),
-              quantity: Number(item.quantity),
-            })),
-            { order_id: order.id, order_number: orderNumber },
-          );
-          if (stockResult.warnings.length > 0) {
-            logStep("Stock decrement warnings", { warnings: stockResult.warnings });
-          } else {
-            logStep("Stock decremented", { products_updated: stockResult.products_updated });
-          }
-        }
-      }
-
-      // Send webhook to n8n for fulfillment
-      if (n8nWebhookUrl) {
-        await sendToN8n(
-          n8nWebhookUrl,
-          supabaseAdmin,
-          orderNumber,
-          order.id,
-          paymentIntent.id,
-          customerName,
-          userEmail,
-          customerPhone,
-          shippingAddress,
-          cartItems,
-          totalHT,
-          totalTTC
-        );
-      } else {
-        logStep("N8N_WEBHOOK_URL not configured, skipping fulfillment notification");
-      }
-
-      logStep("PaymentIntent processing complete");
+      const result = await fulfillPaymentIntentOrder(supabaseAdmin, stripe, paymentIntent);
+      logStep("PaymentIntent processing complete", result);
     }
 
     // Handle checkout.session.completed (kept for backwards compatibility)
@@ -453,7 +218,8 @@ serve(async (req) => {
             orderItemRowToEnrichmentLine(item as Record<string, unknown>),
           );
 
-          await sendToN8n(
+          if (cartItems.length > 0) {
+            await sendToN8n(
             n8nWebhookUrl,
             supabaseAdmin,
             existingOrder.order_number,
@@ -471,6 +237,11 @@ serve(async (req) => {
             existingOrder.total_ht,
             existingOrder.total_ttc
           );
+          } else {
+            logStep("Skipping n8n for existing checkout order: no items yet", {
+              orderNumber: existingOrder.order_number,
+            });
+          }
         }
 
         logStep("Checkout session processing complete (existing order)");
@@ -693,247 +464,58 @@ serve(async (req) => {
   }
 });
 
-// Helper function to send to n8n and save document
+// Helper function to send to n8n and save document (delegates to shared module)
 async function sendToN8n(
   n8nWebhookUrl: string,
-  supabaseAdmin: any,
+  supabaseAdmin: ReturnType<typeof createClient>,
   orderNumber: string,
   orderId: string,
   stripeId: string,
   customerName: string | null,
   customerEmail: string | null,
   customerPhone: string | null,
-  shippingAddress: any,
-  cartItems: any[],
+  shippingAddress: {
+    line1?: string | null;
+    line2?: string | null;
+    city?: string | null;
+    postal_code?: string | null;
+    name?: string | null;
+  } | null,
+  cartItems: Array<Record<string, unknown>>,
   totalHT: number,
-  totalTTC: number
+  totalTTC: number,
 ) {
+  if (!cartItems.length) {
+    logStep("Skipping n8n: no order items", { orderNumber });
+    return;
+  }
+
+  const normalizedShipping = shippingAddress
+    ? {
+      name: shippingAddress.name || customerName || undefined,
+      line1: shippingAddress.line1 || undefined,
+      line2: shippingAddress.line2 || undefined,
+      city: shippingAddress.city || undefined,
+      postal_code: shippingAddress.postal_code || undefined,
+    }
+    : null;
+
   try {
-    // Get supplier settings
-    const { data: supplierSettings } = await supabaseAdmin
-      .from('supplier_settings')
-      .select('*')
-      .maybeSingle();
-
-    logStep("Supplier settings fetched", { hasSettings: !!supplierSettings });
-
-    // Get customer number from supplier settings (default to "000001")
-    const customerNumber = supplierSettings?.customer_number || '000001';
-
-    const enrichedCartItems = await enrichItemsWithAlsafixCodes(supabaseAdmin, cartItems);
-
-    let resolvedPhone = customerPhone?.trim() || null;
-    let resolvedEmail = customerEmail?.trim() || "";
-    let orderSiteId: string | null = null;
-    if (orderId) {
-      const { data: orderRow } = await supabaseAdmin
-        .from("orders")
-        .select("user_id, site_id, notes, user_email")
-        .eq("id", orderId)
-        .maybeSingle();
-      orderSiteId = orderRow?.site_id ?? null;
-      if (orderRow) {
-        if (!resolvedPhone) {
-          resolvedPhone = await resolveOrderCustomerPhone(supabaseAdmin, orderRow);
-        }
-        if (!resolvedEmail) {
-          resolvedEmail = await resolveOrderCustomerEmail(supabaseAdmin, orderRow, customerEmail);
-        }
-      }
-    }
-
-    const siteLogo = await loadSiteLogoForOrderPdf(supabaseAdmin, orderSiteId);
-
-    // Generate PDF recap file (replaces Excel for Deno Edge compatibility)
-    const pdfBase64 = generateOrderPDF(
+    await sendOrderToN8n({
+      n8nWebhookUrl,
+      supabaseAdmin,
       orderNumber,
-      customerName || '',
-      resolvedEmail,
-      customerNumber,
-      enrichedCartItems,
-      shippingAddress ? {
-        name: shippingAddress.name || customerName || undefined,
-        line1: shippingAddress.line1 || undefined,
-        line2: shippingAddress.line2 || undefined,
-        city: shippingAddress.city || undefined,
-        postal_code: shippingAddress.postal_code || undefined,
-      } : null,
-      resolvedPhone,
-      siteLogo,
-    );
-
-    logStep("PDF file generated", { size: pdfBase64.length });
-
-    const { productsHT, shippingHT } = splitOrderTotals(enrichedCartItems, totalHT);
-    const fromEmail = supplierSettings?.customer_service_email || supplierSettings?.email;
-    if ((fromEmail || Deno.env.get("RESEND_FROM_EMAIL")) && (resolvedEmail || customerEmail)) {
-      const shippingName = shippingAddress?.name || customerName;
-      const shippingLine = [shippingAddress?.line1, shippingAddress?.line2].filter(Boolean).join(", ") || null;
-      const shippingCityLine = shippingAddress?.postal_code && shippingAddress?.city
-        ? `${shippingAddress.postal_code} ${shippingAddress.city}`
-        : shippingAddress?.city || null;
-
-      const storefrontBase = (Deno.env.get("STOREFRONT_URL") || "https://www.vis-a-bois.com").replace(/\/$/, "");
-      const emailForLink = resolvedEmail || customerEmail || "";
-      const trackingUrl = emailForLink
-        ? await buildOrderTrackingUrlForEmail(orderNumber, emailForLink, storefrontBase)
-        : `${storefrontBase}/suivi`;
-
-      const { fromEmail: resendFrom, fromName, replyTo } = resolveResendFrom(supplierSettings);
-      const logoUrl = await resolveSiteLogoUrlForEmail(supabaseAdmin, orderSiteId);
-
-      await sendOrderConfirmationEmail({
-        customerEmail: resolvedEmail || customerEmail!,
-        fromEmail: resendFrom,
-        fromName,
-        replyTo,
-        logoUrl,
-        bccEmail: supplierSettings?.status_email || null,
-        orderNumber,
-        items: enrichedCartItems.map((item) => ({
-          title: item.title || item.product_title || "",
-          variantTitle: item.variantTitle || item.variant_title || null,
-          quantity: item.quantity || item.q || 1,
-          unit_price_ht: roundMoney(item.priceHT || item.unit_price_ht || 0),
-          boxQuantity: (item.box_quantity ?? item.boxQuantity ?? null) as number | null,
-        })),
-        productsHT,
-        shippingHT,
-        totalHT,
-        totalTTC,
-        shippingName,
-        shippingAddress: shippingLine,
-        shippingCityLine,
-        trackingUrl,
-      });
-    } else {
-      logStep("Skipping customer confirmation email", { hasFrom: !!fromEmail, hasCustomerEmail: !!(resolvedEmail || customerEmail) });
-    }
-
-    // Upload PDF to Supabase Storage and update order documents
-    const pdfFileName = `commande_${orderNumber}.pdf`;
-    const filePath = `${orderId}/${pdfFileName}`;
-    
-    try {
-      // Decode base64 and upload to storage
-      const binaryString = atob(pdfBase64);
-      const bytes = new Uint8Array(binaryString.length);
-      for (let i = 0; i < binaryString.length; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
-      }
-
-      const { error: uploadError } = await supabaseAdmin.storage
-        .from('order-documents')
-        .upload(filePath, bytes, {
-          contentType: 'application/pdf',
-          upsert: true
-        });
-
-      if (uploadError) {
-        logStep("Error uploading PDF to storage", { error: uploadError.message });
-      } else {
-        logStep("PDF uploaded to storage", { filePath });
-
-        // Create signed URL for the document (valid for 1 year)
-        const { data: signedUrlData, error: signedUrlError } = await supabaseAdmin.storage
-          .from('order-documents')
-          .createSignedUrl(filePath, 60 * 60 * 24 * 365);
-
-        if (signedUrlError) {
-          logStep("Error creating signed URL", { error: signedUrlError.message });
-        } else {
-          // Update order with document reference
-          const newDocument = {
-            name: pdfFileName,
-            type: 'order_confirmation',
-            url: signedUrlData.signedUrl,
-            created_at: new Date().toISOString(),
-            status: 'paid'
-          };
-
-          // Get current documents array
-          const { data: currentOrder } = await supabaseAdmin
-            .from('orders')
-            .select('documents')
-            .eq('id', orderId)
-            .single();
-
-          const existingDocuments = currentOrder?.documents || [];
-          const updatedDocuments = [...existingDocuments, newDocument];
-
-          const { error: updateError } = await supabaseAdmin
-            .from('orders')
-            .update({ documents: updatedDocuments })
-            .eq('id', orderId);
-
-          if (updateError) {
-            logStep("Error updating order with document", { error: updateError.message });
-          } else {
-            logStep("Order updated with document reference", { documentCount: updatedDocuments.length });
-          }
-        }
-      }
-    } catch (storageError) {
-      logStep("Storage operation failed", { error: String(storageError) });
-    }
-
-    const n8nPayload = {
-      event: "order.paid",
-      order_number: orderNumber,
-      order_id: orderId,
-      stripe_id: stripeId,
-      customer: {
-        email: resolvedEmail || customerEmail,
-        phone: resolvedPhone || customerPhone,
-        name: customerName,
-        shipping_address: shippingAddress,
-      },
-      supplier: supplierSettings ? {
-        name: supplierSettings.name || null,
-        email: supplierSettings.email || null,
-        status_email: supplierSettings.status_email || null,
-        address: supplierSettings.address || null,
-        postal_code: supplierSettings.postal_code || null,
-        city: supplierSettings.city || null,
-        phone: supplierSettings.phone || null,
-      } : null,
-      items: enrichedCartItems.map(item => ({
-        product_id: item.id || item.product_id,
-        code_alsafix: item.code_alsafix || '',
-        variant_id: item.variantId || item.id,
-        title: item.title || item.product_title,
-        variant_title: item.variantTitle || 'Default',
-        quantity: item.quantity || item.q || 1,
-        unit_price_ht: roundMoney(item.priceHT || item.unit_price_ht || 0),
-        unit_price_ttc: roundMoney(
-          item.priceTTC ?? (item.priceHT || item.unit_price_ht || 0) * 1.20,
-        ),
-      })),
-      totals: {
-        ht: totalHT,
-        ttc: totalTTC,
-        products_ht: productsHT,
-        shipping_ht: shippingHT,
-        currency: "EUR",
-      },
-      // PDF file as base64 (replaces excel_file for Deno Edge compatibility)
-      pdf_file: {
-        filename: pdfFileName,
-        content_base64: pdfBase64,
-        content_type: "application/pdf",
-      },
-      created_at: new Date().toISOString(),
-    };
-
-    logStep("Sending to n8n", { url: n8nWebhookUrl });
-
-    const n8nResponse = await fetch(n8nWebhookUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(n8nPayload),
+      orderId,
+      stripeId,
+      customerName,
+      customerEmail,
+      customerPhone,
+      shippingAddress: normalizedShipping,
+      cartItems,
+      totalHT,
+      totalTTC,
     });
-
-    logStep("n8n response", { status: n8nResponse.status });
+    logStep("n8n fulfillment complete", { orderNumber });
   } catch (n8nError) {
     logStep("n8n webhook failed (non-blocking)", { error: String(n8nError) });
   }

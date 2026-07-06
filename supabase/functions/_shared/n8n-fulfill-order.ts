@@ -59,6 +59,22 @@ export async function sendOrderToN8n(params: SendOrderToN8nParams): Promise<void
     const customerNumber = supplierSettings?.customer_number || "000001";
     const enrichedCartItems = await enrichItemsWithAlsafixCodes(supabaseAdmin, cartItems);
 
+    if (enrichedCartItems.length === 0) {
+      console.error("[n8n-fulfill-order] refuse empty supplier PO", { orderNumber, orderId });
+      return;
+    }
+
+    const { data: orderForDedup } = await supabaseAdmin
+      .from("orders")
+      .select("documents")
+      .eq("id", orderId)
+      .maybeSingle();
+    const existingDocs = (orderForDedup?.documents as Array<{ type?: string }> | null) || [];
+    if (existingDocs.some((d) => d.type === "order_confirmation")) {
+      console.log("[n8n-fulfill-order] supplier PO already stored, skipping duplicate n8n", { orderNumber });
+      return;
+    }
+
     let resolvedPhone = customerPhone?.trim() || null;
     let resolvedEmail = customerEmail?.trim() || "";
     let orderSiteId: string | null = null;
