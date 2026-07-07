@@ -9,9 +9,39 @@ export type CategoryRef = {
   slug: string;
 };
 
-export type Product = Tables<"products"> & {
-  categories: CategoryRef | null;
+/** Colonnes caractéristiques étendues (import Excel étendu, pas encore dans les types générés). */
+export type ExtendedProductCharacteristics = {
+  carton_quantity?: number | null;
+  pallet_quantity?: number | null;
+  store_capacity?: string | null;
+  technology?: string | null;
+  dimension?: string | null;
+  width_mm?: number | null;
+  height_mm?: number | null;
+  depth_mm?: number | null;
+  beam_dimension?: string | null;
+  consumable?: string | null;
+  thickness_mm?: number | null;
+  carrier_drill_d5_mm?: number | null;
+  carrier_drill_d9_11_mm?: number | null;
+  carrier_drill_d13_mm?: number | null;
+  carried_drill_d5_mm?: number | null;
+  power?: string | null;
+  tank?: string | null;
+  pressure_gauge?: string | null;
+  power_supply?: string | null;
+  flow_rate?: string | null;
+  connector_count?: number | null;
+  els?: string | null;
+  flat_length_mm?: number | null;
+  classification?: number | null;
+  datasheet_url?: string | null;
 };
+
+export type Product = Tables<"products"> &
+  ExtendedProductCharacteristics & {
+    categories: CategoryRef | null;
+  };
 
 export interface ProductVariant {
   id: string;
