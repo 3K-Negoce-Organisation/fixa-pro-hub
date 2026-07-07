@@ -14,6 +14,8 @@ import { FeaturedProducts } from "@/components/home/FeaturedProducts";
 import { PageSeo } from "@/components/seo/PageSeo";
 import { DEFAULT_DESCRIPTION, DEFAULT_TITLE, SITE_NAME, SITE_URL, absoluteUrl } from "@/lib/seo";
 import { supabase } from "@/integrations/supabase/client";
+import { useSiteCategories, filterHomepageCategories } from "@/hooks/useSiteCategories";
+import { useStorefrontSite } from "@/contexts/StorefrontSiteContext";
 import heroScrewsBg from "@/assets/hero-screws-new.jpg";
 import screwsDetailLeft from "@/assets/screws-detail-left-optimized.jpg";
 import screwsDetailRight from "@/assets/screws-detail-right-optimized.jpg";
@@ -29,6 +31,8 @@ const Index = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [imagesLoaded, setImagesLoaded] = useState(false);
   const navigate = useNavigate();
+  const { siteId, loading: siteLoading } = useStorefrontSite();
+  const { data: dbCategories = [] } = useSiteCategories();
 
   // Track image loading state
   useEffect(() => {
@@ -57,28 +61,16 @@ const Index = () => {
     return () => clearTimeout(timeout);
   }, []);
 
-  // Fetch categories from Supabase
-  const { data: dbCategories = [] } = useQuery({
-    queryKey: ["categories"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("categories")
-        .select("id, name, slug, image_url, sort_order, is_active")
-        .eq("is_active", true)
-        .order("sort_order", { ascending: true });
-      if (error) throw error;
-      return data || [];
-    },
-  });
-
-  // Fetch product counts by category_id
+  // Fetch product counts by category_id (scoped to active site)
   const { data: categoryCounts } = useQuery({
-    queryKey: ["category-counts"],
+    queryKey: ["category-counts", siteId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let q = supabase
         .from("products")
         .select("category_id")
         .eq("is_active", true);
+      if (siteId) q = q.eq("site_id", siteId);
+      const { data, error } = await q;
       if (error) throw error;
       const counts: Record<string, number> = {};
       data?.forEach((product) => {
@@ -88,9 +80,10 @@ const Index = () => {
       });
       return counts;
     },
+    enabled: !siteLoading,
   });
 
-  const categories = dbCategories.map((cat) => ({
+  const categories = filterHomepageCategories(dbCategories).map((cat) => ({
     ...cat,
     count: categoryCounts?.[cat.id] || 0,
   }));
