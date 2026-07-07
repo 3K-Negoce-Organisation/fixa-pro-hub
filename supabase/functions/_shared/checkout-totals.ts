@@ -1,8 +1,10 @@
 import { roundMoney } from "./money.ts";
+import {
+  DEFAULT_SHIPPING_CONFIG,
+  type ShippingConfig,
+} from "./shipping-config.ts";
 
 const TVA_RATE = 0.2;
-const FREE_SHIPPING_THRESHOLD_TTC = 150;
-const SHIPPING_FEE_TTC = 12;
 
 type CheckoutLine = {
   priceHT?: number;
@@ -21,7 +23,17 @@ function clientLineTotalTtc(priceTtc: number, quantity: number): number {
   return roundMoney(roundMoney(priceTtc) * quantity);
 }
 
-export function computeCheckoutTotals(items: CheckoutLine[]) {
+export function shippingFeeTtcFromConfig(
+  subtotalTTC: number,
+  config: ShippingConfig = DEFAULT_SHIPPING_CONFIG,
+): number {
+  return subtotalTTC >= config.freeShippingThresholdTtc ? 0 : config.defaultShippingFeeTtc;
+}
+
+export function computeCheckoutTotals(
+  items: CheckoutLine[],
+  config: ShippingConfig = DEFAULT_SHIPPING_CONFIG,
+) {
   const productsTTC = roundMoney(
     items.reduce(
       (sum, item) => sum + clientLineTotalTtc(lineUnitTTC(item), item.quantity),
@@ -35,8 +47,10 @@ export function computeCheckoutTotals(items: CheckoutLine[]) {
     }, 0),
   );
   const subtotalTTC = productsTTC;
-  const shippingTTC = subtotalTTC >= FREE_SHIPPING_THRESHOLD_TTC ? 0 : SHIPPING_FEE_TTC;
-  const shippingHT = shippingTTC > 0 ? roundMoney(SHIPPING_FEE_TTC / (1 + TVA_RATE)) : 0;
+  const shippingTTC = shippingFeeTtcFromConfig(subtotalTTC, config);
+  const shippingHT = shippingTTC > 0
+    ? roundMoney(config.defaultShippingFeeTtc / (1 + TVA_RATE))
+    : 0;
   const totalHT = roundMoney(productsHT + shippingHT);
   const totalTTC = roundMoney(subtotalTTC + shippingTTC);
   return { productsHT, subtotalTTC, shippingTTC, shippingHT, totalHT, totalTTC };

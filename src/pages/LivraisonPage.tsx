@@ -4,9 +4,12 @@ import { PageBackground } from "@/components/layout/PageBackground";
 import { PageSeo } from "@/components/seo/PageSeo";
 import { STATIC_PAGE_SEO, staticPageCanonical } from "@/lib/staticPageSeo";
 import { Link } from "react-router-dom";
-import { FREE_SHIPPING_THRESHOLD_TTC, SHIPPING_FEE_TTC } from "@/lib/shipping";
+import { useShippingConfig } from "@/hooks/useShippingConfig";
 
 const LivraisonPage = () => {
+  const { config: shippingConfig } = useShippingConfig();
+  const { freeShippingThresholdTtc, defaultShippingFeeTtc } = shippingConfig;
+
   return (
     <PageBackground>
       <PageSeo
@@ -33,10 +36,10 @@ const LivraisonPage = () => {
             <h2 className="text-xl font-semibold text-foreground mb-4">2. Frais de livraison</h2>
             <p className="text-muted-foreground">
               <strong>Livraison offerte</strong> pour toute commande dont le montant produits TTC est supérieur ou égal à{' '}
-              <strong>{FREE_SHIPPING_THRESHOLD_TTC} € TTC</strong>.
+              <strong>{freeShippingThresholdTtc} € TTC</strong>.
             </p>
             <p className="text-muted-foreground mt-2">
-              En dessous de ce montant, des frais de livraison forfaitaires de <strong>{SHIPPING_FEE_TTC} € TTC</strong> sont ajoutés au panier avant le paiement.
+              En dessous de ce montant, des frais de livraison forfaitaires de <strong>{defaultShippingFeeTtc} € TTC</strong> sont ajoutés au panier avant le paiement.
             </p>
             <div className="overflow-x-auto mt-4">
               <table className="w-full border-collapse border border-border">
@@ -48,11 +51,11 @@ const LivraisonPage = () => {
                 </thead>
                 <tbody className="text-muted-foreground">
                   <tr>
-                    <td className="border border-border p-3">Moins de {FREE_SHIPPING_THRESHOLD_TTC} € TTC (produits)</td>
-                    <td className="border border-border p-3">{SHIPPING_FEE_TTC} € TTC</td>
+                    <td className="border border-border p-3">Moins de {freeShippingThresholdTtc} € TTC (produits)</td>
+                    <td className="border border-border p-3">{defaultShippingFeeTtc} € TTC</td>
                   </tr>
                   <tr>
-                    <td className="border border-border p-3">{FREE_SHIPPING_THRESHOLD_TTC} € TTC (produits) et plus</td>
+                    <td className="border border-border p-3">{freeShippingThresholdTtc} € TTC (produits) et plus</td>
                     <td className="border border-border p-3">Gratuit</td>
                   </tr>
                 </tbody>

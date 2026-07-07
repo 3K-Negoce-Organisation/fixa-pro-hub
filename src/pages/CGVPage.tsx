@@ -4,9 +4,11 @@ import { PageBackground } from "@/components/layout/PageBackground";
 import { PageSeo } from "@/components/seo/PageSeo";
 import { STATIC_PAGE_SEO, staticPageCanonical } from "@/lib/staticPageSeo";
 import { Link } from "react-router-dom";
-import { FREE_SHIPPING_THRESHOLD_TTC, SHIPPING_FEE_TTC } from "@/lib/shipping";
+import { useShippingConfig } from "@/hooks/useShippingConfig";
 
 const CGVPage = () => {
+  const { config: shippingConfig } = useShippingConfig();
+
   return (
     <PageBackground>
       <PageSeo
@@ -65,7 +67,7 @@ const CGVPage = () => {
               Le Vendeur se réserve le droit de modifier ses prix à tout moment, étant entendu que le prix figurant sur le site le jour de la commande sera le seul applicable au Client.
             </p>
             <p className="text-muted-foreground mt-2">
-              <strong>Livraison offerte</strong> : La livraison est offerte lorsque le montant des produits TTC atteint au moins {FREE_SHIPPING_THRESHOLD_TTC} € TTC. En dessous, des frais de livraison forfaitaires de {SHIPPING_FEE_TTC} € TTC sont facturés (hors promotions spécifiques).
+              <strong>Livraison offerte</strong> : La livraison est offerte lorsque le montant des produits TTC atteint au moins {shippingConfig.freeShippingThresholdTtc} € TTC. En dessous, des frais de livraison forfaitaires de {shippingConfig.defaultShippingFeeTtc} € TTC sont facturés (hors promotions spécifiques).
             </p>
           </section>
 
