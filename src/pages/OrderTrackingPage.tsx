@@ -64,6 +64,15 @@ interface OrderDocument {
   source?: string;
 }
 
+interface OrderStatusEvent {
+  id: string;
+  status: string;
+  event_kind: string;
+  is_manual: boolean;
+  note: string | null;
+  created_at: string;
+}
+
 interface Order {
   id: string;
   order_number: string;
@@ -111,6 +120,37 @@ const statusSteps = [
   { key: 'delivered', label: 'Livrée' },
 ];
 
+const eventKindLabels: Record<string, string> = {
+  auto_n8n: 'Mise à jour fournisseur',
+  auto_stripe: 'Paiement en ligne',
+  manual_status: 'Mise à jour équipe',
+  manual_document: 'Document ajouté',
+  manual_cmd: 'Action manuelle',
+  refund: 'Remboursement',
+  payment_link_sent: 'Lien de paiement envoyé',
+  payment_received: 'Paiement reçu',
+};
+
+const isMarketplaceOrderNumber = (orderNumber: string) =>
+  /^(AMZ|MM|ML|BC|CA)-/i.test(orderNumber.trim());
+
+const extractTrackingUrlFromNotes = (notes: string | null): string | null => {
+  if (!notes) return null;
+  const match =
+    notes.match(/\[marketplace\] Suivi vis-a-bois: (\S+)/i)
+    ?? notes.match(/\[n8n\] Tracking URL: (\S+)/i);
+  return match?.[1] ?? null;
+};
+
+const formatEventDate = (iso: string) =>
+  new Date(iso).toLocaleString('fr-FR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+
 const canDownloadCustomerInvoice = (order: Pick<Order, "status" | "status_before_intervention">) =>
   getCustomerVisibleStatus(order) === "delivered";
 
@@ -125,6 +165,7 @@ const OrderTrackingPage = () => {
   const [guestEmail, setGuestEmail] = useState(emailFromUrl || "");
   const [guestTrackingToken, setGuestTrackingToken] = useState(tokenFromUrl || "");
   const [order, setOrder] = useState<Order | null>(null);
+  const [statusEvents, setStatusEvents] = useState<OrderStatusEvent[]>([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -291,6 +332,7 @@ const OrderTrackingPage = () => {
     setError(null);
     setSearched(true);
     setOrderFromGuestLookup(false);
+    setStatusEvents([]);
 
     const searchTermUpper = term.trim().toUpperCase();
 
@@ -373,16 +415,22 @@ const OrderTrackingPage = () => {
       return;
     }
 
-    const payload = data as { order?: Record<string, unknown>; order_items?: Record<string, unknown>[] };
+    const payload = data as {
+      order?: Record<string, unknown>;
+      order_items?: Record<string, unknown>[];
+      status_events?: OrderStatusEvent[];
+    };
     if (!payload?.order) {
       setError("Commande introuvable.");
       setOrder(null);
+      setStatusEvents([]);
       setLoading(false);
       return;
     }
 
     const orderData = payload.order;
     const itemsData = payload.order_items || [];
+    setStatusEvents(payload.status_events ?? []);
 
     const documents: OrderDocument[] = Array.isArray(orderData.documents)
       ? (orderData.documents as unknown as OrderDocument[])
@@ -563,6 +611,49 @@ const OrderTrackingPage = () => {
           })}
         </div>
       </div>
+    );
+  };
+
+  const renderStatusEventsTimeline = (events: OrderStatusEvent[]) => {
+    if (events.length === 0) return null;
+
+    return (
+      <Card className="border-primary/20 bg-primary/5">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Clock className="h-4 w-4" />
+            Historique des statuts
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {events.map((event, index) => (
+            <div key={event.id} className="flex gap-3">
+              <div className="flex flex-col items-center">
+                <div
+                  className={`w-2.5 h-2.5 rounded-full shrink-0 ${
+                    index === events.length - 1 ? 'bg-primary ring-4 ring-primary/20' : 'bg-primary/60'
+                  }`}
+                />
+                {index < events.length - 1 && <div className="w-px flex-1 bg-border min-h-[2rem] mt-1" />}
+              </div>
+              <div className="pb-3 flex-1 min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge className={getStatusMeta(event.status as OrderStatus).color}>
+                    {getStatusMeta(event.status as OrderStatus).label}
+                  </Badge>
+                  <span className="text-xs text-muted-foreground">
+                    {formatEventDate(event.created_at)}
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {eventKindLabels[event.event_kind] ?? event.event_kind}
+                  {event.note ? ` — ${event.note}` : ''}
+                </p>
+              </div>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
     );
   };
 
@@ -759,6 +850,8 @@ const OrderTrackingPage = () => {
                     {/* Progress bar */}
                     {renderProgressBar(getCustomerVisibleStatus(order) as OrderStatus)}
 
+                    {renderStatusEventsTimeline(statusEvents)}
+
                     {canDownloadCustomerInvoice(order) && (
                       <div className="mt-4 pt-4 border-t">
                         <Button
@@ -779,7 +872,7 @@ const OrderTrackingPage = () => {
                 </Card>
 
                 {/* Tracking info */}
-                {order.tracking_number && (
+                {(order.tracking_number || isMarketplaceOrderNumber(order.order_number)) && (
                   <Card>
                     <CardContent className="pt-6">
                       <h3 className="font-semibold text-foreground mb-3 flex items-center gap-2">
@@ -787,15 +880,30 @@ const OrderTrackingPage = () => {
                         Suivi de livraison
                       </h3>
                       <div className="grid sm:grid-cols-2 gap-4">
+                        {order.carrier && (
+                          <div>
+                            <p className="text-sm text-muted-foreground">Transporteur</p>
+                            <p className="font-medium text-foreground">{order.carrier}</p>
+                          </div>
+                        )}
                         <div>
-                          <p className="text-sm text-muted-foreground">Transporteur</p>
-                          <p className="font-medium text-foreground">{order.carrier || "Non spécifié"}</p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-muted-foreground">Numéro de suivi</p>
-                          <p className="font-mono font-medium text-foreground">{order.tracking_number}</p>
+                          <p className="text-sm text-muted-foreground">Référence de suivi</p>
+                          <p className="font-mono font-medium text-foreground">
+                            {order.tracking_number || order.order_number}
+                          </p>
                         </div>
                       </div>
+                      {isMarketplaceOrderNumber(order.order_number) && (
+                        <p className="text-sm text-muted-foreground mt-4">
+                          Votre commande marketplace est suivie sur cette page. Les statuts se mettent à jour
+                          automatiquement à chaque étape (confirmation, préparation, expédition, livraison).
+                        </p>
+                      )}
+                      {extractTrackingUrlFromNotes(order.notes) && (
+                        <p className="text-xs text-muted-foreground mt-2 break-all">
+                          Lien transmis au marketplace : {extractTrackingUrlFromNotes(order.notes)}
+                        </p>
+                      )}
                     </CardContent>
                   </Card>
                 )}

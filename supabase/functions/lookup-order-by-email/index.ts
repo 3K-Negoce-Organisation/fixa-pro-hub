@@ -75,7 +75,19 @@ serve(async (req) => {
 
     if (itemsErr) throw itemsErr;
 
-    return new Response(JSON.stringify({ order, order_items: order_items ?? [] }), {
+    const { data: status_events, error: eventsErr } = await admin
+      .from("order_status_events")
+      .select("id, status, event_kind, is_manual, note, created_at")
+      .eq("order_id", order.id)
+      .order("created_at", { ascending: true });
+
+    if (eventsErr) throw eventsErr;
+
+    return new Response(JSON.stringify({
+      order,
+      order_items: order_items ?? [],
+      status_events: status_events ?? [],
+    }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
