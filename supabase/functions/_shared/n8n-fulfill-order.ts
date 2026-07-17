@@ -1,4 +1,5 @@
 import { splitOrderTotals } from "./order-totals.ts";
+import { loadShippingConfigForSite } from "./shipping-config.ts";
 import { sendOrderConfirmationEmail } from "./send-order-confirmation-email.ts";
 import { enrichItemsWithAlsafixCodes } from "./alsafix-code.ts";
 import { roundMoney } from "./money.ts";
@@ -9,6 +10,7 @@ import { resolveOrderCustomerEmail } from "./order-customer-email.ts";
 import { buildOrderTrackingUrlForEmail } from "./guest-order-tracking-url.ts";
 import { resolveResendFrom } from "./resolve-resend-from.ts";
 import { resolveSiteLogoUrlForEmail } from "./site-logo.ts";
+import { tryClaimSupplierFulfillment } from "./order-fulfillment-claim.ts";
 
 export type SendOrderToN8nParams = {
   n8nWebhookUrl: string;
@@ -64,14 +66,11 @@ export async function sendOrderToN8n(params: SendOrderToN8nParams): Promise<void
       return;
     }
 
-    const { data: orderForDedup } = await supabaseAdmin
-      .from("orders")
-      .select("documents")
-      .eq("id", orderId)
-      .maybeSingle();
-    const existingDocs = (orderForDedup?.documents as Array<{ type?: string }> | null) || [];
-    if (existingDocs.some((d) => d.type === "order_confirmation")) {
-      console.log("[n8n-fulfill-order] supplier PO already stored, skipping duplicate n8n", { orderNumber });
+    const claimed = await tryClaimSupplierFulfillment(supabaseAdmin, orderId);
+    if (!claimed) {
+      console.log("[n8n-fulfill-order] supplier fulfillment already claimed, skipping duplicate n8n", {
+        orderNumber,
+      });
       return;
     }
 
@@ -116,7 +115,12 @@ export async function sendOrderToN8n(params: SendOrderToN8nParams): Promise<void
       siteLogo,
     );
 
-    const { productsHT, shippingHT } = splitOrderTotals(enrichedCartItems, totalHT);
+    const { productsHT, shippingHT } = splitOrderTotals(
+      enrichedCartItems,
+      totalHT,
+      totalTTC,
+      await loadShippingConfigForSite(supabaseAdmin, orderSiteId),
+    );
     const fromEmail = supplierSettings?.customer_service_email || supplierSettings?.email;
     const storefrontBase = (Deno.env.get("STOREFRONT_URL") || "https://www.vis-a-bois.com").replace(/\/$/, "");
     const customerEmailForLink = resolvedEmail || customerEmail || "";

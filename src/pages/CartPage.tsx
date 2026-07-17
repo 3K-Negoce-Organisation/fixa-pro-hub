@@ -11,16 +11,21 @@ import { BoxQuantityHint } from "@/components/cart/BoxQuantityHint";
 import { clientLineTotalTtc, lineUnitTTC, payableCartItems } from "@/lib/cartPricing";
 import { formatPriceHT, formatPrice, getDisplayVariantTitle } from "@/lib/products";
 import {
-  FREE_SHIPPING_THRESHOLD_TTC,
   orderGrandTotals,
 } from "@/lib/shipping";
+import { useShippingConfig } from "@/hooks/useShippingConfig";
 import { StripePaymentForm } from "@/components/checkout/StripePaymentForm";
 
 const CartPage = () => {
   const { items, removedItems, removeItem, restoreItem, clearRemovedItems, updateQuantity, clearCart, totalHT, totalTTC } = useCart();
+  const { config: shippingConfig } = useShippingConfig();
   const [showPaymentForm, setShowPaymentForm] = useState(false);
 
-  const { subtotalTTC, shippingTTC, grandTotalTTC, grandTotalHT } = orderGrandTotals(totalTTC, totalHT);
+  const { subtotalTTC, shippingTTC, grandTotalTTC, grandTotalHT } = orderGrandTotals(
+    totalTTC,
+    totalHT,
+    shippingConfig,
+  );
   const totalVatAmount = grandTotalTTC - grandTotalHT;
 
   const cartSignature = useMemo(
@@ -361,9 +366,9 @@ const CartPage = () => {
                       </p>
                     </div>
 
-                    {subtotalTTC < FREE_SHIPPING_THRESHOLD_TTC && (
+                    {subtotalTTC < shippingConfig.freeShippingThresholdTtc && (
                       <p className="text-xs text-muted-foreground text-center">
-                        Plus que {formatPrice(FREE_SHIPPING_THRESHOLD_TTC - subtotalTTC)} pour la livraison
+                        Plus que {formatPrice(shippingConfig.freeShippingThresholdTtc - subtotalTTC)} pour la livraison
                         gratuite !
                       </p>
                     )}

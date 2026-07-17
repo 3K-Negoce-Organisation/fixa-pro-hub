@@ -5,6 +5,10 @@ import { ensureFrenchStripeCustomer } from "../_shared/stripe-customer-fr.ts";
 import { computeCheckoutTotals } from "../_shared/checkout-totals.ts";
 import { roundMoney } from "../_shared/money.ts";
 import {
+  loadShippingConfigForSite,
+  shippingConfigMetadata,
+} from "../_shared/shipping-config.ts";
+import {
   filterPayableCartLines,
   stripeMetadataForCompactItems,
   toCompactCartItems,
@@ -161,8 +165,9 @@ serve(async (req) => {
         item.priceHT > 0 ? roundMoney(item.priceHT) : roundMoney(priceTTC / 1.2);
       return { ...item, priceHT, priceTTC };
     });
+    const shippingConfig = await loadShippingConfigForSite(admin, resolvedSiteId);
     const { productsHT, subtotalTTC, shippingTTC, shippingHT, totalHT, totalTTC } =
-      computeCheckoutTotals(roundedItems);
+      computeCheckoutTotals(roundedItems, shippingConfig);
     const compactItems = toCompactCartItems(roundedItems);
     const itemsMetadata = stripeMetadataForCompactItems(compactItems);
     const amountInCents = Math.round(totalTTC * 100);
@@ -201,6 +206,7 @@ serve(async (req) => {
         total_ttc: totalTTC.toFixed(2),
         site_id: resolvedSiteId || "",
         stripe_mode: stripeMode,
+        ...shippingConfigMetadata(shippingConfig),
         ...itemsMetadata,
       },
     });

@@ -9,9 +9,10 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { FREE_SHIPPING_THRESHOLD_TTC, SHIPPING_FEE_TTC } from "@/lib/shipping";
+import { useShippingConfig } from "@/hooks/useShippingConfig";
 
 const FAQPage = () => {
+  const { config: shippingConfig } = useShippingConfig();
   const faqCategories = [
     {
       title: "Commandes et Paiement",
@@ -43,7 +44,7 @@ const FAQPage = () => {
         },
         {
           question: "Quels sont les frais de livraison ?",
-          answer: `La livraison est gratuite lorsque le montant de vos produits (hors frais de port) atteint ${FREE_SHIPPING_THRESHOLD_TTC} € TTC. En dessous de ce seuil, des frais forfaitaires de ${SHIPPING_FEE_TTC} € TTC s'affichent dans le récapitulatif du panier avant le paiement.`
+          answer: `La livraison est gratuite lorsque le montant de vos produits (hors frais de port) atteint ${shippingConfig.freeShippingThresholdTtc} € TTC. En dessous de ce seuil, des frais forfaitaires de ${shippingConfig.defaultShippingFeeTtc} € TTC s'affichent dans le récapitulatif du panier avant le paiement.`
         },
         {
           question: "Comment suivre ma commande ?",

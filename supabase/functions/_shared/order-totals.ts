@@ -2,10 +2,12 @@
 
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { roundMoney } from "./money.ts";
+import {
+  DEFAULT_SHIPPING_CONFIG,
+  type ShippingConfig,
+} from "./shipping-config.ts";
 
 const TVA_RATE = 0.2;
-const FREE_SHIPPING_THRESHOLD_TTC = 150;
-const SHIPPING_FEE_TTC = 12;
 
 export type OrderTotalsLine = {
   priceHT?: number;
@@ -16,24 +18,35 @@ export type OrderTotalsLine = {
   q?: number;
 };
 
-export function shippingFeeTtc(productsSubtotalTtc: number): number {
-  return productsSubtotalTtc >= FREE_SHIPPING_THRESHOLD_TTC ? 0 : SHIPPING_FEE_TTC;
+export function shippingFeeTtc(
+  productsSubtotalTtc: number,
+  config: ShippingConfig = DEFAULT_SHIPPING_CONFIG,
+): number {
+  return productsSubtotalTtc >= config.freeShippingThresholdTtc
+    ? 0
+    : config.defaultShippingFeeTtc;
 }
 
-/** Décompose un total TTC commande en produits + port (règle boutique : 12 € ou gratuit ≥ 150 € produits). */
-export function decomposeOrderTotalTtc(totalTtc: number): { productsTTC: number; shippingTTC: number } {
+/** Décompose un total TTC commande en produits + port selon la config fournisseur. */
+export function decomposeOrderTotalTtc(
+  totalTtc: number,
+  config: ShippingConfig = DEFAULT_SHIPPING_CONFIG,
+): { productsTTC: number; shippingTTC: number } {
   const total = roundMoney(totalTtc);
+  const fee = config.defaultShippingFeeTtc;
+  const threshold = config.freeShippingThresholdTtc;
+
   if (total <= 0) return { productsTTC: 0, shippingTTC: 0 };
 
-  const productsWithStandardShipping = roundMoney(total - SHIPPING_FEE_TTC);
+  const productsWithStandardShipping = roundMoney(total - fee);
   if (
     productsWithStandardShipping >= 0 &&
-    shippingFeeTtc(productsWithStandardShipping) === SHIPPING_FEE_TTC
+    shippingFeeTtc(productsWithStandardShipping, config) === fee
   ) {
-    return { productsTTC: productsWithStandardShipping, shippingTTC: SHIPPING_FEE_TTC };
+    return { productsTTC: productsWithStandardShipping, shippingTTC: fee };
   }
 
-  if (total >= FREE_SHIPPING_THRESHOLD_TTC) {
+  if (total >= threshold) {
     return { productsTTC: total, shippingTTC: 0 };
   }
 
@@ -67,6 +80,7 @@ export function splitOrderTotals(
   items: OrderTotalsLine[],
   totalHT: number,
   totalTTC?: number,
+  config: ShippingConfig = DEFAULT_SHIPPING_CONFIG,
 ): { productsHT: number; shippingHT: number } {
   const productsHT = sumItemsHT(items);
   const residualHT = roundMoney(Math.max(0, roundMoney(totalHT) - productsHT));
@@ -76,7 +90,7 @@ export function splitOrderTotals(
       ? roundMoney(totalTTC)
       : roundMoney(productsHT * (1 + TVA_RATE) + residualHT);
 
-  const { shippingTTC } = decomposeOrderTotalTtc(totalTtcResolved);
+  const { shippingTTC } = decomposeOrderTotalTtc(totalTtcResolved, config);
   const standardShippingHT = roundMoney(shippingTTC / (1 + TVA_RATE));
   const standardProductsHT = roundMoney(roundMoney(totalHT) - standardShippingHT);
 
@@ -92,8 +106,9 @@ export function normalizeInvoiceLineItems<T extends OrderTotalsLine & { unit_pri
   items: T[],
   totalHT: number,
   totalTTC?: number,
+  config: ShippingConfig = DEFAULT_SHIPPING_CONFIG,
 ): { items: T[]; productsHT: number; shippingHT: number } {
-  const { productsHT, shippingHT } = splitOrderTotals(items, totalHT, totalTTC);
+  const { productsHT, shippingHT } = splitOrderTotals(items, totalHT, totalTTC, config);
   const summedHT = sumItemsHT(items);
 
   if (summedHT <= 0 || Math.abs(summedHT - productsHT) <= 0.05) {
@@ -114,6 +129,7 @@ export async function syncOrderItemsToOrderTotal(
   supabaseAdmin: SupabaseClient,
   orderId: string,
   totalTtc: number,
+  config: ShippingConfig = DEFAULT_SHIPPING_CONFIG,
 ): Promise<{ updated: number }> {
   const { data: items, error } = await supabaseAdmin
     .from("order_items")
@@ -123,7 +139,7 @@ export async function syncOrderItemsToOrderTotal(
   if (error) throw error;
   if (!items?.length) return { updated: 0 };
 
-  const { productsTTC: targetProductsTTC } = decomposeOrderTotalTtc(totalTtc);
+  const { productsTTC: targetProductsTTC } = decomposeOrderTotalTtc(totalTtc, config);
   const currentProductsTTC = roundMoney(
     items.reduce(
       (sum, row) =>

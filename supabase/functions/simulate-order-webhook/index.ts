@@ -12,6 +12,7 @@ import { loadSiteLogoForOrderPdf } from "../_shared/site-logo.ts";
 import { resolveOrderCustomerPhone } from "../_shared/order-customer-phone.ts";
 import { resolveOrderCustomerEmail } from "../_shared/order-customer-email.ts";
 import { insertOrderStatusEvent } from "../_shared/order-status-events.ts";
+import { supplierPoContactEmail } from "../_shared/supplier-contact-email.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -34,8 +35,17 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const n8nWebhookUrl = Deno.env.get('N8N_WEBHOOK_URL');
 
-    // Verify admin authorization
+    // Verify admin authorization (JWT admin) or internal marketplace fulfillment.
     const authHeader = req.headers.get('Authorization');
+    const internalKey = req.headers.get('x-marketplace-internal');
+    const expectedInternalKey =
+      Deno.env.get('MARKETPLACE_HUB_API_KEY') ?? Deno.env.get('VAB_API_KEY');
+    const isInternalMarketplaceFulfillment =
+      !!expectedInternalKey
+      && !!internalKey
+      && internalKey === expectedInternalKey
+      && authHeader?.startsWith('Bearer ');
+
     if (!authHeader) {
       return new Response(
         JSON.stringify({ error: 'Non autorisé' }),
@@ -43,36 +53,42 @@ serve(async (req) => {
       );
     }
 
-    const supabaseUser = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!, {
-      global: { headers: { Authorization: authHeader } }
-    });
-
-    const { data: { user }, error: userError } = await supabaseUser.auth.getUser();
-    if (userError || !user) {
-      return new Response(
-        JSON.stringify({ error: 'Non autorisé' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
-    
-    // Check admin role
-    const { data: roleData } = await supabaseAdmin
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', user.id)
-      .eq('role', 'admin')
-      .single();
+    let adminUserId: string | null = null;
 
-    if (!roleData) {
-      return new Response(
-        JSON.stringify({ error: 'Accès refusé - Droits administrateur requis' }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    if (isInternalMarketplaceFulfillment) {
+      adminUserId = null;
+    } else {
+      const supabaseUser = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!, {
+        global: { headers: { Authorization: authHeader } }
+      });
+
+      const { data: { user }, error: userError } = await supabaseUser.auth.getUser();
+      if (userError || !user) {
+        return new Response(
+          JSON.stringify({ error: 'Non autorisé' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const { data: roleData } = await supabaseAdmin
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .eq('role', 'admin')
+        .single();
+
+      if (!roleData) {
+        return new Response(
+          JSON.stringify({ error: 'Accès refusé - Droits administrateur requis' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      adminUserId = user.id;
     }
 
-    const { order_id, preview_only, record_manual_event, manual_note } = await req.json();
+    const { order_id, preview_only, record_manual_event, manual_note, skip_customer_email } = await req.json();
 
     if (!order_id) {
       return new Response(
@@ -142,15 +158,17 @@ serve(async (req) => {
     logStep("Resolved customer phone", { hasPhone: !!customerPhone, orderNumber: order.order_number });
 
     // Get supplier settings
-    const { data: supplierSettings } = await supabaseAdmin
-      .from('supplier_settings')
-      .select('*')
-      .maybeSingle();
+    let supplierSettingsQuery = supabaseAdmin.from('supplier_settings').select('*');
+    if (order.site_id) {
+      supplierSettingsQuery = supplierSettingsQuery.eq('site_id', order.site_id);
+    }
+    const { data: supplierSettings } = await supplierSettingsQuery.maybeSingle();
 
     logStep("Supplier settings fetched", { hasSettings: !!supplierSettings });
     
     // Get customer number from supplier settings (default to "000001")
     const customerNumber = supplierSettings?.customer_number || '000001';
+    const supplierContactEmail = supplierPoContactEmail(supplierSettings);
 
     if (!preview_only && !n8nWebhookUrl) {
       return new Response(
@@ -159,13 +177,15 @@ serve(async (req) => {
       );
     }
 
+    const skipClientEmail = skip_customer_email === true;
+
     // Generate PDF file
     const siteLogo = await loadSiteLogoForOrderPdf(supabaseAdmin, order.site_id);
     logStep("Resolved site logo", { hasLogo: !!siteLogo, siteId: order.site_id ?? null });
     const pdfBase64 = generateOrderPDF(
       order.order_number,
       displayName,
-      customerEmail,
+      supplierContactEmail,
       customerNumber,
       enrichedItems,
       {
@@ -199,7 +219,7 @@ serve(async (req) => {
 
     const { productsHT, shippingHT } = splitOrderTotals(enrichedItems, order.total_ht);
     const fromEmail = supplierSettings?.customer_service_email || supplierSettings?.email;
-    if ((fromEmail || Deno.env.get("RESEND_FROM_EMAIL")) && customerEmail) {
+    if (!preview_only && !skipClientEmail && (fromEmail || Deno.env.get("RESEND_FROM_EMAIL")) && customerEmail) {
       const storefrontBase = (Deno.env.get("STOREFRONT_URL") || "https://www.vis-a-bois.com").replace(/\/$/, "");
       const trackingUrl = await buildOrderTrackingUrlForEmail(order.order_number, customerEmail, storefrontBase);
 
@@ -303,7 +323,7 @@ serve(async (req) => {
       order_id: order.id,
       simulation: true,
       customer: {
-        email: customerEmail,
+        email: supplierContactEmail || null,
         phone: customerPhone || profile?.phone || null,
         name: displayName,
         shipping_address: {
@@ -371,7 +391,7 @@ serve(async (req) => {
 
     logStep("n8n response", { status: responseStatus, body: responseBody.substring(0, 200) });
 
-    if (record_manual_event) {
+    if (record_manual_event && adminUserId) {
       await insertOrderStatusEvent(supabaseAdmin, {
         order_id: order.id,
         status: order.status,
@@ -383,7 +403,7 @@ serve(async (req) => {
           path: pdfPath,
           type: "renvoi",
         },
-        created_by: user.id,
+        created_by: adminUserId,
       });
     }
 

@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { ShoppingCart, Heart, ChevronRight, Truck, Shield, RotateCcw, Loader2, Circle, Ruler, Wrench, Scale, Layers, Target, Settings2, Box, SlidersHorizontal, Download } from "lucide-react";
-import TorxIcon from "@/components/icons/TorxIcon";
+import { ShoppingCart, Heart, ChevronRight, Truck, Shield, RotateCcw, Loader2, Download } from "lucide-react";
 import { CharacteristicPicto } from "@/components/products/CharacteristicPicto";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -44,6 +43,7 @@ import { useStorefrontSite } from "@/contexts/StorefrontSiteContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { resolveCharacteristicIcon } from "@/lib/characteristic-pictos";
+import { buildProductSpecs } from "@/lib/characteristicSpecs";
 
 type CharacteristicIconRow = {
   characteristic_key: string;
@@ -183,88 +183,8 @@ const ProductDetailPage = () => {
 
   const tags = product.tags || [];
 
-  // Ordre aligné avec l’admin (CHARACTERISTIC_DEFINITIONS) : pictos sous l’image
-  const technicalSpecs: {
-    key: string;
-    value: string;
-    label: string;
-    fallback: React.ReactNode;
-  }[] = [];
-  if (product.box_weight) {
-    technicalSpecs.push({
-      key: "box_weight",
-      value: `${product.box_weight}`,
-      label: "kg",
-      fallback: <Scale className="h-4 w-4" />,
-    });
-  }
-  if (product.diameter_mm) {
-    technicalSpecs.push({
-      key: "diameter_mm",
-      value: `Ø${product.diameter_mm}`,
-      label: "mm",
-      fallback: <Circle className="h-4 w-4" />,
-    });
-  }
-  if (product.length_mm) {
-    technicalSpecs.push({
-      key: "length_mm",
-      value: `${product.length_mm}`,
-      label: "mm",
-      fallback: <Ruler className="h-4 w-4" />,
-    });
-  }
-  if (product.usage) {
-    technicalSpecs.push({
-      key: "usage",
-      value: product.usage,
-      label: "",
-      fallback: <Box className="h-4 w-4" />,
-    });
-  }
-  if (product.material) {
-    technicalSpecs.push({
-      key: "material",
-      value: product.material,
-      label: "",
-      fallback: <Layers className="h-4 w-4" />,
-    });
-  }
-  if (product.drive_type) {
-    const isTorx =
-      product.drive_type.toLowerCase().startsWith("tx") ||
-      product.drive_type.toLowerCase().includes("torx");
-    technicalSpecs.push({
-      key: "drive_type",
-      value: product.drive_type,
-      label: "",
-      fallback: isTorx ? <TorxIcon className="h-4 w-4" /> : <Settings2 className="h-4 w-4" />,
-    });
-  }
-  if (product.thickness_to_fix_mm) {
-    technicalSpecs.push({
-      key: "thickness_to_fix_mm",
-      value: `${product.thickness_to_fix_mm}`,
-      label: "mm",
-      fallback: <SlidersHorizontal className="h-4 w-4" />,
-    });
-  }
-  if (product.thread_length_mm) {
-    technicalSpecs.push({
-      key: "thread_length_mm",
-      value: `${product.thread_length_mm}`,
-      label: "filet",
-      fallback: <Wrench className="h-4 w-4" />,
-    });
-  }
-  if (product.head_diameter_mm) {
-    technicalSpecs.push({
-      key: "head_diameter_mm",
-      value: `Ø${product.head_diameter_mm}`,
-      label: "tête",
-      fallback: <Target className="h-4 w-4" />,
-    });
-  }
+  // Ordre aligné avec l’admin « Pictos & caractéristiques » : pictos sous l’image
+  const technicalSpecs = buildProductSpecs(product);
 
   const seoDescription = buildProductSeoDescription(product);
   const displayDescription = product.description?.trim() || seoDescription;

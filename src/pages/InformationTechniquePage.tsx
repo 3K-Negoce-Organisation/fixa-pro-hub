@@ -2,20 +2,74 @@ import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { PageBackground } from "@/components/layout/PageBackground";
 import { PageSeo } from "@/components/seo/PageSeo";
-import { TECHNICAL_SHEETS } from "@/lib/technicalSheets";
+import { TECHNICAL_SHEETS, type TechnicalSheet } from "@/lib/technicalSheets";
 import { absoluteUrl } from "@/lib/seo";
 import { FileText, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useStorefrontSite } from "@/contexts/StorefrontSiteContext";
+import { useTheme } from "@/contexts/ThemeContext";
 
 const SEO_TITLE = "Fiches techniques vis à bois VBF, VBHT, QS, VBL — Vis-à-Bois";
 const SEO_DESCRIPTION =
   "Téléchargez les fiches techniques PDF de nos gammes de vis à bois professionnelles : VBF, VBHT tirefond, QS terrasse et VBL charpente.";
 
+type SiteTechnicalSheetRow = {
+  id: string;
+  title: string;
+  url: string;
+};
+
 export default function InformationTechniquePage() {
+  const { theme } = useTheme();
+  const { siteId: storefrontSiteId, loading: siteLoading } = useStorefrontSite();
+  const siteId = theme.site_id || storefrontSiteId || null;
+
+  const { data: siteSheets = [] } = useQuery({
+    queryKey: ["site-technical-sheets", siteId],
+    queryFn: async () => {
+      // Table hors types générés → cast via any.
+      let query = (supabase as any)
+        .from("site_technical_sheets")
+        .select("id, title, url");
+
+      if (siteId) {
+        query = query.eq("site_id", siteId);
+      }
+
+      const { data, error } = await query.order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data || []) as SiteTechnicalSheetRow[];
+    },
+    enabled: !siteLoading,
+  });
+
+  const dynamicSheets: TechnicalSheet[] = siteSheets.map((row) => ({
+    id: row.id,
+    title: row.title,
+    description: "",
+    file: row.url,
+  }));
+
+  const staticFiles = new Set(
+    dynamicSheets.map((sheet) => sheet.file.split("/").pop()?.toLowerCase()),
+  );
+  const mergedSheets: TechnicalSheet[] = [
+    ...dynamicSheets,
+    ...TECHNICAL_SHEETS.filter(
+      (sheet) => !staticFiles.has(sheet.file.split("/").pop()?.toLowerCase()),
+    ),
+  ];
+
   const handleDownload = (file: string, title: string) => {
     const link = document.createElement("a");
     link.href = file;
     link.download = `${title}.pdf`;
+    if (/^https?:\/\//i.test(file)) {
+      link.target = "_blank";
+      link.rel = "noopener";
+    }
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -42,7 +96,7 @@ export default function InformationTechniquePage() {
           </div>
 
           <div className="space-y-3">
-            {TECHNICAL_SHEETS.map((doc) => (
+            {mergedSheets.map((doc) => (
               <div 
                 key={doc.id}
                 className="flex items-center justify-between gap-4 p-4 bg-card border border-border rounded-lg hover:bg-muted/50 transition-colors"
@@ -53,7 +107,9 @@ export default function InformationTechniquePage() {
                   </div>
                   <div>
                     <h3 className="font-semibold text-foreground">{doc.title}</h3>
-                    <p className="text-sm text-muted-foreground">{doc.description}</p>
+                    {doc.description && (
+                      <p className="text-sm text-muted-foreground">{doc.description}</p>
+                    )}
                   </div>
                 </div>
                 <Button
