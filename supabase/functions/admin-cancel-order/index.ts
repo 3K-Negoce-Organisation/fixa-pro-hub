@@ -8,6 +8,7 @@ import {
   resolveStripeSecretKey,
 } from "../_shared/order-stripe-resolve.ts";
 import { resolveOrderCustomerEmail } from "../_shared/order-customer-email.ts";
+import { resolveOrderIsAmazon } from "../_shared/order-marketplace.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -134,8 +135,10 @@ serve(async (req) => {
 
     const paymentIntentId = resolveOrderPaymentIntentId(order);
     let refundResult: { refundId: string; amountTtc: number } | null = null;
+    const isAmazon = await resolveOrderIsAmazon(auth.supabaseAdmin, order);
 
-    if (paymentIntentId && order.status !== "pending") {
+    // Amazon : remboursement via Seller Central, jamais Stripe.
+    if (!isAmazon && paymentIntentId && order.status !== "pending") {
       const stripeMode = resolveStripeModeFromOrder(order, siteStripeMode);
       const secretKey = resolveStripeSecretKey(stripeMode);
       if (!secretKey) {
@@ -232,6 +235,7 @@ serve(async (req) => {
       refunded: !!refundResult,
       refund_amount_ttc: refundResult?.amountTtc ?? null,
       refund_id: refundResult?.refundId ?? null,
+      amazon_skip_stripe_refund: isAmazon,
     }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

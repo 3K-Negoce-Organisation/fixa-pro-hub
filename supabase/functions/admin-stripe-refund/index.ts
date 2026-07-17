@@ -8,6 +8,7 @@ import {
   resolveStripeSecretKey,
 } from "../_shared/order-stripe-resolve.ts";
 import { resolveOrderCustomerEmail } from "../_shared/order-customer-email.ts";
+import { resolveOrderIsAmazon } from "../_shared/order-marketplace.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -79,6 +80,15 @@ serve(async (req) => {
     if (orderError || !order) {
       return new Response(JSON.stringify({ error: "Commande non trouvée" }), {
         status: 404,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (await resolveOrderIsAmazon(auth.supabaseAdmin, order)) {
+      return new Response(JSON.stringify({
+        error: "Commande Amazon : le remboursement doit être fait via Seller Central, pas Stripe",
+      }), {
+        status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
