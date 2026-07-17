@@ -196,7 +196,7 @@ const Index = () => {
             </div>
 
             {/* Categories Grid */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-3xl mx-auto mt-10">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3 sm:gap-4 max-w-5xl mx-auto mt-10">
               {categories.map((category) => (
                 <CategoryCard
                   key={category.id}
