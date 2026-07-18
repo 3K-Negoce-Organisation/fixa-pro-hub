@@ -317,7 +317,12 @@ const ProductsPage = () => {
 
   return (
     <PageBackground>
-      <PageSeo title={seoTitle} description={seoDescription} canonical={seoCanonical} />
+      <PageSeo
+        title={seoTitle}
+        description={seoDescription}
+        canonical={seoCanonical}
+        noindex={Boolean(query)}
+      />
       <Header />
 
       <main className="flex-1">

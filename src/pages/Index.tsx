@@ -109,7 +109,10 @@ const Index = () => {
           description: DEFAULT_DESCRIPTION,
           potentialAction: {
             "@type": "SearchAction",
-            target: `${SITE_URL}/produits?q={search_term_string}`,
+            target: {
+              "@type": "EntryPoint",
+              urlTemplate: `${SITE_URL}/produits?q={search_term_string}`,
+            },
             "query-input": "required name=search_term_string",
           },
         }}

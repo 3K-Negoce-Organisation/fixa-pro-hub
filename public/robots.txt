@@ -17,5 +17,8 @@ Disallow: /auth
 Disallow: /compte
 Disallow: /admin
 Disallow: /panier
+# Pages de recherche interne (paramètre q) — ne pas indexer
+Disallow: /*?q=
+Disallow: /*?*q=
 
 Sitemap: https://www.vis-a-bois.com/sitemap.xml
