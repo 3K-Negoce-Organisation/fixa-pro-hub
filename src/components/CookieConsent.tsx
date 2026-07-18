@@ -2,15 +2,12 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { X, Cookie } from "lucide-react";
-
-type CookiePreferences = {
-  necessary: boolean;
-  analytics: boolean;
-  marketing: boolean;
-};
-
-const COOKIE_CONSENT_KEY = "cookie_consent";
-const COOKIE_PREFERENCES_KEY = "cookie_preferences";
+import {
+  applyCookiePreferencesToGa,
+  COOKIE_CONSENT_KEY,
+  COOKIE_PREFERENCES_KEY,
+  type CookiePreferences,
+} from "@/lib/ga";
 
 export function CookieConsent() {
   const [isVisible, setIsVisible] = useState(false);
@@ -33,6 +30,7 @@ export function CookieConsent() {
   const saveConsent = (prefs: CookiePreferences) => {
     localStorage.setItem(COOKIE_CONSENT_KEY, "true");
     localStorage.setItem(COOKIE_PREFERENCES_KEY, JSON.stringify(prefs));
+    applyCookiePreferencesToGa(prefs);
     setIsVisible(false);
   };
 

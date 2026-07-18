@@ -43,6 +43,27 @@ export default defineConfig(({ mode, command }) => {
         );
       },
     },
+    {
+      // Early Consent Mode defaults in <head> (before React) when GA is configured.
+      name: "html-ga-consent-default",
+      transformIndexHtml(html: string) {
+        const id = process.env.VITE_GA_MEASUREMENT_ID?.trim();
+        if (!id) return html;
+        const snippet = `    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('consent', 'default', {
+        ad_storage: 'denied',
+        ad_user_data: 'denied',
+        ad_personalization: 'denied',
+        analytics_storage: 'denied',
+        wait_for_update: 500
+      });
+    </script>
+`;
+        return html.replace("</head>", `${snippet}  </head>`);
+      },
+    },
   ].filter(Boolean),
   resolve: {
     alias: {

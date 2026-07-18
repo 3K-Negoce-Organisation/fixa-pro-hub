@@ -64,6 +64,16 @@ Voir `deploy/nginx-seo-redirects.conf` pour un exemple nginx.
 |----------|-------------------|
 | `STOREFRONT_URL` | `https://www.vis-a-bois.com` |
 | `VITE_GOOGLE_SITE_VERIFICATION` | Code GSC (optionnel) |
+| `VITE_GA_MEASUREMENT_ID` | `G-HZ8ME0W15M` (GA4 Vis-à-Bois) |
+
+## 4b. Google Analytics 4
+
+1. Créer la propriété GA4 et le flux web `https://www.vis-a-bois.com`
+2. Définir `VITE_GA_MEASUREMENT_ID=G-HZ8ME0W15M` sur Railway (prod + staging si besoin) puis **rebuild**
+3. Le site charge `gtag.js` avec **Consent Mode** (analytics/ads denied par défaut)
+4. La bannière cookies (`CookieConsent`) met à jour le consentement (Tout accepter / Personnaliser)
+5. Dans GA4 : **Admin** → **Liaison des produits** → **Search Console** → lier `https://www.vis-a-bois.com`
+6. Bouton **Test installation** dans l’écran Google tag, ou temps réel GA4 après acceptation cookies
 
 ## 5. Contenu métier (sans code)
 
