@@ -14,7 +14,7 @@ export function BlogSidebar() {
   });
 
   return (
-    <aside className="lg:sticky lg:top-[5.5rem]">
+    <aside>
       <section className="rounded-lg border border-border bg-card/90 backdrop-blur-sm p-4 shadow-sm">
         <div className="flex items-center justify-between gap-2 mb-4">
           <div className="flex items-center gap-2 min-w-0">
