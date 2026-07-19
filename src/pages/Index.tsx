@@ -11,6 +11,7 @@ import { CategoryCard } from "@/components/home/CategoryCard";
 import { QuickOrderSection } from "@/components/home/QuickOrderSection";
 import { SeoExploreLinks } from "@/components/home/SeoExploreLinks";
 import { FeaturedProducts } from "@/components/home/FeaturedProducts";
+import { BlogSidebar } from "@/components/home/BlogSidebar";
 import { PageSeo } from "@/components/seo/PageSeo";
 import { DEFAULT_DESCRIPTION, DEFAULT_TITLE, SITE_NAME, SITE_URL, absoluteUrl } from "@/lib/seo";
 import { supabase } from "@/integrations/supabase/client";
@@ -214,11 +215,18 @@ const Index = () => {
           </div>
         </section>
 
-        {/* Main Content */}
-        <div className="container">
-          <QuickOrderSection />
-          <FeaturedProducts />
-          <SeoExploreLinks />
+        {/* Main Content + Blog */}
+        <div className="container pb-10">
+          <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_300px] lg:gap-8 lg:items-start">
+            <div className="min-w-0">
+              <QuickOrderSection />
+              <FeaturedProducts />
+              <SeoExploreLinks />
+            </div>
+            <div className="mt-8 lg:mt-8">
+              <BlogSidebar />
+            </div>
+          </div>
         </div>
       </main>
 

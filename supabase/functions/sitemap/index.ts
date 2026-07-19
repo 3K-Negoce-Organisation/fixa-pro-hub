@@ -9,6 +9,7 @@ const STATIC_PATHS = [
   "/information-technique",
   "/contact",
   "/faq",
+  "/blog",
   "/cgv",
   "/mentions-legales",
   "/politique-confidentialite",
@@ -77,6 +78,19 @@ serve(async (req) => {
         if (product.handle) {
           urls.push(
             urlEntry(`${SITE_URL}/produit/${encodeURIComponent(product.handle)}`, "weekly", "0.6"),
+          );
+        }
+      }
+
+      const { data: blogPosts } = await supabase
+        .from("blog_posts")
+        .select("slug")
+        .eq("is_published", true);
+
+      for (const post of blogPosts ?? []) {
+        if (post.slug) {
+          urls.push(
+            urlEntry(`${SITE_URL}/blog/${encodeURIComponent(post.slug)}`, "weekly", "0.6"),
           );
         }
       }

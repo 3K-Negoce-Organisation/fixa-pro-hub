@@ -8,6 +8,7 @@ export function Footer() {
           {/* Liens infos et légaux */}
           <div className="flex flex-wrap justify-center md:justify-start gap-x-4 gap-y-1 text-sm">
             <Link to="/information-technique" className="text-theme-footer-hover hover:underline">Infos techniques</Link>
+            <Link to="/blog" className="text-theme-footer-hover hover:underline">Blog</Link>
             <Link to="/faq" className="text-theme-footer-hover hover:underline">FAQ</Link>
             <Link to="/contact" className="text-theme-footer-hover hover:underline">Contact</Link>
             <span className="opacity-30 hidden md:inline">|</span>

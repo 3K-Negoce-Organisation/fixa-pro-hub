@@ -18,6 +18,12 @@ export const STATIC_PAGE_SEO = {
       "Questions fréquentes sur l'achat de vis à bois, la livraison, les paiements et les retours. Vis-à-Bois, spécialiste B2B.",
     path: "/faq",
   },
+  blog: {
+    title: "Blog vis à bois — Conseils et guides | Vis-à-Bois",
+    description:
+      "Guides pratiques pour choisir et poser vos vis à bois : terrasse, charpente, tirefond, empreintes Torx. Conseils Vis-à-Bois.",
+    path: "/blog",
+  },
   contact: {
     title: "Contact — Vis à bois professionnelles | Vis-à-Bois",
     description:

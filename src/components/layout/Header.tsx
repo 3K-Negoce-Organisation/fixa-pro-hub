@@ -133,7 +133,7 @@ export function Header() {
   }, []);
 
   const fetchDbStats = async () => {
-    const tables = ['products', 'profiles', 'orders', 'order_items', 'user_carts', 'supplier_settings', 'user_roles'];
+    const tables = ['products', 'profiles', 'orders', 'order_items', 'user_carts', 'supplier_settings', 'user_roles', 'blog_posts'];
     const stats: { table: string; count: number }[] = [];
     
     for (const table of tables) {
@@ -189,8 +189,8 @@ export function Header() {
               <span className="hidden md:inline">{getDisplayName()}</span>
             </Link>
 
-            {/* Admin : modale au clic, uniquement pierre.kabore@gmail.com */}
-            {userEmail === "pierre.kabore@gmail.com" && (
+            {/* Admin : modale au clic pour les comptes avec rôle admin */}
+            {isAdmin && (
               <>
                 <button
                   type="button"
@@ -232,6 +232,13 @@ export function Header() {
                         onClick={() => setAdminMenuOpen(false)}
                       >
                         Gestion des produits
+                      </Link>
+                      <Link
+                        to="/admin/blog"
+                        className="block rounded-md px-3 py-2.5 text-sm text-foreground hover:bg-primary/10 transition-colors"
+                        onClick={() => setAdminMenuOpen(false)}
+                      >
+                        Gestion du blog
                       </Link>
                       <button
                         type="button"

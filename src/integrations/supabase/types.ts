@@ -14,6 +14,62 @@ export type Database = {
   }
   public: {
     Tables: {
+      blog_posts: {
+        Row: {
+          id: string
+          site_id: string
+          slug: string
+          title: string
+          excerpt: string | null
+          content: string
+          cover_image_url: string | null
+          author_name: string
+          is_published: boolean
+          published_at: string | null
+          sort_order: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          site_id: string
+          slug: string
+          title: string
+          excerpt?: string | null
+          content?: string
+          cover_image_url?: string | null
+          author_name?: string
+          is_published?: boolean
+          published_at?: string | null
+          sort_order?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          site_id?: string
+          slug?: string
+          title?: string
+          excerpt?: string | null
+          content?: string
+          cover_image_url?: string | null
+          author_name?: string
+          is_published?: boolean
+          published_at?: string | null
+          sort_order?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "blog_posts_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       custom_themes: {
         Row: {
           created_at: string
