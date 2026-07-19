@@ -5,10 +5,8 @@ import { Button } from "@/components/ui/button";
 import { BlogContent } from "@/components/blog/BlogContent";
 import { BlogCta } from "@/components/blog/BlogCta";
 import {
-  BLOG_AUDIENCE_LABELS,
   formatBlogDate,
   getBlogCoverUrl,
-  type BlogAudience,
   type BlogPostWithCategory,
 } from "@/lib/blog";
 
@@ -20,7 +18,6 @@ interface BlogArticleTemplateProps {
 export function BlogArticleTemplate({ post }: BlogArticleTemplateProps) {
   const cover = getBlogCoverUrl(post);
   const category = post.blog_categories;
-  const audience = (post.audience || "particulier") as BlogAudience;
 
   return (
     <article className="container py-10 md:py-14 max-w-3xl">
@@ -32,16 +29,13 @@ export function BlogArticleTemplate({ post }: BlogArticleTemplateProps) {
       </Button>
 
       <header className="mb-8">
-        <div className="flex flex-wrap items-center gap-2 mb-3">
-          {category && (
+        {category && (
+          <div className="mb-3">
             <Badge variant="secondary" className="font-medium">
               {category.name}
             </Badge>
-          )}
-          <Badge variant="outline" className="text-muted-foreground">
-            {BLOG_AUDIENCE_LABELS[audience] ?? audience}
-          </Badge>
-        </div>
+          </div>
+        )}
 
         <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-4 leading-tight">
           {post.title}

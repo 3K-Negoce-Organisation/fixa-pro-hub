@@ -2,10 +2,8 @@ import { Link } from "react-router-dom";
 import { Calendar } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
-  BLOG_AUDIENCE_LABELS,
   formatBlogDate,
   getBlogCoverUrl,
-  type BlogAudience,
   type BlogPostListItem,
 } from "@/lib/blog";
 
@@ -15,7 +13,6 @@ interface BlogPostCardProps {
 
 export function BlogPostCard({ post }: BlogPostCardProps) {
   const cover = getBlogCoverUrl(post);
-  const audience = (post.audience || "particulier") as BlogAudience;
 
   return (
     <article className="rounded-lg border border-border bg-card overflow-hidden transition-colors hover:border-primary/35">
@@ -26,16 +23,13 @@ export function BlogPostCard({ post }: BlogPostCardProps) {
           </div>
         )}
         <div className="p-5 flex-1 min-w-0">
-          <div className="flex flex-wrap items-center gap-2 mb-2">
-            {post.blog_categories && (
+          {post.blog_categories && (
+            <div className="mb-2">
               <Badge variant="secondary" className="text-xs">
                 {post.blog_categories.name}
               </Badge>
-            )}
-            <Badge variant="outline" className="text-xs text-muted-foreground">
-              {BLOG_AUDIENCE_LABELS[audience] ?? audience}
-            </Badge>
-          </div>
+            </div>
+          )}
           {post.published_at && (
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-2">
               <Calendar className="h-3.5 w-3.5" />
