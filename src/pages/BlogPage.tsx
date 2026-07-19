@@ -78,9 +78,8 @@ const BlogPage = () => {
             <h1 className="text-3xl font-bold text-foreground">Blog</h1>
           </div>
           <p className="text-muted-foreground mb-6 max-w-2xl">
-            Astuces, avant/après et conseils de pro — un article par semaine pour choisir et poser
-            vos vis à bois. Contenu décliné ensuite sur Facebook, Google Business, Pinterest et la
-            newsletter.
+            Astuces concrètes, avant/après chantier et conseils de pro pour bien choisir et poser
+            vos vis à bois — du projet terrasse à la charpente.
           </p>
 
           <div className="flex flex-wrap gap-2 mb-8">
