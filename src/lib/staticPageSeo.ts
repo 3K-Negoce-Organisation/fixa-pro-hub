@@ -19,10 +19,16 @@ export const STATIC_PAGE_SEO = {
     path: "/faq",
   },
   blog: {
-    title: "Blog vis à bois — Conseils et guides | Vis-à-Bois",
+    title: "Blog vis à bois — Astuces, avant/après, conseils pro | Vis-à-Bois",
     description:
-      "Guides pratiques pour choisir et poser vos vis à bois : terrasse, charpente, tirefond, empreintes Torx. Conseils Vis-à-Bois.",
+      "Blog Vis-à-Bois : Astuce du jour, Avant/Après et Conseil du pro. Guides pour artisans et particuliers. Livraison 24/48h.",
     path: "/blog",
+  },
+  avisClients: {
+    title: "Avis clients — Vis-à-Bois",
+    description:
+      "Avis et témoignages clients Vis-à-Bois. Partagez votre expérience sur nos vis à bois professionnelles.",
+    path: "/avis-clients",
   },
   contact: {
     title: "Contact — Vis à bois professionnelles | Vis-à-Bois",

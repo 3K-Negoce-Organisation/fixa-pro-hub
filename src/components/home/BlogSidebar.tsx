@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { ArrowRight, BookOpen, Calendar } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { fetchPublishedBlogPosts, formatBlogDate } from "@/lib/blog";
 import { useStorefrontSite } from "@/contexts/StorefrontSiteContext";
@@ -9,7 +10,7 @@ export function BlogSidebar() {
   const { siteId, loading: siteLoading } = useStorefrontSite();
   const { data: posts = [], isLoading } = useQuery({
     queryKey: ["blog-posts-sidebar", siteId],
-    queryFn: () => fetchPublishedBlogPosts(siteId, 5),
+    queryFn: () => fetchPublishedBlogPosts(siteId, { limit: 5 }),
     enabled: !siteLoading && !!siteId,
   });
 
@@ -51,6 +52,11 @@ export function BlogSidebar() {
                   to={`/blog/${post.slug}`}
                   className="block rounded-md border border-border/60 bg-background/60 p-3 transition-colors hover:border-primary/35 hover:bg-muted/40"
                 >
+                  {post.blog_categories && (
+                    <Badge variant="secondary" className="text-[10px] mb-1.5 font-normal">
+                      {post.blog_categories.name}
+                    </Badge>
+                  )}
                   {post.published_at && (
                     <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1.5">
                       <Calendar className="h-3 w-3" />

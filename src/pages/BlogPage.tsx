@@ -1,30 +1,62 @@
-import { Link } from "react-router-dom";
-import { BookOpen, Calendar } from "lucide-react";
+import { useMemo } from "react";
+import { Link, useSearchParams } from "react-router-dom";
+import { BookOpen } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { PageBackground } from "@/components/layout/PageBackground";
 import { PageSeo } from "@/components/seo/PageSeo";
+import { BlogPostCard } from "@/components/blog/BlogPostCard";
+import { Button } from "@/components/ui/button";
 import { STATIC_PAGE_SEO, staticPageCanonical } from "@/lib/staticPageSeo";
-import { fetchPublishedBlogPosts, formatBlogDate } from "@/lib/blog";
+import { fetchBlogCategories, fetchPublishedBlogPosts } from "@/lib/blog";
 import { useStorefrontSite } from "@/contexts/StorefrontSiteContext";
 import { SITE_NAME, SITE_URL } from "@/lib/seo";
+import { cn } from "@/lib/utils";
 
 const BlogPage = () => {
   const seo = STATIC_PAGE_SEO.blog;
+  const [searchParams, setSearchParams] = useSearchParams();
+  const categorySlug = searchParams.get("category") || undefined;
   const { siteId, loading: siteLoading } = useStorefrontSite();
-  const { data: posts = [], isLoading } = useQuery({
-    queryKey: ["blog-posts", siteId],
-    queryFn: () => fetchPublishedBlogPosts(siteId),
+
+  const { data: categories = [] } = useQuery({
+    queryKey: ["blog-categories", siteId],
+    queryFn: () => fetchBlogCategories(siteId),
     enabled: !siteLoading && !!siteId,
   });
+
+  const { data: posts = [], isLoading } = useQuery({
+    queryKey: ["blog-posts", siteId, categorySlug ?? "all"],
+    queryFn: () => fetchPublishedBlogPosts(siteId, { categorySlug }),
+    enabled: !siteLoading && !!siteId,
+  });
+
+  const activeCategoryName = useMemo(
+    () => categories.find((c) => c.slug === categorySlug)?.name,
+    [categories, categorySlug],
+  );
+
+  const setCategory = (slug?: string) => {
+    if (!slug) {
+      setSearchParams({});
+      return;
+    }
+    setSearchParams({ category: slug });
+  };
 
   return (
     <PageBackground>
       <PageSeo
-        title={seo.title}
+        title={
+          activeCategoryName
+            ? `${activeCategoryName} — Blog ${SITE_NAME}`
+            : seo.title
+        }
         description={seo.description}
-        canonical={staticPageCanonical(seo.path)}
+        canonical={staticPageCanonical(
+          categorySlug ? `/blog?category=${categorySlug}` : seo.path,
+        )}
         jsonLd={{
           "@context": "https://schema.org",
           "@type": "Blog",
@@ -45,9 +77,33 @@ const BlogPage = () => {
             <BookOpen className="h-6 w-6 text-primary" />
             <h1 className="text-3xl font-bold text-foreground">Blog</h1>
           </div>
-          <p className="text-muted-foreground mb-8 max-w-2xl">
-            Conseils et guides pratiques pour choisir et poser vos vis à bois comme un pro.
+          <p className="text-muted-foreground mb-6 max-w-2xl">
+            Astuces, avant/après et conseils de pro — un article par semaine pour choisir et poser
+            vos vis à bois. Contenu décliné ensuite sur Facebook, Google Business, Pinterest et la
+            newsletter.
           </p>
+
+          <div className="flex flex-wrap gap-2 mb-8">
+            <Button
+              size="sm"
+              variant={!categorySlug ? "default" : "outline"}
+              className={cn(!categorySlug && "bg-primary")}
+              onClick={() => setCategory(undefined)}
+            >
+              Tous
+            </Button>
+            {categories.map((cat) => (
+              <Button
+                key={cat.id}
+                size="sm"
+                variant={categorySlug === cat.slug ? "default" : "outline"}
+                className={cn(categorySlug === cat.slug && "bg-primary")}
+                onClick={() => setCategory(cat.slug)}
+              >
+                {cat.name}
+              </Button>
+            ))}
+          </div>
 
           {isLoading ? (
             <div className="space-y-4">
@@ -60,45 +116,17 @@ const BlogPage = () => {
               ))}
             </div>
           ) : posts.length === 0 ? (
-            <p className="text-muted-foreground">Aucun article publié pour le moment.</p>
+            <p className="text-muted-foreground">
+              Aucun article dans cette catégorie pour le moment.{" "}
+              <Link to="/blog" className="text-primary underline underline-offset-2">
+                Voir tout le blog
+              </Link>
+            </p>
           ) : (
             <ul className="space-y-4">
               {posts.map((post) => (
                 <li key={post.id}>
-                  <article className="rounded-lg border border-border bg-card overflow-hidden transition-colors hover:border-primary/35">
-                    <Link to={`/blog/${post.slug}`} className="flex flex-col sm:flex-row">
-                      {post.cover_image_url && (
-                        <div className="sm:w-48 shrink-0 aspect-[16/10] sm:aspect-auto sm:min-h-[140px] bg-muted">
-                          <img
-                            src={post.cover_image_url}
-                            alt=""
-                            className="w-full h-full object-cover"
-                            loading="lazy"
-                          />
-                        </div>
-                      )}
-                      <div className="p-5 flex-1 min-w-0">
-                        {post.published_at && (
-                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-2">
-                            <Calendar className="h-3.5 w-3.5" />
-                            <time dateTime={post.published_at}>
-                              {formatBlogDate(post.published_at)}
-                            </time>
-                            {post.author_name && (
-                              <>
-                                <span className="opacity-40">·</span>
-                                <span>{post.author_name}</span>
-                              </>
-                            )}
-                          </div>
-                        )}
-                        <h2 className="text-lg font-semibold text-foreground mb-1.5">{post.title}</h2>
-                        {post.excerpt && (
-                          <p className="text-sm text-muted-foreground line-clamp-3">{post.excerpt}</p>
-                        )}
-                      </div>
-                    </Link>
-                  </article>
+                  <BlogPostCard post={post} />
                 </li>
               ))}
             </ul>

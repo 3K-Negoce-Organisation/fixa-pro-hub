@@ -1,7 +1,17 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
+import { absoluteUrl } from "@/lib/seo";
 
 export type BlogPost = Tables<"blog_posts">;
+export type BlogCategory = Tables<"blog_categories">;
+export type BlogAudience = "professionnel" | "particulier";
+export type BlogCtaType = "catalogue" | "devis" | "avis" | "custom";
+
+export type BlogCategoryRef = Pick<BlogCategory, "id" | "slug" | "name">;
+
+export type BlogPostWithCategory = BlogPost & {
+  blog_categories: BlogCategoryRef | null;
+};
 
 export type BlogPostListItem = Pick<
   BlogPost,
@@ -10,14 +20,46 @@ export type BlogPostListItem = Pick<
   | "title"
   | "excerpt"
   | "cover_image_url"
+  | "cover_image_pinterest_url"
   | "author_name"
+  | "audience"
   | "published_at"
   | "is_published"
-  | "sort_order"
->;
+  | "category_id"
+> & {
+  blog_categories: BlogCategoryRef | null;
+};
 
-const LIST_COLUMNS =
-  "id, slug, title, excerpt, cover_image_url, author_name, published_at, is_published, sort_order" as const;
+export type NewsletterArticleExport = {
+  title: string;
+  excerpt: string;
+  coverImageUrl: string | null;
+  pinterestImageUrl: string | null;
+  url: string;
+  category: string | null;
+  audience: string;
+  publishedAt: string | null;
+};
+
+const LIST_SELECT =
+  "id, slug, title, excerpt, cover_image_url, cover_image_pinterest_url, author_name, audience, published_at, is_published, category_id, blog_categories ( id, slug, name )" as const;
+
+const DETAIL_SELECT =
+  "*, blog_categories ( id, slug, name )" as const;
+
+export const BLOG_AUDIENCE_LABELS: Record<BlogAudience, string> = {
+  professionnel: "Professionnels",
+  particulier: "Particuliers",
+};
+
+export const BLOG_CTA_PRESETS: Record<
+  Exclude<BlogCtaType, "custom">,
+  { label: string; url: string }
+> = {
+  catalogue: { label: "Voir le catalogue", url: "/produits" },
+  devis: { label: "Demander un devis", url: "/contact" },
+  avis: { label: "Laisser un avis", url: "/avis-clients" },
+};
 
 export function slugifyBlogTitle(title: string): string {
   return title
@@ -38,22 +80,97 @@ export function formatBlogDate(iso: string | null | undefined): string {
   });
 }
 
+export function blogPostShareUrl(slug: string): string {
+  return absoluteUrl(`/blog/${slug}`);
+}
+
+export function resolveBlogCta(post: Pick<BlogPost, "cta_type" | "cta_label" | "cta_url">): {
+  label: string;
+  url: string;
+} {
+  const type = (post.cta_type || "catalogue") as BlogCtaType;
+  if (type === "custom") {
+    return {
+      label: post.cta_label?.trim() || "En savoir plus",
+      url: post.cta_url?.trim() || "/produits",
+    };
+  }
+  const preset = BLOG_CTA_PRESETS[type] ?? BLOG_CTA_PRESETS.catalogue;
+  return {
+    label: post.cta_label?.trim() || preset.label,
+    url: post.cta_url?.trim() || preset.url,
+  };
+}
+
+export function getBlogSeoTitle(post: Pick<BlogPost, "title" | "meta_title">, siteName: string): string {
+  return post.meta_title?.trim() || `${post.title} — ${siteName}`;
+}
+
+export function getBlogSeoDescription(
+  post: Pick<BlogPost, "excerpt" | "content" | "meta_description">,
+): string {
+  if (post.meta_description?.trim()) return post.meta_description.trim().slice(0, 160);
+  if (post.excerpt?.trim()) return post.excerpt.trim().slice(0, 160);
+  return post.content.replace(/[#*_`\[\]()]/g, " ").replace(/\s+/g, " ").trim().slice(0, 160);
+}
+
+/** Visuel principal ; fallback Pinterest 2:3 si pas de couverture paysage. */
+export function getBlogCoverUrl(post: Pick<BlogPost, "cover_image_url" | "cover_image_pinterest_url">): string | null {
+  return post.cover_image_url || post.cover_image_pinterest_url || null;
+}
+
+export function getBlogPinterestUrl(post: Pick<BlogPost, "cover_image_url" | "cover_image_pinterest_url">): string | null {
+  return post.cover_image_pinterest_url || post.cover_image_url || null;
+}
+
+export async function fetchBlogCategories(
+  siteId: string | null | undefined,
+  options?: { includeInactive?: boolean },
+): Promise<BlogCategory[]> {
+  if (!siteId) return [];
+
+  let query = supabase
+    .from("blog_categories")
+    .select("*")
+    .eq("site_id", siteId)
+    .order("sort_order", { ascending: true });
+
+  if (!options?.includeInactive) {
+    query = query.eq("is_active", true);
+  }
+
+  const { data, error } = await query;
+  if (error) throw error;
+  return data ?? [];
+}
+
 export async function fetchPublishedBlogPosts(
   siteId: string | null | undefined,
-  limit?: number,
+  options?: { limit?: number; categorySlug?: string },
 ): Promise<BlogPostListItem[]> {
   if (!siteId) return [];
 
   let query = supabase
     .from("blog_posts")
-    .select(LIST_COLUMNS)
+    .select(LIST_SELECT)
     .eq("site_id", siteId)
     .eq("is_published", true)
-    .order("sort_order", { ascending: true })
     .order("published_at", { ascending: false });
 
-  if (limit != null) {
-    query = query.limit(limit);
+  if (options?.categorySlug) {
+    const { data: cat, error: catError } = await supabase
+      .from("blog_categories")
+      .select("id")
+      .eq("site_id", siteId)
+      .eq("slug", options.categorySlug)
+      .maybeSingle();
+    if (catError) throw catError;
+    if (!cat) return [];
+    query = query.eq("category_id", cat.id);
+  }
+
+  if (options?.limit != null) {
+    query = query.limit(options.limit);
   }
 
   const { data, error } = await query;
@@ -64,34 +181,85 @@ export async function fetchPublishedBlogPosts(
 export async function fetchPublishedBlogPostBySlug(
   siteId: string | null | undefined,
   slug: string,
-): Promise<BlogPost | null> {
+): Promise<BlogPostWithCategory | null> {
   if (!siteId || !slug) return null;
 
   const { data, error } = await supabase
     .from("blog_posts")
-    .select("*")
+    .select(DETAIL_SELECT)
     .eq("site_id", siteId)
     .eq("slug", slug)
     .eq("is_published", true)
     .maybeSingle();
 
   if (error) throw error;
-  return data;
+  return data as BlogPostWithCategory | null;
 }
 
 export async function fetchAdminBlogPosts(
   siteId: string | null | undefined,
-): Promise<BlogPost[]> {
+): Promise<BlogPostWithCategory[]> {
   if (!siteId) return [];
 
   const { data, error } = await supabase
     .from("blog_posts")
-    .select("*")
+    .select(DETAIL_SELECT)
     .eq("site_id", siteId)
+    .order("published_at", { ascending: false })
     .order("updated_at", { ascending: false });
 
   if (error) throw error;
-  return data ?? [];
+  return (data ?? []) as BlogPostWithCategory[];
+}
+
+/** Articles d'un mois civil pour la newsletter mensuelle (titre, visuel, résumé, lien). */
+export async function fetchNewsletterMonthExport(
+  siteId: string | null | undefined,
+  year: number,
+  month: number,
+): Promise<NewsletterArticleExport[]> {
+  if (!siteId) return [];
+
+  const start = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0));
+  const end = new Date(Date.UTC(year, month, 1, 0, 0, 0));
+
+  const { data, error } = await supabase
+    .from("blog_posts")
+    .select(LIST_SELECT)
+    .eq("site_id", siteId)
+    .eq("is_published", true)
+    .gte("published_at", start.toISOString())
+    .lt("published_at", end.toISOString())
+    .order("published_at", { ascending: true });
+
+  if (error) throw error;
+
+  return ((data ?? []) as BlogPostListItem[]).map((post) => ({
+    title: post.title,
+    excerpt: post.excerpt?.trim() || "",
+    coverImageUrl: getBlogCoverUrl(post),
+    pinterestImageUrl: getBlogPinterestUrl(post),
+    url: blogPostShareUrl(post.slug),
+    category: post.blog_categories?.name ?? null,
+    audience: post.audience,
+    publishedAt: post.published_at,
+  }));
+}
+
+export function newsletterExportToMarkdown(items: NewsletterArticleExport[], monthLabel: string): string {
+  const lines = [`# Newsletter Vis-à-Bois — ${monthLabel}`, ""];
+  for (const item of items) {
+    lines.push(`## ${item.title}`);
+    if (item.category) lines.push(`*${item.category}*`);
+    if (item.excerpt) lines.push(item.excerpt);
+    lines.push(`[Lire l'article](${item.url})`);
+    if (item.coverImageUrl) lines.push(`Visuel : ${item.coverImageUrl}`);
+    if (item.pinterestImageUrl && item.pinterestImageUrl !== item.coverImageUrl) {
+      lines.push(`Visuel Pinterest 2:3 : ${item.pinterestImageUrl}`);
+    }
+    lines.push("");
+  }
+  return lines.join("\n");
 }
 
 /** Escape HTML then apply a small Markdown subset for safe article rendering. */

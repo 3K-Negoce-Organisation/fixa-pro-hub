@@ -133,7 +133,7 @@ export function Header() {
   }, []);
 
   const fetchDbStats = async () => {
-    const tables = ['products', 'profiles', 'orders', 'order_items', 'user_carts', 'supplier_settings', 'user_roles', 'blog_posts'];
+    const tables = ['products', 'profiles', 'orders', 'order_items', 'user_carts', 'supplier_settings', 'user_roles', 'blog_posts', 'blog_categories'];
     const stats: { table: string; count: number }[] = [];
     
     for (const table of tables) {
