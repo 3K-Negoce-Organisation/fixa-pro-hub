@@ -9,7 +9,8 @@ export const REDIRECT_HOSTS = new Set([
   "www.vis-a-bois.fr",
 ]);
 export const SITE_NAME = "Vis-à-Bois";
-export const DEFAULT_OG_IMAGE = `${SITE_URL}/og-image.jpg`;
+/** Cache-bust so WhatsApp / LinkedIn / iMessage refetch after logo updates. */
+export const DEFAULT_OG_IMAGE = `${SITE_URL}/og-image.jpg?v=20260721`;
 export const DEFAULT_TITLE = "Vis à bois — Vis-à-Bois | Livraison 24/48h";
 export const DEFAULT_DESCRIPTION =
   "Spécialiste des vis à bois pour particuliers et bricoleurs : terrasse, charpente, tirefond. +5000 références en stock. Livraison 24/48h.";
