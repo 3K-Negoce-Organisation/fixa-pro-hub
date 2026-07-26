@@ -38,7 +38,10 @@ export function FeaturedProducts() {
     enabled: !siteLoading,
   });
 
-  const featuredProducts: DisplayProduct[] = (products?.slice(0, 4) || []).map(mapProductToDisplay);
+  const featuredProducts: DisplayProduct[] = (products || [])
+    .filter((product) => (product.stock ?? 0) > 0)
+    .slice(0, 4)
+    .map(mapProductToDisplay);
 
   const handleAddToCart = (productId: string) => {
     const product = featuredProducts.find((p) => p.id === productId);
