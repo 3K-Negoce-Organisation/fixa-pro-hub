@@ -8,7 +8,9 @@ export function Footer() {
           {/* Liens infos et légaux */}
           <div className="flex flex-wrap justify-center md:justify-start gap-x-4 gap-y-1 text-sm">
             <Link to="/information-technique" className="text-theme-footer-hover hover:underline">Infos techniques</Link>
+            <Link to="/guide-choix-vis-a-bois" className="text-theme-footer-hover hover:underline">Guide choix</Link>
             <Link to="/faq" className="text-theme-footer-hover hover:underline">FAQ</Link>
+            <Link to="/a-propos" className="text-theme-footer-hover hover:underline">À propos</Link>
             <Link to="/contact" className="text-theme-footer-hover hover:underline">Contact</Link>
             <span className="opacity-30 hidden md:inline">|</span>
             <Link to="/cgv" className="opacity-70 text-theme-footer-hover hover:underline">CGV</Link>

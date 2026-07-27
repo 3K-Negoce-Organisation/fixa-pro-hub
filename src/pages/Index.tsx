@@ -12,7 +12,8 @@ import { QuickOrderSection } from "@/components/home/QuickOrderSection";
 import { SeoExploreLinks } from "@/components/home/SeoExploreLinks";
 import { FeaturedProducts } from "@/components/home/FeaturedProducts";
 import { PageSeo } from "@/components/seo/PageSeo";
-import { DEFAULT_DESCRIPTION, DEFAULT_TITLE, SITE_NAME, SITE_URL, absoluteUrl } from "@/lib/seo";
+import { DEFAULT_DESCRIPTION, DEFAULT_TITLE, absoluteUrl } from "@/lib/seo";
+import { buildOrganizationJsonLd, buildWebsiteJsonLd } from "@/lib/organizationJsonLd";
 import { supabase } from "@/integrations/supabase/client";
 import { useSiteCategories, filterHomepageCategories } from "@/hooks/useSiteCategories";
 import { useStorefrontSite } from "@/contexts/StorefrontSiteContext";
@@ -101,21 +102,7 @@ const Index = () => {
         title={DEFAULT_TITLE}
         description={DEFAULT_DESCRIPTION}
         canonical={absoluteUrl("/")}
-        jsonLd={{
-          "@context": "https://schema.org",
-          "@type": "WebSite",
-          name: SITE_NAME,
-          url: SITE_URL,
-          description: DEFAULT_DESCRIPTION,
-          potentialAction: {
-            "@type": "SearchAction",
-            target: {
-              "@type": "EntryPoint",
-              urlTemplate: `${SITE_URL}/produits?q={search_term_string}`,
-            },
-            "query-input": "required name=search_term_string",
-          },
-        }}
+        jsonLd={[buildWebsiteJsonLd(), buildOrganizationJsonLd()]}
       />
       <Header />
 

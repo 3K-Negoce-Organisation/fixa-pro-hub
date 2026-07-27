@@ -80,6 +80,45 @@ Voir `deploy/nginx-seo-redirects.conf` pour un exemple nginx.
 - Compléter les descriptions des **20 best-sellers** sans `description` en base (admin produits)
 - Vérifier les 4 PDF sur `/information-technique` en prod
 
-## 6. Suivi (J+30 / J+90)
+## 6. Visibilité IA (GEO) — additif, sans changer le parcours boutique
 
-Dans Search Console : pages indexées, impressions « vis à bois », erreurs canonical.
+### Technique déjà en place
+
+- JSON-LD `Organization` + `WebSite` (accueil) et `FAQPage` (FAQ) : client (`PageSeo`) **et** HTML initial via `seo-manifest` + `storefront-server`
+- Blocs `<noscript id="geo-crawl-content">` sur pages clés (accueil, FAQ, guide, comparatif, à propos) — visibles uniquement sans JS, **sans** dupliquer le rendu React
+- Pages éditoriales : `/guide-choix-vis-a-bois`, `/comparatif-vis-inox-a2-a4`, `/a-propos`
+- `public/llms.txt` (manifeste pour agents ; **pas** un signal de ranking Google)
+- `robots.txt` : Allow explicite GPTBot, OAI-SearchBot, ClaudeBot, PerplexityBot, Google-Extended (même politique qu’avant : crawl search autorisé)
+
+### Mesure citation (hebdo)
+
+Tester un set fixe de prompts FR sur ChatGPT (web), Perplexity et Google AI Overviews. Noter : cité / non cité / URL concurrente.
+
+Exemples de prompts :
+
+1. meilleures vis à bois en ligne France
+2. où acheter des vis à bois terrasse inox
+3. différence vis inox A2 et A4
+4. quelle vis choisir pour terrasse bois
+5. vis à bois charpente professionnelle
+6. Vis-à-Bois avis / qui est Vis-à-Bois
+7. fournisseur vis à bois livraison rapide
+8. vis tirefond tête hexagonale
+9. fiche technique vis terrasse Torx
+10. frais de livraison vis à bois
+11. inox A4 bord de mer terrasse
+12. catalogue vis à bois diamètre longueur
+13. 3K-Négoce Vis-à-Bois
+14. comment choisir longueur vis à bois
+15. vis agglo vs vis charpente
+16. acheter vis à bois par boîte
+17. retour commande vis à bois
+18. vis VBF galvanisée
+19. comparatif acier zingué vs inox vis bois
+20. spécialiste vis à bois particuliers France
+
+Après déploiement : soumettre à nouveau le sitemap GSC (nouvelles URLs guide / comparatif / à propos).
+
+## 7. Suivi (J+30 / J+90)
+
+Dans Search Console : pages indexées, impressions « vis à bois », erreurs canonical. Côté IA : part de citation sur le set de 20 prompts.

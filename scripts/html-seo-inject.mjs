@@ -22,6 +22,7 @@ function escapeHtml(value) {
 /**
  * Injecte title, description, canonical et Open Graph dans index.html
  * pour que les crawlers (GSC) voient les bonnes balises avant exécution JS.
+ * Optionnel (GEO) : jsonLd dans <head>, crawlHtml en <noscript> — n'impacte pas React.
  */
 export function injectSeoIntoHtml(html, seo = {}) {
   const title = seo.title ?? DEFAULT_TITLE;
@@ -37,6 +38,9 @@ export function injectSeoIntoHtml(html, seo = {}) {
   out = out.replace(/\s*<meta name="robots"[^>]*>/gi, "");
   out = out.replace(/\s*<meta property="og:[^"]+"[^>]*>/gi, "");
   out = out.replace(/\s*<meta name="twitter:(?!site)[^"]+"[^>]*>/gi, "");
+  // Retire d'éventuels JSON-LD / noscript GEO déjà injectés (évite doublons si template cache)
+  out = out.replace(/\s*<script type="application\/ld\+json">[\s\S]*?<\/script>/gi, "");
+  out = out.replace(/\s*<noscript id="geo-crawl-content">[\s\S]*?<\/noscript>/gi, "");
 
   const tags = [
     `<meta name="description" content="${escapeAttr(description)}" />`,
@@ -59,5 +63,23 @@ export function injectSeoIntoHtml(html, seo = {}) {
     tags.push(`<meta name="robots" content="noindex, nofollow" />`);
   }
 
-  return out.replace("</head>", `    ${tags.join("\n    ")}\n  </head>`);
+  const jsonLdItems = Array.isArray(seo.jsonLd)
+    ? seo.jsonLd
+    : seo.jsonLd
+      ? [seo.jsonLd]
+      : [];
+  for (const item of jsonLdItems) {
+    tags.push(
+      `<script type="application/ld+json">${JSON.stringify(item).replace(/</g, "\\u003c")}</script>`,
+    );
+  }
+
+  out = out.replace("</head>", `    ${tags.join("\n    ")}\n  </head>`);
+
+  if (seo.crawlHtml && typeof seo.crawlHtml === "string" && seo.crawlHtml.trim()) {
+    const noscript = `<noscript id="geo-crawl-content">${seo.crawlHtml}</noscript>`;
+    out = out.replace(/<div id="root"><\/div>/i, `${noscript}\n    <div id="root"></div>`);
+  }
+
+  return out;
 }

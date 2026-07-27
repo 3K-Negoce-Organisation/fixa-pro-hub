@@ -55,6 +55,24 @@ export const STATIC_PAGE_SEO = {
     description: "Procédure de retour pour vos commandes de vis à bois sur vis-a-bois.com. Délai de 30 jours.",
     path: "/retours",
   },
+  guideChoix: {
+    title: "Comment choisir ses vis à bois — Guide | Vis-à-Bois",
+    description:
+      "Guide pratique pour choisir ses vis à bois : diamètre, longueur, matériau (zingué, inox A2/A4), usages terrasse, charpente et tirefond.",
+    path: "/guide-choix-vis-a-bois",
+  },
+  comparatifInox: {
+    title: "Vis inox A2 vs A4 — Comparatif | Vis-à-Bois",
+    description:
+      "Différence entre vis inox A2 et A4 : corrosion, usages intérieur/extérieur, bord de mer. Quel inox choisir pour vos vis à bois.",
+    path: "/comparatif-vis-inox-a2-a4",
+  },
+  aPropos: {
+    title: "À propos de Vis-à-Bois — Spécialiste vis à bois | 3K-Négoce",
+    description:
+      "Vis-à-Bois est la boutique en ligne de 3K-Négoce, spécialisée dans les vis à bois pour particuliers et professionnels. Catalogue, livraison 24/48h.",
+    path: "/a-propos",
+  },
 } as const satisfies Record<string, StaticPageSeo>;
 
 export function staticPageCanonical(path: string): string {

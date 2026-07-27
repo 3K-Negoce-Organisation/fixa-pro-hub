@@ -8,12 +8,12 @@ import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
 import {
   STATIC_PAGES,
-  absoluteUrl,
   buildCategoryDescription,
   buildCategoryTitle,
   buildProductDescription,
   buildProductTitle,
   toManifestEntry,
+  withGeoExtras,
 } from "./seo-data.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -28,11 +28,14 @@ async function main() {
   const manifest = {};
 
   for (const [path, seo] of Object.entries(STATIC_PAGES)) {
-    manifest[path] = toManifestEntry({
-      title: seo.title,
-      description: seo.description,
-      canonical: path,
-    });
+    manifest[path] = withGeoExtras(
+      path,
+      toManifestEntry({
+        title: seo.title,
+        description: seo.description,
+        canonical: path,
+      }),
+    );
   }
 
   if (!supabaseUrl || !supabaseKey) {
