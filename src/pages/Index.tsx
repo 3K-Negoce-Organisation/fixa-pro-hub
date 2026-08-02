@@ -35,6 +35,7 @@ const Index = () => {
   const { siteId, site, loading: siteLoading } = useStorefrontSite();
   const { data: dbCategories = [] } = useSiteCategories();
   const isTwelveUniversesRow = site?.home_visual === "12eVisuel";
+  const isShortHero = site?.home_visual === "13eVisuel";
 
   // Track image loading state
   useEffect(() => {
@@ -124,27 +125,35 @@ const Index = () => {
       <main className="flex-1 relative">
         {/* Fond hero plein largeur derrière la zone haute */}
         <div
-          className="pointer-events-none absolute inset-x-0 top-0 h-[28rem] md:h-[32rem] bg-cover bg-center opacity-20"
+          className={
+            isShortHero
+              ? "pointer-events-none absolute inset-x-0 top-0 h-[14rem] md:h-[16rem] bg-cover bg-center opacity-20"
+              : "pointer-events-none absolute inset-x-0 top-0 h-[28rem] md:h-[32rem] bg-cover bg-center opacity-20"
+          }
           style={{ backgroundImage: `url(${heroScrewsBg})` }}
           aria-hidden
         />
         <div
-          className="pointer-events-none absolute inset-x-0 top-0 h-[28rem] md:h-[32rem] bg-gradient-to-b from-transparent via-background/30 to-background"
+          className={
+            isShortHero
+              ? "pointer-events-none absolute inset-x-0 top-0 h-[14rem] md:h-[16rem] bg-gradient-to-b from-transparent via-background/30 to-background"
+              : "pointer-events-none absolute inset-x-0 top-0 h-[28rem] md:h-[32rem] bg-gradient-to-b from-transparent via-background/30 to-background"
+          }
           aria-hidden
         />
 
         {/* Blog flottant à droite : le reste du site s’écoule à côté puis reprend toute la largeur en dessous */}
-        <div className="container relative z-10 pt-4 md:pt-6 pb-10">
+        <div className={`container relative z-10 pb-10 ${isShortHero ? "pt-2 md:pt-3" : "pt-4 md:pt-6"}`}>
           <div className="flow-root">
-            <div className="mb-4 w-full lg:float-right lg:mb-6 lg:ml-6 xl:ml-8 lg:w-[280px] xl:w-[300px] lg:pt-2">
+            <div className={`w-full lg:float-right lg:ml-6 xl:ml-8 lg:w-[280px] xl:w-[300px] ${isShortHero ? "mb-2 lg:mb-3 lg:pt-1" : "mb-4 lg:mb-6 lg:pt-2"}`}>
               <BlogSidebar />
             </div>
 
             {/* Hero Search */}
-            <section className="py-6 md:py-10">
-              <div className="flex items-center justify-center gap-4 lg:gap-8">
+            <section className={isShortHero ? "py-2 md:py-4" : "py-6 md:py-10"}>
+              <div className={`flex items-center justify-center ${isShortHero ? "gap-3 lg:gap-5" : "gap-4 lg:gap-8"}`}>
                 <div className="hidden md:block flex-shrink-0">
-                  <div className={`w-28 lg:w-36 h-28 lg:h-36 rounded-2xl overflow-hidden shadow-xl ring-4 ring-primary/20 rotate-[-6deg] hover:rotate-0 transition-all duration-300 ${imagesLoaded ? "opacity-100" : "opacity-0"}`}>
+                  <div className={`${isShortHero ? "w-20 lg:w-24 h-20 lg:h-24" : "w-28 lg:w-36 h-28 lg:h-36"} rounded-2xl overflow-hidden shadow-xl ring-4 ring-primary/20 rotate-[-6deg] hover:rotate-0 transition-all duration-300 ${imagesLoaded ? "opacity-100" : "opacity-0"}`}>
                     <img
                       src={screwsDetailLeft}
                       alt="Vis dorées sur bois"
@@ -155,7 +164,7 @@ const Index = () => {
                 </div>
 
                 <div className="max-w-2xl flex-1 min-w-0">
-                  <h1 className="text-3xl md:text-4xl font-bold text-center mb-6 text-foreground">
+                  <h1 className={`font-bold text-center text-foreground ${isShortHero ? "mb-3 text-2xl md:text-3xl" : "mb-6 text-3xl md:text-4xl"}`}>
                     Vis à bois de qualité professionnelle
                   </h1>
                   <form onSubmit={handleSearch} className="relative">
@@ -164,7 +173,7 @@ const Index = () => {
                       placeholder="Rechercher par référence, dimensions, type... (ex: vis terrasse inox 5x50)"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full pl-4 pr-28 py-4 text-base border-2 border-primary/30 focus:border-primary bg-background/90 backdrop-blur-sm shadow-lg"
+                      className={`w-full pl-4 pr-28 text-base border-2 border-primary/30 focus:border-primary bg-background/90 backdrop-blur-sm shadow-lg ${isShortHero ? "py-3" : "py-4"}`}
                     />
                     <Button
                       type="submit"
@@ -175,7 +184,7 @@ const Index = () => {
                     </Button>
                   </form>
 
-                  <div className="flex flex-wrap justify-center gap-6 text-sm text-muted-foreground mt-6">
+                  <div className={`flex flex-wrap justify-center gap-6 text-sm text-muted-foreground ${isShortHero ? "mt-3" : "mt-6"}`}>
                     <div className="flex items-center gap-2 bg-background/80 backdrop-blur-sm px-4 py-2 rounded-full shadow-sm">
                       <Truck className="h-4 w-4 text-primary" />
                       <span>Livraison 24/48h</span>
@@ -189,7 +198,7 @@ const Index = () => {
 
                 {/* Image déco droite : masquée dès lg (place au blog) */}
                 <div className="hidden md:block lg:hidden flex-shrink-0">
-                  <div className={`w-28 h-28 rounded-2xl overflow-hidden shadow-xl ring-4 ring-primary/20 rotate-[6deg] hover:rotate-0 transition-all duration-300 ${imagesLoaded ? "opacity-100" : "opacity-0"}`}>
+                  <div className={`${isShortHero ? "w-20 h-20" : "w-28 h-28"} rounded-2xl overflow-hidden shadow-xl ring-4 ring-primary/20 rotate-[6deg] hover:rotate-0 transition-all duration-300 ${imagesLoaded ? "opacity-100" : "opacity-0"}`}>
                     <img
                       src={screwsDetailRight}
                       alt="Vis inox sur bois"
@@ -204,7 +213,9 @@ const Index = () => {
                 className={
                   isTwelveUniversesRow
                     ? "mt-8 grid grid-cols-8 gap-1 sm:mt-10 sm:gap-1.5 md:gap-2 lg:gap-3"
-                    : "mt-10 grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 xl:grid-cols-5"
+                    : isShortHero
+                      ? "mt-5 grid grid-cols-2 gap-2 sm:gap-3 md:grid-cols-3 xl:grid-cols-5"
+                      : "mt-10 grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 xl:grid-cols-5"
                 }
               >
                 {categories.map((category) => (
