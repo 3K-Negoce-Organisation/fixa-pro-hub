@@ -32,8 +32,9 @@ const Index = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [imagesLoaded, setImagesLoaded] = useState(false);
   const navigate = useNavigate();
-  const { siteId, loading: siteLoading } = useStorefrontSite();
+  const { siteId, site, loading: siteLoading } = useStorefrontSite();
   const { data: dbCategories = [] } = useSiteCategories();
+  const isTwelveUniversesRow = site?.home_visual === "12eVisuel";
 
   // Track image loading state
   useEffect(() => {
@@ -199,7 +200,13 @@ const Index = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4 mt-10">
+              <div
+                className={
+                  isTwelveUniversesRow
+                    ? "mt-8 grid grid-cols-8 gap-1 sm:mt-10 sm:gap-1.5 md:gap-2 lg:gap-3"
+                    : "mt-10 grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 xl:grid-cols-5"
+                }
+              >
                 {categories.map((category) => (
                   <CategoryCard
                     key={category.id}
@@ -208,6 +215,7 @@ const Index = () => {
                     slug={category.slug}
                     imageUrl={category.image_url}
                     count={category.count}
+                    compact={isTwelveUniversesRow}
                   />
                 ))}
               </div>
