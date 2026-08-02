@@ -1,247 +1,51 @@
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { Search, Shield, Truck } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Header } from "@/components/layout/Header";
-import { Footer } from "@/components/layout/Footer";
-import { PageBackground } from "@/components/layout/PageBackground";
-import { CategoryCard } from "@/components/home/CategoryCard";
-import { QuickOrderSection } from "@/components/home/QuickOrderSection";
-import { SeoExploreLinks } from "@/components/home/SeoExploreLinks";
-import { FeaturedProducts } from "@/components/home/FeaturedProducts";
-import { BlogSidebar } from "@/components/home/BlogSidebar";
-import { PageSeo } from "@/components/seo/PageSeo";
-import { DEFAULT_DESCRIPTION, DEFAULT_TITLE, SITE_NAME, SITE_URL, absoluteUrl } from "@/lib/seo";
-import { supabase } from "@/integrations/supabase/client";
-import { useSiteCategories, filterHomepageCategories } from "@/hooks/useSiteCategories";
+import { useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useStorefrontSite } from "@/contexts/StorefrontSiteContext";
-import heroScrewsBg from "@/assets/hero-screws-new.jpg";
-import screwsDetailLeft from "@/assets/screws-detail-left-optimized.jpg";
-import screwsDetailRight from "@/assets/screws-detail-right-optimized.jpg";
-
-// Preload critical images
-const preloadImages = [heroScrewsBg, screwsDetailLeft, screwsDetailRight];
-preloadImages.forEach((src) => {
-  const img = new Image();
-  img.src = src;
-});
+import {
+  findAiryHomeTheme,
+  normalizeHomeVisual,
+  type HomeVisualId,
+  HOME_VISUAL_IDS,
+} from "@/lib/homeVisuals";
+import { HomeVisualClassic } from "@/components/home/visuals/HomeVisualClassic";
+import { HomeVisual4, HomeVisual13 } from "@/components/home/visuals/HomeVisual4";
+import { HomeVisualAiry } from "@/components/home/visuals/HomeVisualAiry";
+import { HomeVisualShowcase } from "@/components/home/visuals/HomeVisualShowcase";
 
 const Index = () => {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [imagesLoaded, setImagesLoaded] = useState(false);
-  const navigate = useNavigate();
-  const { siteId, site, loading: siteLoading } = useStorefrontSite();
-  const { data: dbCategories = [] } = useSiteCategories();
-  const isTwelveUniversesRow = site?.home_visual === "12eVisuel";
-  const isShortHero = site?.home_visual === "13eVisuel";
+  const { site } = useStorefrontSite();
+  const [params] = useSearchParams();
 
-  // Track image loading state
-  useEffect(() => {
-    let loadedCount = 0;
-    const totalImages = preloadImages.length;
-    
-    preloadImages.forEach((src) => {
-      const img = new Image();
-      img.onload = () => {
-        loadedCount++;
-        if (loadedCount === totalImages) {
-          setImagesLoaded(true);
-        }
-      };
-      img.onerror = () => {
-        loadedCount++;
-        if (loadedCount === totalImages) {
-          setImagesLoaded(true);
-        }
-      };
-      img.src = src;
-    });
-    
-    // Fallback: consider loaded after 2s max
-    const timeout = setTimeout(() => setImagesLoaded(true), 2000);
-    return () => clearTimeout(timeout);
-  }, []);
-
-  // Fetch product counts by category_id (scoped to active site)
-  const { data: categoryCounts } = useQuery({
-    queryKey: ["category-counts", siteId],
-    queryFn: async () => {
-      let q = supabase
-        .from("products")
-        .select("category_id")
-        .eq("is_active", true);
-      if (siteId) q = q.eq("site_id", siteId);
-      const { data, error } = await q;
-      if (error) throw error;
-      const counts: Record<string, number> = {};
-      data?.forEach((product) => {
-        if (product.category_id) {
-          counts[product.category_id] = (counts[product.category_id] || 0) + 1;
-        }
-      });
-      return counts;
-    },
-    enabled: !siteLoading,
-  });
-
-  const categories = filterHomepageCategories(dbCategories).map((cat) => ({
-    ...cat,
-    count: categoryCounts?.[cat.id] || 0,
-  }));
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      navigate(`/produits?q=${encodeURIComponent(searchQuery.trim())}`);
+  const visual = useMemo<HomeVisualId>(() => {
+    const fromQuery = params.get("visuel");
+    if (fromQuery && (HOME_VISUAL_IDS as string[]).includes(fromQuery)) {
+      return fromQuery as HomeVisualId;
     }
-  };
+    return normalizeHomeVisual(site?.home_visual);
+  }, [params, site?.home_visual]);
 
-  return (
-    <PageBackground>
-      <PageSeo
-        title={DEFAULT_TITLE}
-        description={DEFAULT_DESCRIPTION}
-        canonical={absoluteUrl("/")}
-        jsonLd={{
-          "@context": "https://schema.org",
-          "@type": "WebSite",
-          name: SITE_NAME,
-          url: SITE_URL,
-          description: DEFAULT_DESCRIPTION,
-          potentialAction: {
-            "@type": "SearchAction",
-            target: {
-              "@type": "EntryPoint",
-              urlTemplate: `${SITE_URL}/produits?q={search_term_string}`,
-            },
-            "query-input": "required name=search_term_string",
-          },
-        }}
-      />
-      <Header />
+  if (visual === "11eVisuel") {
+    return <HomeVisualShowcase />;
+  }
 
-      <main className="flex-1 relative">
-        {/* Fond hero plein largeur derrière la zone haute */}
-        <div
-          className={
-            isShortHero
-              ? "pointer-events-none absolute inset-x-0 top-0 h-[14rem] md:h-[16rem] bg-cover bg-center opacity-20"
-              : "pointer-events-none absolute inset-x-0 top-0 h-[28rem] md:h-[32rem] bg-cover bg-center opacity-20"
-          }
-          style={{ backgroundImage: `url(${heroScrewsBg})` }}
-          aria-hidden
-        />
-        <div
-          className={
-            isShortHero
-              ? "pointer-events-none absolute inset-x-0 top-0 h-[14rem] md:h-[16rem] bg-gradient-to-b from-transparent via-background/30 to-background"
-              : "pointer-events-none absolute inset-x-0 top-0 h-[28rem] md:h-[32rem] bg-gradient-to-b from-transparent via-background/30 to-background"
-          }
-          aria-hidden
-        />
+  if (visual === "13eVisuel") {
+    return <HomeVisual13 />;
+  }
 
-        {/* Blog flottant à droite : le reste du site s’écoule à côté puis reprend toute la largeur en dessous */}
-        <div className={`container relative z-10 pb-10 ${isShortHero ? "pt-2 md:pt-3" : "pt-4 md:pt-6"}`}>
-          <div className="flow-root">
-            <div className={`w-full lg:float-right lg:ml-6 xl:ml-8 lg:w-[280px] xl:w-[300px] ${isShortHero ? "mb-2 lg:mb-3 lg:pt-1" : "mb-4 lg:mb-6 lg:pt-2"}`}>
-              <BlogSidebar />
-            </div>
+  if (visual === "4eVisuel") {
+    return <HomeVisual4 />;
+  }
 
-            {/* Hero Search */}
-            <section className={isShortHero ? "py-2 md:py-4" : "py-6 md:py-10"}>
-              <div className={`flex items-center justify-center ${isShortHero ? "gap-3 lg:gap-5" : "gap-4 lg:gap-8"}`}>
-                <div className="hidden md:block flex-shrink-0">
-                  <div className={`${isShortHero ? "w-20 lg:w-24 h-20 lg:h-24" : "w-28 lg:w-36 h-28 lg:h-36"} rounded-2xl overflow-hidden shadow-xl ring-4 ring-primary/20 rotate-[-6deg] hover:rotate-0 transition-all duration-300 ${imagesLoaded ? "opacity-100" : "opacity-0"}`}>
-                    <img
-                      src={screwsDetailLeft}
-                      alt="Vis dorées sur bois"
-                      className="w-full h-full object-cover"
-                      loading="eager"
-                    />
-                  </div>
-                </div>
+  const airyTheme = findAiryHomeTheme(visual);
+  if (airyTheme) {
+    return <HomeVisualAiry theme={airyTheme} />;
+  }
 
-                <div className="max-w-2xl flex-1 min-w-0">
-                  <h1 className={`font-bold text-center text-foreground ${isShortHero ? "mb-3 text-2xl md:text-3xl" : "mb-6 text-3xl md:text-4xl"}`}>
-                    Vis à bois de qualité professionnelle
-                  </h1>
-                  <form onSubmit={handleSearch} className="relative">
-                    <Input
-                      type="search"
-                      placeholder="Rechercher par référence, dimensions, type... (ex: vis terrasse inox 5x50)"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className={`w-full pl-4 pr-28 text-base border-2 border-primary/30 focus:border-primary bg-background/90 backdrop-blur-sm shadow-lg ${isShortHero ? "py-3" : "py-4"}`}
-                    />
-                    <Button
-                      type="submit"
-                      className="absolute right-0 top-1/2 -translate-y-1/2 rounded-l-none bg-accent hover:bg-accent/90"
-                    >
-                      <Search className="h-4 w-4 mr-2" />
-                      Rechercher
-                    </Button>
-                  </form>
+  if (visual === "1erVisuel" || visual === "2eVisuel") {
+    return <HomeVisualClassic variant={visual} />;
+  }
 
-                  <div className={`flex flex-wrap justify-center gap-6 text-sm text-muted-foreground ${isShortHero ? "mt-3" : "mt-6"}`}>
-                    <div className="flex items-center gap-2 bg-background/80 backdrop-blur-sm px-4 py-2 rounded-full shadow-sm">
-                      <Truck className="h-4 w-4 text-primary" />
-                      <span>Livraison 24/48h</span>
-                    </div>
-                    <div className="flex items-center gap-2 bg-background/80 backdrop-blur-sm px-4 py-2 rounded-full shadow-sm">
-                      <Shield className="h-4 w-4 text-success" />
-                      <span>Qualité certifiée</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Image déco droite : masquée dès lg (place au blog) */}
-                <div className="hidden md:block lg:hidden flex-shrink-0">
-                  <div className={`${isShortHero ? "w-20 h-20" : "w-28 h-28"} rounded-2xl overflow-hidden shadow-xl ring-4 ring-primary/20 rotate-[6deg] hover:rotate-0 transition-all duration-300 ${imagesLoaded ? "opacity-100" : "opacity-0"}`}>
-                    <img
-                      src={screwsDetailRight}
-                      alt="Vis inox sur bois"
-                      className="w-full h-full object-cover"
-                      loading="eager"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div
-                className={
-                  isTwelveUniversesRow
-                    ? "mt-8 grid grid-cols-8 gap-1 sm:mt-10 sm:gap-1.5 md:gap-2 lg:gap-3"
-                    : isShortHero
-                      ? "mt-5 grid grid-cols-2 gap-2 sm:gap-3 md:grid-cols-3 xl:grid-cols-5"
-                      : "mt-10 grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 xl:grid-cols-5"
-                }
-              >
-                {categories.map((category) => (
-                  <CategoryCard
-                    key={category.id}
-                    id={category.id}
-                    name={category.name}
-                    slug={category.slug}
-                    imageUrl={category.image_url}
-                    count={category.count}
-                    compact={isTwelveUniversesRow}
-                  />
-                ))}
-              </div>
-            </section>
-
-            <QuickOrderSection />
-            <FeaturedProducts />
-            <SeoExploreLinks />
-          </div>
-        </div>
-      </main>
-
-      <Footer />
-    </PageBackground>
-  );
+  return <HomeVisualClassic variant="3eVisuel" />;
 };
 
 export default Index;

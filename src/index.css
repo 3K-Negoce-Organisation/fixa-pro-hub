@@ -41,6 +41,11 @@
 
     --radius: 0.375rem;
 
+    /* Marketplace 3K */
+    --brand-orange: #ff7900;
+    --brand-orange-hover: #e86b00;
+    --brand-navy: #000d4f;
+
     /* Custom B2B tokens */
     --success: 142 76% 36%;
     --warning: 38 92% 50%;
@@ -184,6 +189,18 @@
 }
 
 @layer components {
+  .theme-frame {
+    border-style: solid;
+    border-width: var(--theme-border-width, 1px);
+    border-color: var(--theme-card-border, transparent);
+    border-radius: var(--theme-border-radius, 0.5rem);
+    box-shadow: var(--theme-card-shadow, none);
+  }
+
+  .theme-radius {
+    border-radius: var(--theme-border-radius, 0.5rem);
+  }
+
   .price-ht {
     @apply text-foreground font-bold;
   }

@@ -9,6 +9,7 @@ export type SiteCategory = {
   sort_order?: number | null;
   image_url?: string | null;
   show_on_homepage?: boolean | null;
+  gamme_id?: string | null;
 };
 
 const DEFAULT_SELECT = "id, name, slug, sort_order, image_url, show_on_homepage";
