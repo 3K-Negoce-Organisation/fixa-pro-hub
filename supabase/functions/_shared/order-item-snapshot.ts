@@ -128,13 +128,8 @@ export function orderItemRowToEnrichmentLine(item: Record<string, unknown>): Rec
   };
 }
 
+/** Snapshot prix d'achat figé — un code Alsafix seul ne suffit pas (ex. commandes marketplace). */
 export function orderItemHasFrozenSnapshot(item: Record<string, unknown>): boolean {
-  return (
-    item.code_alsafix != null ||
-    item.box_quantity != null ||
-    item.snapshot_purchase_price_ht != null ||
-    item.snapshot_unite_de_vente != null ||
-    item.product_description != null ||
-    item.designation_fr != null
-  );
+  const purchase = item.snapshot_purchase_price_ht ?? item.product_purchase_price_ht ?? item.purchase_price_ht;
+  return purchase != null && Number(purchase) > 0;
 }

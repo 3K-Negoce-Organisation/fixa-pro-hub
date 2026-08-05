@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { splitOrderTotals } from "../_shared/order-totals.ts";
 import { sendOrderConfirmationEmail } from "../_shared/send-order-confirmation-email.ts";
 import { buildOrderTrackingUrlForEmail } from "../_shared/guest-order-tracking-url.ts";
