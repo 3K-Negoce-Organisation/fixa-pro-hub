@@ -271,6 +271,7 @@ serve(async (req) => {
       .upload(pdfPath, bytes, {
         contentType: 'application/pdf',
         upsert: true,
+        cacheControl: '0',
       });
 
     if (uploadError) {

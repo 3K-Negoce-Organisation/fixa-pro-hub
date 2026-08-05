@@ -179,7 +179,7 @@ export async function sendOrderToN8n(params: SendOrderToN8nParams): Promise<void
 
       const { error: uploadError } = await supabaseAdmin.storage
         .from("order-documents")
-        .upload(filePath, bytes, { contentType: "application/pdf", upsert: true });
+        .upload(filePath, bytes, { contentType: "application/pdf", upsert: true, cacheControl: "0" });
 
       if (!uploadError) {
         const { data: signedUrlData } = await supabaseAdmin.storage
