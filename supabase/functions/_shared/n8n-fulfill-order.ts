@@ -11,6 +11,7 @@ import { buildOrderTrackingUrlForEmail } from "./guest-order-tracking-url.ts";
 import { resolveResendFrom } from "./resolve-resend-from.ts";
 import { resolveSiteLogoUrlForEmail } from "./site-logo.ts";
 import { tryClaimSupplierFulfillment } from "./order-fulfillment-claim.ts";
+import { supplierPoContactEmail } from "./supplier-contact-email.ts";
 
 export type SendOrderToN8nParams = {
   n8nWebhookUrl: string;
@@ -96,6 +97,7 @@ export async function sendOrderToN8n(params: SendOrderToN8nParams): Promise<void
     }
 
     const siteLogo = await loadSiteLogoForOrderPdf(supabaseAdmin, orderSiteId);
+    const carrierContactEmail = supplierPoContactEmail(supplierSettings);
     const pdfBase64 = generateOrderPDF(
       orderNumber,
       customerName || "",
@@ -113,6 +115,7 @@ export async function sendOrderToN8n(params: SendOrderToN8nParams): Promise<void
         : null,
       resolvedPhone,
       siteLogo,
+      carrierContactEmail || null,
     );
 
     const { productsHT, shippingHT } = splitOrderTotals(

@@ -88,7 +88,7 @@ serve(async (req) => {
       adminUserId = user.id;
     }
 
-    const { order_id, preview_only, record_manual_event, manual_note, skip_customer_email } = await req.json();
+    const { order_id, preview_only, record_manual_event, manual_note, skip_customer_email, skip_n8n } = await req.json();
 
     if (!order_id) {
       return new Response(
@@ -170,14 +170,15 @@ serve(async (req) => {
     const customerNumber = supplierSettings?.customer_number || '000001';
     const supplierContactEmail = supplierPoContactEmail(supplierSettings);
 
-    if (!preview_only && !n8nWebhookUrl) {
+    if (!preview_only && !skip_n8n && !n8nWebhookUrl) {
       return new Response(
         JSON.stringify({ error: 'N8N_WEBHOOK_URL non configuré' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const skipClientEmail = skip_customer_email === true;
+    const skipClientEmail = skip_customer_email === true || skip_n8n === true;
+    const storeOnly = skip_n8n === true;
 
     // Generate PDF file
     const siteLogo = await loadSiteLogoForOrderPdf(supabaseAdmin, order.site_id);
@@ -185,7 +186,7 @@ serve(async (req) => {
     const pdfBase64 = generateOrderPDF(
       order.order_number,
       displayName,
-      supplierContactEmail,
+      customerEmail,
       customerNumber,
       enrichedItems,
       {
@@ -194,8 +195,9 @@ serve(async (req) => {
         city: order.shipping_city || undefined,
         postal_code: order.shipping_postal_code || undefined,
       },
-      profile?.phone || customerPhone || null,
+      customerPhone || profile?.phone || null,
       siteLogo,
+      supplierContactEmail || null,
     );
 
     logStep("PDF file generated", { size: pdfBase64.length, preview_only: !!preview_only });
@@ -283,35 +285,40 @@ serve(async (req) => {
 
       if (signedUrlData?.signedUrl) {
         // Get existing documents
-        const existingDocs = Array.isArray(order.documents) ? order.documents : [];
+        const existingDocs = Array.isArray(order.documents) ? [...order.documents] : [];
         
-        // Check if this document already exists (avoid duplicates)
-        const docExists = existingDocs.some((doc: any) => doc.name === pdfFileName);
-        
-        if (!docExists) {
-          const newDocument = {
-            name: pdfFileName,
-            path: pdfPath,
-            url: signedUrlData.signedUrl,
-            type: 'application/pdf',
-            uploaded_at: new Date().toISOString(),
-          };
+        const newDocument = {
+          name: pdfFileName,
+          path: pdfPath,
+          url: signedUrlData.signedUrl,
+          type: 'application/pdf',
+          uploaded_at: new Date().toISOString(),
+          source: storeOnly ? 'regenerate_cmd' : 'simulate-order-webhook',
+        };
 
-          // Update order with new document
-          const { error: updateError } = await supabaseAdmin
-            .from('orders')
-            .update({
-              documents: [...existingDocs, newDocument],
-            })
-            .eq('id', order.id);
+        const existingIdx = existingDocs.findIndex((doc: { name?: string; path?: string }) =>
+          doc?.name === pdfFileName || doc?.path === pdfPath
+        );
 
-          if (updateError) {
-            logStep("Error updating order documents", { error: updateError.message });
-          } else {
-            logStep("Order documents updated", { docCount: existingDocs.length + 1 });
-          }
+        if (existingIdx >= 0) {
+          existingDocs[existingIdx] = newDocument;
+          logStep("Document replaced in order.documents", { name: pdfFileName });
         } else {
-          logStep("Document already exists, skipping", { name: pdfFileName });
+          existingDocs.push(newDocument);
+          logStep("Document appended to order.documents", { name: pdfFileName });
+        }
+
+        const { error: updateError } = await supabaseAdmin
+          .from('orders')
+          .update({
+            documents: existingDocs,
+          })
+          .eq('id', order.id);
+
+        if (updateError) {
+          logStep("Error updating order documents", { error: updateError.message });
+        } else {
+          logStep("Order documents updated", { docCount: existingDocs.length });
         }
       }
     }
@@ -327,6 +334,7 @@ serve(async (req) => {
         phone: customerPhone || profile?.phone || null,
         name: displayName,
         shipping_address: {
+          name: order.shipping_name || displayName,
           line1: order.shipping_address,
           city: order.shipping_city,
           postal_code: order.shipping_postal_code,
@@ -365,6 +373,40 @@ serve(async (req) => {
       },
       created_at: new Date().toISOString(),
     };
+
+    if (storeOnly) {
+      logStep("skip_n8n: PDF stocké sans envoi fournisseur", { order_number: order.order_number });
+
+      if (record_manual_event && adminUserId) {
+        await insertOrderStatusEvent(supabaseAdmin, {
+          order_id: order.id,
+          status: order.status,
+          event_kind: "manual_cmd",
+          is_manual: true,
+          note: manual_note || "Régénération CMD fournisseur (sans envoi)",
+          document: {
+            name: pdfFileName,
+            path: pdfPath,
+            type: "renvoi",
+          },
+          created_by: adminUserId,
+        });
+      }
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: "CMD régénérée et stockée (non envoyée au fournisseur)",
+          skip_n8n: true,
+          order_number: order.order_number,
+          pdf_file: {
+            filename: pdfFileName,
+            content_base64: pdfBase64,
+          },
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
 
     logStep("Sending to n8n", { url: n8nWebhookUrl });
 

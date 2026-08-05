@@ -91,6 +91,8 @@ export function generateOrderPDF(
   } | null,
   customerPhone?: string | null,
   siteLogo?: PdfSiteLogo | null,
+  /** E-mail de contact transporteur (ex. service client Vis-à-Bois). */
+  carrierContactEmail?: string | null,
 ): string {
   const date = new Date();
   const dateStr = `${String(date.getMonth() + 1).padStart(2, "0")}/${String(date.getDate()).padStart(2, "0")}/${String(date.getFullYear()).slice(-2)}`;
@@ -238,7 +240,7 @@ export function generateOrderPDF(
   doc.text("TOTAL ACHAT FOURNISSEUR TTC", tableLeft + 8, totalRowY + 7);
   doc.text(`${formatMoneyFr(productsTTC, 2)} €`, summaryRight, totalRowY + 7, { align: "right" });
 
-  const addressY = ensureY(doc, totalRowY + 12 + 8, 40);
+  const addressY = ensureY(doc, totalRowY + 12 + 8, 55);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10);
   doc.text("Adresse de livraison", margin, addressY);
@@ -272,9 +274,15 @@ export function generateOrderPDF(
     currentY += 5;
   }
 
-  const email = customerEmail?.trim();
-  if (email) {
-    doc.text(`E-mail ${email}`, margin + 10, currentY);
+  const clientEmail = customerEmail?.trim();
+  if (clientEmail) {
+    doc.text(`E-mail client ${clientEmail}`, margin + 10, currentY);
+    currentY += 5;
+  }
+
+  const carrierEmail = carrierContactEmail?.trim();
+  if (carrierEmail) {
+    doc.text(`E-mail de contact transporteur ${carrierEmail}`, margin + 10, currentY);
     currentY += 5;
   }
 
