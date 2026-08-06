@@ -46,47 +46,24 @@ export function HomeVisual4({ compactHero = false }: HomeVisual4Props) {
           <div
             className={cn(
               "container relative z-10",
-              compactHero ? "py-4 md:py-5" : "py-8 md:py-12",
+              // 4e: py-8 / md:py-12 — 13e: moitié exacte
+              compactHero ? "py-4 md:py-6" : "py-8 md:py-12",
             )}
           >
             <div className="mx-auto max-w-3xl animate-in fade-in slide-in-from-bottom-3 text-center duration-700">
-              <p
-                className={cn(
-                  "font-bold uppercase tracking-[0.16em] text-[var(--brand-orange)]",
-                  compactHero
-                    ? "mb-2 text-[10px] md:text-[11px]"
-                    : "mb-3 text-[11px] md:text-xs",
-                )}
-              >
+              <p className="mb-3 text-[11px] font-bold uppercase tracking-[0.16em] text-[var(--brand-orange)] md:text-xs">
                 3K-Négoce · Marketplace
               </p>
-              <h1
-                className={cn(
-                  "font-extrabold tracking-tight",
-                  compactHero
-                    ? "mb-2 text-2xl sm:text-3xl md:text-4xl"
-                    : "mb-4 text-3xl sm:text-4xl md:text-5xl",
-                )}
-              >
+              <h1 className="mb-4 text-3xl font-extrabold tracking-tight sm:text-4xl md:text-5xl">
                 Un négoce, {univers.length || 8} univers spécialisés
               </h1>
-              <p
-                className={cn(
-                  "mx-auto max-w-xl text-white/70",
-                  compactHero
-                    ? "mb-4 text-sm"
-                    : "mb-7 text-sm md:text-base",
-                )}
-              >
+              <p className="mx-auto mb-7 max-w-xl text-sm text-white/70 md:text-base">
                 Fixation et outillage — une vitrine, un checkout.
               </p>
               <div className="flex flex-wrap items-center justify-center gap-3">
                 <Button
                   asChild
-                  className={cn(
-                    "theme-radius bg-[var(--brand-orange)] px-5 font-bold text-[#000d4f] hover:bg-[var(--brand-orange-hover)]",
-                    compactHero ? "h-10" : "h-11",
-                  )}
+                  className="theme-radius h-11 bg-[var(--brand-orange)] px-5 font-bold text-[#000d4f] hover:bg-[var(--brand-orange-hover)]"
                 >
                   <Link to="/produits">
                     Voir le catalogue
@@ -96,20 +73,12 @@ export function HomeVisual4({ compactHero = false }: HomeVisual4Props) {
                 <Button
                   asChild
                   variant="outline"
-                  className={cn(
-                    "theme-radius border-white/35 bg-transparent px-5 text-white hover:bg-white/10 hover:text-white",
-                    compactHero ? "h-10" : "h-11",
-                  )}
+                  className="theme-radius h-11 border-white/35 bg-transparent px-5 text-white hover:bg-white/10 hover:text-white"
                 >
                   <Link to="/auth">Créer un compte</Link>
                 </Button>
               </div>
-              <div
-                className={cn(
-                  "flex flex-wrap items-center justify-center gap-2 text-xs",
-                  compactHero ? "mt-3" : "mt-6",
-                )}
-              >
+              <div className="mt-6 flex flex-wrap items-center justify-center gap-2 text-xs">
                 <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 ring-1 ring-white/15">
                   <Truck className="h-3.5 w-3.5 text-[var(--brand-orange)]" />
                   Livraison 24/48h
@@ -123,7 +92,7 @@ export function HomeVisual4({ compactHero = false }: HomeVisual4Props) {
           </div>
         </section>
 
-        <section className={cn("container", compactHero ? "py-4 md:py-5" : "py-6 md:py-8")}>
+        <section className="container py-6 md:py-8">
           <div className="grid items-stretch gap-5 lg:grid-cols-[minmax(0,1.4fr)_minmax(280px,380px)]">
             <div className="animate-in fade-in duration-700">
               <div className="mb-3 flex items-end justify-between gap-3">
