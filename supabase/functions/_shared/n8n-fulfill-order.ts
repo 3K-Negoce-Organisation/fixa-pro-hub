@@ -12,6 +12,11 @@ import { resolveResendFrom } from "./resolve-resend-from.ts";
 import { resolveSiteLogoUrlForEmail } from "./site-logo.ts";
 import { tryClaimSupplierFulfillment } from "./order-fulfillment-claim.ts";
 import { supplierPoContactEmail } from "./supplier-contact-email.ts";
+import {
+  resolveSiteSlug,
+  resolveStorefrontUrlForSiteId,
+  storefrontHostForSlug,
+} from "./storefront-url.ts";
 
 export type SendOrderToN8nParams = {
   n8nWebhookUrl: string;
@@ -125,7 +130,8 @@ export async function sendOrderToN8n(params: SendOrderToN8nParams): Promise<void
       await loadShippingConfigForSite(supabaseAdmin, orderSiteId),
     );
     const fromEmail = supplierSettings?.customer_service_email || supplierSettings?.email;
-    const storefrontBase = (Deno.env.get("STOREFRONT_URL") || "https://www.vis-a-bois.com").replace(/\/$/, "");
+    const siteSlug = await resolveSiteSlug(supabaseAdmin, orderSiteId);
+    const storefrontBase = await resolveStorefrontUrlForSiteId(supabaseAdmin, orderSiteId);
     const customerEmailForLink = resolvedEmail || customerEmail || "";
     const trackingUrl = customerEmailForLink
       ? await buildOrderTrackingUrlForEmail(orderNumber, customerEmailForLink, storefrontBase)
@@ -138,7 +144,9 @@ export async function sendOrderToN8n(params: SendOrderToN8nParams): Promise<void
         ? `${shippingAddress.postal_code} ${shippingAddress.city}`
         : shippingAddress?.city || null;
 
-      const { fromEmail: resendFrom, fromName, replyTo } = resolveResendFrom(supplierSettings);
+      const { fromEmail: resendFrom, fromName, replyTo } = resolveResendFrom(supplierSettings, {
+        siteSlug,
+      });
       const logoUrl = await resolveSiteLogoUrlForEmail(supabaseAdmin, orderSiteId);
 
       await sendOrderConfirmationEmail({
@@ -147,6 +155,7 @@ export async function sendOrderToN8n(params: SendOrderToN8nParams): Promise<void
         fromName,
         replyTo,
         logoUrl,
+        storefrontHost: storefrontHostForSlug(siteSlug),
         bccEmail: supplierSettings?.status_email || null,
         orderNumber,
         items: enrichedCartItems.map((item) => ({

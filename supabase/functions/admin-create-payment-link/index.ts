@@ -9,6 +9,7 @@ import {
 import { resolveOrderCustomerEmail } from "../_shared/order-customer-email.ts";
 import { sendPaymentCorrectionEmail } from "../_shared/send-payment-correction-email.ts";
 import { resolveResendFrom } from "../_shared/resolve-resend-from.ts";
+import { resolveStorefrontUrlForSiteId } from "../_shared/storefront-url.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -92,7 +93,7 @@ serve(async (req) => {
     }
 
     const stripe = new Stripe(secretKey, { apiVersion: "2025-08-27.basil" });
-    const origin = Deno.env.get("STOREFRONT_URL") || "https://www.vis-a-bois.com";
+    const origin = await resolveStorefrontUrlForSiteId(auth.supabaseAdmin, order.site_id);
 
     const correctionMetadata = {
       order_id: order.id,

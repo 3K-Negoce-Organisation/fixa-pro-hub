@@ -4,6 +4,11 @@ import { sendOrderConfirmationEmail, type OrderConfirmationEmailParams } from ".
 import { buildOrderTrackingUrlForEmail } from "./guest-order-tracking-url.ts";
 import { resolveResendFrom } from "./resolve-resend-from.ts";
 import { resolveSiteLogoUrlForEmail } from "./site-logo.ts";
+import {
+  resolveSiteSlug,
+  resolveStorefrontUrlForSiteId,
+  storefrontHostForSlug,
+} from "./storefront-url.ts";
 
 type OrderRow = {
   order_number: string;
@@ -80,7 +85,10 @@ async function sendOrderConfirmationForOrderRow(
     return { sent: false, order_number: order.order_number, error: "Email expéditeur non configuré" };
   }
 
-  const { fromEmail: resendFrom, fromName, replyTo } = resolveResendFrom(supplierSettings);
+  const siteSlug = await resolveSiteSlug(supabaseAdmin, order.site_id);
+  const { fromEmail: resendFrom, fromName, replyTo } = resolveResendFrom(supplierSettings, {
+    siteSlug,
+  });
   const logoUrl = await resolveSiteLogoUrlForEmail(supabaseAdmin, order.site_id);
 
   const { data: items, error: itemsError } = await supabaseAdmin
@@ -113,7 +121,12 @@ async function sendOrderConfirmationForOrderRow(
     ? `${order.shipping_postal_code} ${order.shipping_city}`
     : order.shipping_city;
 
-  const trackingUrl = await buildOrderTrackingUrlForEmail(order.order_number, customerEmail);
+  const storefrontBase = await resolveStorefrontUrlForSiteId(supabaseAdmin, order.site_id);
+  const trackingUrl = await buildOrderTrackingUrlForEmail(
+    order.order_number,
+    customerEmail,
+    storefrontBase,
+  );
 
   const params: OrderConfirmationEmailParams = {
     customerEmail,
@@ -121,6 +134,7 @@ async function sendOrderConfirmationForOrderRow(
     fromName,
     replyTo,
     logoUrl,
+    storefrontHost: storefrontHostForSlug(siteSlug),
     bccEmail: null,
     orderNumber: order.order_number,
     items: mappedItems,

@@ -13,6 +13,11 @@ import { resolveOrderCustomerPhone } from "../_shared/order-customer-phone.ts";
 import { resolveOrderCustomerEmail } from "../_shared/order-customer-email.ts";
 import { insertOrderStatusEvent } from "../_shared/order-status-events.ts";
 import { supplierPoContactEmail } from "../_shared/supplier-contact-email.ts";
+import {
+  resolveSiteSlug,
+  resolveStorefrontUrlForSiteId,
+  storefrontHostForSlug,
+} from "../_shared/storefront-url.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -222,10 +227,13 @@ serve(async (req) => {
     const { productsHT, shippingHT } = splitOrderTotals(enrichedItems, order.total_ht);
     const fromEmail = supplierSettings?.customer_service_email || supplierSettings?.email;
     if (!preview_only && !skipClientEmail && (fromEmail || Deno.env.get("RESEND_FROM_EMAIL")) && customerEmail) {
-      const storefrontBase = (Deno.env.get("STOREFRONT_URL") || "https://www.vis-a-bois.com").replace(/\/$/, "");
+      const siteSlug = await resolveSiteSlug(supabaseAdmin, order.site_id ?? null);
+      const storefrontBase = await resolveStorefrontUrlForSiteId(supabaseAdmin, order.site_id ?? null);
       const trackingUrl = await buildOrderTrackingUrlForEmail(order.order_number, customerEmail, storefrontBase);
 
-      const { fromEmail: resendFrom, fromName, replyTo } = resolveResendFrom(supplierSettings);
+      const { fromEmail: resendFrom, fromName, replyTo } = resolveResendFrom(supplierSettings, {
+        siteSlug,
+      });
       const logoUrl = await resolveSiteLogoUrlForEmail(supabaseAdmin, order.site_id ?? null);
 
       await sendOrderConfirmationEmail({
@@ -234,6 +242,7 @@ serve(async (req) => {
         fromName,
         replyTo,
         logoUrl,
+        storefrontHost: storefrontHostForSlug(siteSlug),
         bccEmail: supplierSettings?.status_email || null,
         orderNumber: order.order_number,
         items: enrichedItems.map((item) => ({
