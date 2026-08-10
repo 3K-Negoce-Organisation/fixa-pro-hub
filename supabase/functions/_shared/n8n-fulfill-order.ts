@@ -101,12 +101,7 @@ export async function sendOrderToN8n(params: SendOrderToN8nParams): Promise<void
       }
     }
 
-<<<<<<< HEAD
-    const siteLogo = await loadSiteLogoForOrderPdf(supabaseAdmin, orderSiteId);
-    const carrierContactEmail = supplierPoContactEmail(supplierSettings);
-=======
     const siteLogo = loadSupplierDocumentLogo();
->>>>>>> 098b860 (fix(bc): logo 3K-Négoce sur les bons de commande fournisseur)
     const pdfBase64 = generateOrderPDF(
       orderNumber,
       customerName || "",
