@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { enrichItemsWithAlsafixCodes } from "../_shared/alsafix-code.ts";
 import { generateOrderPDF } from "../_shared/generate-order-pdf.ts";
 import { resolveUniteDeVente } from "../_shared/order-supplier-quantity.ts";
-import { loadSiteLogoForOrderPdf } from "../_shared/site-logo.ts";
+import { loadSupplierDocumentLogo } from "../_shared/site-logo.ts";
 import { verifyAdminRequest } from "../_shared/verify-admin.ts";
 
 const corsHeaders = {
@@ -126,7 +126,7 @@ serve(async (req) => {
     let pdfFile: { filename: string; content_base64: string; content_type: string } | null = null;
 
     if (includePdf) {
-      const siteLogo = await loadSiteLogoForOrderPdf(auth.supabaseAdmin, siteId);
+      const siteLogo = loadSupplierDocumentLogo();
       const pdfBase64 = generateOrderPDF(
         orderNumber,
         displayName,

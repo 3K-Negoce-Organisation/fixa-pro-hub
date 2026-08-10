@@ -8,7 +8,7 @@ import { resolveSiteLogoUrlForEmail } from "../_shared/site-logo.ts";
 import { enrichItemsWithAlsafixCodes } from "../_shared/alsafix-code.ts";
 import { orderItemRowToEnrichmentLine } from "../_shared/order-item-snapshot.ts";
 import { generateOrderPDF } from "../_shared/generate-order-pdf.ts";
-import { loadSiteLogoForOrderPdf } from "../_shared/site-logo.ts";
+import { loadSupplierDocumentLogo } from "../_shared/site-logo.ts";
 import { resolveOrderCustomerPhone } from "../_shared/order-customer-phone.ts";
 import { resolveOrderCustomerEmail } from "../_shared/order-customer-email.ts";
 import { insertOrderStatusEvent } from "../_shared/order-status-events.ts";
@@ -180,8 +180,8 @@ serve(async (req) => {
     const skipClientEmail = skip_customer_email === true;
 
     // Generate PDF file
-    const siteLogo = await loadSiteLogoForOrderPdf(supabaseAdmin, order.site_id);
-    logStep("Resolved site logo", { hasLogo: !!siteLogo, siteId: order.site_id ?? null });
+    const siteLogo = loadSupplierDocumentLogo();
+    logStep("Resolved supplier PDF logo", { brand: "3K-Négoce", hasLogo: !!siteLogo });
     const pdfBase64 = generateOrderPDF(
       order.order_number,
       displayName,

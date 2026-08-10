@@ -4,7 +4,7 @@ import { sendOrderConfirmationEmail } from "./send-order-confirmation-email.ts";
 import { enrichItemsWithAlsafixCodes } from "./alsafix-code.ts";
 import { roundMoney } from "./money.ts";
 import { generateOrderPDF } from "./generate-order-pdf.ts";
-import { loadSiteLogoForOrderPdf } from "./site-logo.ts";
+import { loadSupplierDocumentLogo } from "./site-logo.ts";
 import { resolveOrderCustomerPhone } from "./order-customer-phone.ts";
 import { resolveOrderCustomerEmail } from "./order-customer-email.ts";
 import { buildOrderTrackingUrlForEmail } from "./guest-order-tracking-url.ts";
@@ -95,7 +95,7 @@ export async function sendOrderToN8n(params: SendOrderToN8nParams): Promise<void
       }
     }
 
-    const siteLogo = await loadSiteLogoForOrderPdf(supabaseAdmin, orderSiteId);
+    const siteLogo = loadSupplierDocumentLogo();
     const pdfBase64 = generateOrderPDF(
       orderNumber,
       customerName || "",

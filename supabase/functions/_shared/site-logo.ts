@@ -1,3 +1,9 @@
+import {
+  MERCHANT_SUPPLIER_LOGO_HEIGHT,
+  MERCHANT_SUPPLIER_LOGO_JPEG_BASE64,
+  MERCHANT_SUPPLIER_LOGO_WIDTH,
+} from "./merchant-logo-data.ts";
+
 type SupabaseAdmin = {
   from: (table: string) => Record<string, unknown>;
   storage: {
@@ -237,4 +243,17 @@ export async function loadSiteLogoForOrderPdf(
   } catch {
     return null;
   }
+}
+
+/**
+ * Logo fixe 3K-Négoce pour les bons de commande fournisseur
+ * (indépendant du logo boutique Vis-à-Bois / site de la commande).
+ */
+export function loadSupplierDocumentLogo(): PdfSiteLogo {
+  return {
+    dataUrl: `data:image/jpeg;base64,${MERCHANT_SUPPLIER_LOGO_JPEG_BASE64}`,
+    format: "JPEG",
+    width: MERCHANT_SUPPLIER_LOGO_WIDTH,
+    height: MERCHANT_SUPPLIER_LOGO_HEIGHT,
+  };
 }

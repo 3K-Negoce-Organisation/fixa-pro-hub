@@ -11,8 +11,8 @@ import {
 import type { PdfSiteLogo } from "./site-logo.ts";
 import { drawMerchantLegalBlock } from "./document-branding.ts";
 
-const LOGO_MAX_WIDTH_MM = 45;
-const LOGO_MAX_HEIGHT_MM = 14;
+const LOGO_MAX_WIDTH_MM = 52;
+const LOGO_MAX_HEIGHT_MM = 16;
 const PAGE_BOTTOM_MARGIN_MM = 12;
 
 function pageHeightMm(doc: InstanceType<typeof jsPDF>): number {
