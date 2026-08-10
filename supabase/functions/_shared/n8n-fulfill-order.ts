@@ -4,7 +4,7 @@ import { sendOrderConfirmationEmail } from "./send-order-confirmation-email.ts";
 import { enrichItemsWithAlsafixCodes } from "./alsafix-code.ts";
 import { roundMoney } from "./money.ts";
 import { generateOrderPDF } from "./generate-order-pdf.ts";
-import { loadSiteLogoForOrderPdf } from "./site-logo.ts";
+import { loadSupplierDocumentLogo } from "./site-logo.ts";
 import { resolveOrderCustomerPhone } from "./order-customer-phone.ts";
 import { resolveOrderCustomerEmail } from "./order-customer-email.ts";
 import { buildOrderTrackingUrlForEmail } from "./guest-order-tracking-url.ts";
@@ -101,8 +101,12 @@ export async function sendOrderToN8n(params: SendOrderToN8nParams): Promise<void
       }
     }
 
+<<<<<<< HEAD
     const siteLogo = await loadSiteLogoForOrderPdf(supabaseAdmin, orderSiteId);
     const carrierContactEmail = supplierPoContactEmail(supplierSettings);
+=======
+    const siteLogo = loadSupplierDocumentLogo();
+>>>>>>> 098b860 (fix(bc): logo 3K-Négoce sur les bons de commande fournisseur)
     const pdfBase64 = generateOrderPDF(
       orderNumber,
       customerName || "",
