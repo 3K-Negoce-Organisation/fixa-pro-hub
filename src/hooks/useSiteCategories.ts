@@ -12,10 +12,11 @@ export type SiteCategory = {
   /** Gamme parente (via category_product). */
   gamme_id?: string | null;
   category_product_id?: string | null;
+  site_id?: string | null;
 };
 
 const DEFAULT_SELECT =
-  "id, name, slug, sort_order, image_url, show_on_homepage, category_product_id";
+  "id, name, slug, sort_order, image_url, show_on_homepage, category_product_id, site_id";
 
 const DEFAULT_GAMME_SLUG = "vissage";
 
@@ -44,9 +45,35 @@ async function resolveSiteGammeId(siteId: string | null): Promise<string | null>
   return (gamme?.id as string | undefined) ?? null;
 }
 
+async function fetchSubCategoriesByIds(
+  db: DbClient,
+  select: string,
+  cpIds: string[],
+  extra?: { siteId?: string | null; siteScopedOnly?: boolean },
+): Promise<SiteCategory[]> {
+  if (cpIds.length === 0) return [];
+
+  let q = db
+    .from("sub_category")
+    .select(select)
+    .eq("is_active", true)
+    .in("category_product_id", cpIds)
+    .order("sort_order", { ascending: true });
+
+  if (extra?.siteScopedOnly && extra.siteId) {
+    q = q.eq("site_id", extra.siteId);
+  }
+
+  const { data, error } = await q;
+  if (error) throw error;
+  return (data || []) as SiteCategory[];
+}
+
 /**
  * Sous-catégories vitrine : `sub_category` liées à la gamme du site
- * via `category_product.gamme_id` (plus de table `categories`).
+ * via `category_product.gamme_id`.
+ * Priorité aux lignes scopées au site (ex. buckets marketing Vis-à-Bois),
+ * sinon toutes les sub_category actives de la gamme.
  */
 export async function fetchSiteCategories(
   siteId: string | null,
@@ -66,19 +93,18 @@ export async function fetchSiteCategories(
   const cpIds = (cps || []).map((row) => row.id as string).filter(Boolean);
   if (cpIds.length === 0) return [];
 
-  const { data, error } = await db
-    .from("sub_category")
-    .select(select)
-    .eq("is_active", true)
-    .in("category_product_id", cpIds)
-    .order("sort_order", { ascending: true });
+  if (siteId) {
+    const scoped = await fetchSubCategoriesByIds(db, select, cpIds, {
+      siteId,
+      siteScopedOnly: true,
+    });
+    if (scoped.length > 0) {
+      return scoped.map((row) => ({ ...row, gamme_id: gammeId }));
+    }
+  }
 
-  if (error) throw error;
-
-  return ((data || []) as SiteCategory[]).map((row) => ({
-    ...row,
-    gamme_id: gammeId,
-  }));
+  const rows = await fetchSubCategoriesByIds(db, select, cpIds);
+  return rows.map((row) => ({ ...row, gamme_id: gammeId }));
 }
 
 /** Catégories éligibles à la grille d'accueil : switch en ligne + image. */
