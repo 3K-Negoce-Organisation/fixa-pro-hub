@@ -60,7 +60,9 @@ export function useMarketplaceHome() {
     queryFn: fetchGammes,
     staleTime: 5 * 60 * 1000,
   });
-  const { data: categories = [] } = useSiteCategories("id, name, slug, gamme_id");
+  const { data: categories = [] } = useSiteCategories(
+    "id, name, slug, category_product_id",
+  );
 
   const { data: productCount = 0 } = useQuery({
     queryKey: ["marketplace-product-count", siteId],
@@ -79,32 +81,45 @@ export function useMarketplaceHome() {
       "marketplace-gamme-product-counts",
       siteId,
       gammes.map((g) => String((g as { id?: string }).id ?? "")).join(","),
+      categories.map((c) => c.id).join(","),
     ],
-    enabled: !siteLoading && !!siteId && gammes.length > 0 && categories.length > 0,
+    enabled: !siteLoading && !!siteId && gammes.length > 0,
     queryFn: async () => {
-      const byGamme = new Map<string, string[]>();
-      for (const cat of categories) {
-        const gammeId = cat.gamme_id;
-        if (!gammeId) continue;
-        const list = byGamme.get(gammeId) || [];
-        list.push(cat.id);
-        byGamme.set(gammeId, list);
-      }
-
+      const db = supabase as any;
       const counts: Record<string, number> = {};
+
       await Promise.all(
         gammes.map(async (gamme) => {
           const row = gamme as { id: string; slug: string };
-          const categoryIds = byGamme.get(row.id) || [];
-          if (categoryIds.length === 0) {
+          const { data: cps, error: cpError } = await db
+            .from("category_product")
+            .select("id")
+            .eq("gamme_id", row.id)
+            .eq("is_active", true);
+          if (cpError) throw cpError;
+          const cpIds = (cps || []).map((c: { id: string }) => c.id);
+          if (cpIds.length === 0) {
             counts[row.slug] = 0;
             return;
           }
+
+          const { data: subs, error: subError } = await db
+            .from("sub_category")
+            .select("id")
+            .eq("is_active", true)
+            .in("category_product_id", cpIds);
+          if (subError) throw subError;
+          const subIds = (subs || []).map((s: { id: string }) => s.id);
+          if (subIds.length === 0) {
+            counts[row.slug] = 0;
+            return;
+          }
+
           let q = supabase
             .from("products")
             .select("id", { count: "exact", head: true })
             .eq("is_active", true)
-            .in("category_id", categoryIds);
+            .in("sub_category_id", subIds);
           if (siteId) q = q.eq("site_id", siteId);
           const { count, error } = await q;
           if (error) throw error;

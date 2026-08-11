@@ -22,6 +22,8 @@ export type StorefrontSiteRow = {
   storefront_public?: boolean;
   stripe_mode?: "live" | "test";
   home_visual?: string | null;
+  /** Gamme catalogue → sub_category via category_product. */
+  gamme_id?: string | null;
 };
 
 type StorefrontSiteContextValue = {
@@ -38,7 +40,7 @@ const StorefrontSiteContext = createContext<StorefrontSiteContextValue | undefin
 async function fetchSiteBySlug(slug: string): Promise<StorefrontSiteRow | null> {
   const { data, error } = await supabase
     .from("sites")
-    .select("id, slug, name, storefront_public, stripe_mode, home_visual")
+    .select("id, slug, name, storefront_public, stripe_mode, home_visual, gamme_id")
     .eq("slug", slug)
     .eq("is_active", true)
     .maybeSingle();

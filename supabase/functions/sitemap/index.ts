@@ -54,7 +54,7 @@ serve(async (req) => {
       const supabase = createClient(supabaseUrl, serviceKey);
 
       const { data: categories } = await supabase
-        .from("categories")
+        .from("sub_category")
         .select("slug")
         .eq("is_active", true);
 

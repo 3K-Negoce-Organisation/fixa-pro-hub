@@ -9,6 +9,9 @@ export type CategoryRef = {
   slug: string;
 };
 
+/** Alias explicite : la vitrine joint `sub_category`, plus `categories`. */
+export type SubCategoryRef = CategoryRef;
+
 /** Colonnes caractéristiques étendues (import Excel étendu, pas encore dans les types générés). */
 export type ExtendedProductCharacteristics = {
   carton_quantity?: number | null;
@@ -40,7 +43,12 @@ export type ExtendedProductCharacteristics = {
 
 export type Product = Tables<"products"> &
   ExtendedProductCharacteristics & {
-    categories: CategoryRef | null;
+    /** Jointure PostgREST `sub_category(...)`. */
+    sub_category: SubCategoryRef | null;
+    /** @deprecated conservé pour compat affichage temporaire */
+    categories?: CategoryRef | null;
+    sub_category_id?: string | null;
+    category_id?: string | null;
   };
 
 export interface ProductVariant {
@@ -87,11 +95,17 @@ export function buildProductsSearchOrFilter(searchQuery: string): string {
   ].join(",");
 }
 
-// Fetch all active products (with joined category), optionally scoped to a site
+function withCategoryAlias(row: Product | null): Product | null {
+  if (!row) return null;
+  const sub = row.sub_category ?? null;
+  return { ...row, categories: sub };
+}
+
+// Fetch all active products (with joined sub_category), optionally scoped to a site
 export async function fetchProducts(searchQuery?: string, siteId?: string | null) {
   let query = supabase
     .from("products")
-    .select("*, categories(id, name, slug)")
+    .select("*, sub_category:sub_category_id(id, name, slug)")
     .eq("is_active", true)
     .order("title");
 
@@ -111,14 +125,14 @@ export async function fetchProducts(searchQuery?: string, siteId?: string | null
     throw error;
   }
 
-  return (data || []) as Product[];
+  return ((data || []) as Product[]).map((row) => withCategoryAlias(row)!) ;
 }
 
-// Fetch a single product by handle (with joined category)
+// Fetch a single product by handle (with joined sub_category)
 export async function fetchProductByHandle(handle: string, siteId?: string | null) {
   let query = supabase
     .from("products")
-    .select("*, categories(id, name, slug)")
+    .select("*, sub_category:sub_category_id(id, name, slug)")
     .eq("handle", handle)
     .eq("is_active", true);
 
@@ -133,7 +147,7 @@ export async function fetchProductByHandle(handle: string, siteId?: string | nul
     throw error;
   }
 
-  return data as Product | null;
+  return withCategoryAlias(data as Product | null);
 }
 
 // Parse variants from JSON field

@@ -282,12 +282,12 @@ export const ProductExcelImport = ({ onImportComplete }: ProductExcelImportProps
       details: [],
     };
 
-    // Build category name -> id lookup map
-    const { data: categoriesData } = await supabase
-      .from("categories")
+    // Build sub_category name -> id lookup map
+    const { data: categoriesData } = await (supabase as any)
+      .from("sub_category")
       .select("id, name");
     const categoryMap: Record<string, string> = {};
-    (categoriesData || []).forEach((c) => {
+    (categoriesData || []).forEach((c: { id: string; name: string }) => {
       categoryMap[c.name.toLowerCase().trim()] = c.id;
     });
 
@@ -295,7 +295,7 @@ export const ProductExcelImport = ({ onImportComplete }: ProductExcelImportProps
       const product = parsedProducts[i];
       setImportProgress({ current: i + 1, total: parsedProducts.length });
 
-      const resolvedCategoryId = product.category
+      const resolvedSubCategoryId = product.category
         ? categoryMap[product.category.toLowerCase().trim()] || null
         : null;
 
@@ -304,8 +304,7 @@ export const ProductExcelImport = ({ onImportComplete }: ProductExcelImportProps
         designation_fr: product.designation_fr || null,
         title: product.title,
         description: product.description || null,
-        category: product.category || null,
-        category_id: resolvedCategoryId,
+        sub_category_id: resolvedSubCategoryId,
         handle: product.handle,
         price_ht: product.price_ht,
         price_ttc: product.price_ttc,

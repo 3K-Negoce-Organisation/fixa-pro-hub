@@ -1,7 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { SlidersHorizontal, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -27,6 +26,7 @@ import {
 import { fetchProducts, getProductImage, parseVariants, type Product } from "@/lib/products";
 import { useCart } from "@/contexts/CartContext";
 import { useStorefrontSite } from "@/contexts/StorefrontSiteContext";
+import { fetchSiteCategories } from "@/hooks/useSiteCategories";
 
 type ItemsPerPage = "12" | "25" | "50" | "all";
 
@@ -47,19 +47,10 @@ const ProductsPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState<ItemsPerPage>("25");
 
-  // Fetch categories from categories table
+  // Sous-catégories (sub_category) de la gamme du site
   const { data: dbCategories = [] } = useQuery({
-    queryKey: ["categories", siteId],
-    queryFn: async () => {
-      let q = supabase
-        .from("categories")
-        .select("id, name, slug")
-        .eq("is_active", true);
-      if (siteId) q = q.eq("site_id", siteId);
-      const { data, error } = await q;
-      if (error) throw error;
-      return data || [];
-    },
+    queryKey: ["sub-categories", siteId],
+    queryFn: () => fetchSiteCategories(siteId, "id, name, slug"),
     staleTime: 5 * 60 * 1000,
     enabled: !siteLoading,
   });
@@ -76,13 +67,13 @@ const ProductsPage = () => {
     return dbCategories.find((c) => c.slug === categoryParam) ?? null;
   }, [categoryParam, dbCategories]);
 
-  // Match URL slug to category id
+  // Match URL slug to sub_category id
   const activeCategoryId = activeCategory?.id ?? null;
 
-  // Get products filtered by category (base for filter options)
+  // Get products filtered by sub_category (base for filter options)
   const categoryFilteredProducts = useMemo(() => {
     if (!activeCategoryId) return products;
-    return products.filter((p: Product) => p.category_id === activeCategoryId);
+    return products.filter((p: Product) => p.sub_category_id === activeCategoryId);
   }, [products, activeCategoryId]);
 
   // Generate filter options from products that match OTHER active filters
