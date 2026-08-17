@@ -66,6 +66,22 @@ export async function sendOrderToN8n(params: SendOrderToN8nParams): Promise<void
       return;
     }
 
+    const supplierPurchaseTotal = enrichedCartItems.reduce((sum, item) => {
+      const line = Number(
+        item.purchase_line_total ?? item.product_purchase_price_ht ?? item.purchase_price_ht ?? 0,
+      );
+      return sum + (Number.isFinite(line) ? line : 0);
+    }, 0);
+    if (!(supplierPurchaseTotal > 0)) {
+      console.error("[n8n-fulfill-order] refuse zero-amount supplier PO", {
+        orderNumber,
+        orderId,
+        lines: enrichedCartItems.length,
+        supplierPurchaseTotal,
+      });
+      return;
+    }
+
     const claimed = await tryClaimSupplierFulfillment(supabaseAdmin, orderId);
     if (!claimed) {
       console.log("[n8n-fulfill-order] supplier fulfillment already claimed, skipping duplicate n8n", {
