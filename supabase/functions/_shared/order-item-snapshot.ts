@@ -128,8 +128,14 @@ export function orderItemRowToEnrichmentLine(item: Record<string, unknown>): Rec
   };
 }
 
-/** Snapshot prix d'achat figé — un code Alsafix seul ne suffit pas (ex. commandes marketplace). */
+/**
+ * Snapshot « figé » utilisable pour le BC fournisseur : il faut un prix d’achat.
+ * Un simple code_alsafix (ex. import ManoMano sans snapshot) ne suffit pas —
+ * sinon le PDF part à 0 € sans relecture catalogue.
+ */
 export function orderItemHasFrozenSnapshot(item: Record<string, unknown>): boolean {
-  const purchase = item.snapshot_purchase_price_ht ?? item.product_purchase_price_ht ?? item.purchase_price_ht;
-  return purchase != null && Number(purchase) > 0;
+  const purchase = Number(
+    item.snapshot_purchase_price_ht ?? item.product_purchase_price_ht ?? item.purchase_price_ht ?? NaN,
+  );
+  return Number.isFinite(purchase) && purchase > 0;
 }

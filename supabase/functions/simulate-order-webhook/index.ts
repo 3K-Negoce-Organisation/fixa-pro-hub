@@ -130,6 +130,32 @@ serve(async (req) => {
       (orderItems || []).map((item) => orderItemRowToEnrichmentLine(item as Record<string, unknown>)),
     );
 
+    if (enrichedItems.length === 0) {
+      return new Response(
+        JSON.stringify({ error: 'Aucun article pour le bon de commande fournisseur' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
+
+    const supplierPurchaseTotal = enrichedItems.reduce((sum, item) => {
+      const line = Number(item.purchase_line_total ?? 0);
+      return sum + (Number.isFinite(line) ? line : 0);
+    }, 0);
+    if (!(supplierPurchaseTotal > 0)) {
+      logStep("Refuse zero-amount supplier PO", {
+        order_number: order.order_number,
+        lines: enrichedItems.length,
+        supplierPurchaseTotal,
+      });
+      return new Response(
+        JSON.stringify({
+          error:
+            'Bon de commande à 0 € : prix d’achat manquant sur les articles. Vérifiez purchase_price_ht / snapshot_purchase_price_ht.',
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
+
     // Get user info (guest orders may not exist in auth.users)
     let customerEmail = order.user_email || '';
     let customerName = '';
