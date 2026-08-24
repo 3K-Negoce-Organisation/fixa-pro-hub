@@ -1,17 +1,10 @@
 import Stripe from "https://esm.sh/stripe@18.5.0";
 
 type OrderPhoneSource = {
+  id?: string;
   user_id?: string | null;
   notes?: string | null;
 };
-
-/** Téléphone marketplace stocké dans notes : `tel:+336…` */
-export function parsePhoneFromOrderNotes(notes?: string | null): string | null {
-  if (!notes) return null;
-  const match = notes.match(/tel:([^\s|]+)/i);
-  const phone = match?.[1]?.trim();
-  return phone || null;
-}
 
 export function parseStripeModeFromNotes(notes?: string | null): "test" | "live" {
   return notes?.includes("stripe_mode:test") ? "test" : "live";
@@ -27,6 +20,44 @@ export function parseCheckoutSessionIdFromNotes(notes?: string | null): string |
   if (!notes) return null;
   const match = notes.match(/(?:Checkout Session|Stripe Checkout Session):\s*(cs_[a-zA-Z0-9]+)/i);
   return match?.[1] ?? null;
+}
+
+/** Téléphone stocké dans notes hub marketplace (`tel:+336…`). */
+export function parsePhoneFromOrderNotes(notes?: string | null): string | null {
+  if (!notes) return null;
+  const match = notes.match(/(?:^|\|\s*)tel:([^\s|]+)/i);
+  const phone = match?.[1]?.trim();
+  return phone || null;
+}
+
+function digPhoneFromUnknown(value: unknown, depth = 0): string | null {
+  if (depth > 4 || value == null) return null;
+  if (typeof value === "string") {
+    const t = value.trim();
+    return t.length >= 6 ? t : null;
+  }
+  if (typeof value !== "object") return null;
+  const obj = value as Record<string, unknown>;
+  for (const key of ["phone", "phone_number", "mobile", "cellphone", "Phone"]) {
+    const found = digPhoneFromUnknown(obj[key], depth + 1);
+    if (found) return found;
+  }
+  for (const nestedKey of ["shipping", "billing", "customer", "addresses"]) {
+    const nested = obj[nestedKey];
+    if (nested && typeof nested === "object") {
+      if (nestedKey === "addresses") {
+        const addr = nested as Record<string, unknown>;
+        for (const side of ["shipping", "billing"]) {
+          const found = digPhoneFromUnknown(addr[side], depth + 1);
+          if (found) return found;
+        }
+      } else {
+        const found = digPhoneFromUnknown(nested, depth + 1);
+        if (found) return found;
+      }
+    }
+  }
+  return null;
 }
 
 export function createStripeClientForOrderNotes(notes?: string | null): Stripe | null {
@@ -45,8 +76,22 @@ export async function resolveOrderCustomerPhone(
   },
   order: OrderPhoneSource,
 ): Promise<string | null> {
-  const notesPhone = parsePhoneFromOrderNotes(order.notes);
-  if (notesPhone) return notesPhone;
+  const fromNotes = parsePhoneFromOrderNotes(order.notes);
+  if (fromNotes) return fromNotes;
+
+  if (order.id) {
+    try {
+      const channelQuery = await supabaseAdmin
+        .from("channel_orders")
+        .select("raw_payload")
+        .eq("order_id", order.id)
+        .maybeSingle() as { data: { raw_payload?: unknown } | null };
+      const fromPayload = digPhoneFromUnknown(channelQuery.data?.raw_payload);
+      if (fromPayload) return fromPayload;
+    } catch {
+      // table absente ou pas de lien canal
+    }
+  }
 
   if (order.user_id) {
     const profileQuery = await supabaseAdmin
