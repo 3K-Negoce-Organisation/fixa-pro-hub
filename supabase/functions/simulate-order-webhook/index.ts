@@ -35,11 +35,21 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const n8nWebhookUrl = Deno.env.get('N8N_WEBHOOK_URL');
 
-    // Verify admin authorization (JWT admin) or internal marketplace fulfillment.
+    // Verify admin authorization (JWT admin), service-role ops, or internal marketplace fulfillment.
     const authHeader = req.headers.get('Authorization');
     const internalKey = req.headers.get('x-marketplace-internal');
     const expectedInternalKey =
       Deno.env.get('MARKETPLACE_HUB_API_KEY') ?? Deno.env.get('VAB_API_KEY');
+    const bearerToken = authHeader?.replace(/^Bearer\s+/i, '').trim() || '';
+    let isServiceRoleBearer = !!bearerToken && bearerToken === supabaseServiceKey;
+    if (!isServiceRoleBearer && bearerToken.split('.').length === 3) {
+      try {
+        const payload = JSON.parse(atob(bearerToken.split('.')[1]!));
+        isServiceRoleBearer = payload?.role === 'service_role';
+      } catch {
+        // ignore malformed JWT
+      }
+    }
     const isInternalMarketplaceFulfillment =
       !!expectedInternalKey
       && !!internalKey
@@ -56,7 +66,7 @@ serve(async (req) => {
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
     let adminUserId: string | null = null;
 
-    if (isInternalMarketplaceFulfillment) {
+    if (isInternalMarketplaceFulfillment || isServiceRoleBearer) {
       adminUserId = null;
     } else {
       const supabaseUser = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!, {
@@ -179,9 +189,15 @@ serve(async (req) => {
       profile = profileData;
     }
 
-    const displayName = profile?.company_name || customerName || customerEmail;
+    const displayName =
+      (typeof order.shipping_name === "string" && order.shipping_name.trim())
+      || profile?.company_name
+      || customerName
+      || customerEmail
+      || "Client marketplace";
     const customerPhone = await resolveOrderCustomerPhone(supabaseAdmin, order);
-    logStep("Resolved customer phone", { hasPhone: !!customerPhone, orderNumber: order.order_number });
+    const resolvedPhone = customerPhone || profile?.phone || null;
+    logStep("Resolved customer phone", { hasPhone: !!resolvedPhone, orderNumber: order.order_number });
 
     // Get supplier settings
     let supplierSettingsQuery = supabaseAdmin.from('supplier_settings').select('*');
@@ -215,12 +231,12 @@ serve(async (req) => {
       customerNumber,
       enrichedItems,
       {
-        name: order.shipping_name || undefined,
+        name: order.shipping_name || displayName || undefined,
         line1: order.shipping_address || undefined,
         city: order.shipping_city || undefined,
         postal_code: order.shipping_postal_code || undefined,
       },
-      profile?.phone || customerPhone || null,
+      resolvedPhone,
       siteLogo,
     );
 
@@ -350,13 +366,14 @@ serve(async (req) => {
       simulation: true,
       customer: {
         email: supplierContactEmail || null,
-        phone: customerPhone || profile?.phone || null,
+        phone: resolvedPhone,
         name: displayName,
         shipping_address: {
+          name: order.shipping_name || displayName || null,
           line1: order.shipping_address,
           city: order.shipping_city,
           postal_code: order.shipping_postal_code,
-          country: 'FR',
+          country: order.shipping_country || 'FR',
         },
       },
       supplier: supplierSettings ? {

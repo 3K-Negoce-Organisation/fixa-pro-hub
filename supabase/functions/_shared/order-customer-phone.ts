@@ -5,6 +5,14 @@ type OrderPhoneSource = {
   notes?: string | null;
 };
 
+/** Téléphone marketplace stocké dans notes : `tel:+336…` */
+export function parsePhoneFromOrderNotes(notes?: string | null): string | null {
+  if (!notes) return null;
+  const match = notes.match(/tel:([^\s|]+)/i);
+  const phone = match?.[1]?.trim();
+  return phone || null;
+}
+
 export function parseStripeModeFromNotes(notes?: string | null): "test" | "live" {
   return notes?.includes("stripe_mode:test") ? "test" : "live";
 }
@@ -37,6 +45,9 @@ export async function resolveOrderCustomerPhone(
   },
   order: OrderPhoneSource,
 ): Promise<string | null> {
+  const notesPhone = parsePhoneFromOrderNotes(order.notes);
+  if (notesPhone) return notesPhone;
+
   if (order.user_id) {
     const profileQuery = await supabaseAdmin
       .from("profiles")
