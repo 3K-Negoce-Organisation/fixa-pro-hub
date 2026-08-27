@@ -1,10 +1,11 @@
 import type { jsPDF } from "https://esm.sh/jspdf@2.5.1";
+import { CUSTOMER_INVOICE_SELLER } from "./customer-invoice-seller.ts";
 
 /** Raison sociale émettrice des documents commande / facture (override via MERCHANT_LEGAL_NAME). */
-export const MERCHANT_LEGAL_NAME = (Deno.env.get("MERCHANT_LEGAL_NAME") || "3K-Négoce").trim();
+export const MERCHANT_LEGAL_NAME = (Deno.env.get("MERCHANT_LEGAL_NAME") || CUSTOMER_INVOICE_SELLER.name).trim();
 
-const MERCHANT_ADDRESS = "SAS — 47 rue Vivienne, 75002 Paris";
-const MERCHANT_IDS = "SIREN 102 662 483 — TVA FR45102662483";
+const MERCHANT_ADDRESS = `${CUSTOMER_INVOICE_SELLER.legalForm} — ${CUSTOMER_INVOICE_SELLER.addressLine1}, ${CUSTOMER_INVOICE_SELLER.postalCode} ${CUSTOMER_INVOICE_SELLER.city}`;
+const MERCHANT_IDS = `SIREN ${CUSTOMER_INVOICE_SELLER.siren} — TVA ${CUSTOMER_INVOICE_SELLER.vatNumber}`;
 
 /** Bloc émetteur en haut à droite des PDF (logo boutique à gauche). */
 export function drawMerchantLegalBlock(

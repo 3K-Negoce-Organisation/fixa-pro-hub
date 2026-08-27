@@ -7,7 +7,7 @@ import { getDisplayVariantTitle } from "./variant-title.ts";
 import type { PdfSiteLogo } from "./site-logo.ts";
 import {
   CUSTOMER_INVOICE_LEGAL_LINES,
-  CUSTOMER_INVOICE_SELLER,
+  formatCustomerInvoiceSellerLines,
 } from "./customer-invoice-seller.ts";
 import { drawMerchantLegalBlock } from "./document-branding.ts";
 
@@ -134,6 +134,10 @@ export type CustomerInvoiceItem = {
 export type CustomerInvoiceParams = {
   invoiceNumber: string;
   invoiceDate: string;
+  /** JJ/MM/AAAA — affichée uniquement si renseignée. */
+  deliveryDate?: string | null;
+  /** JJ/MM/AAAA — mention « Facture acquittée le … » sous le Total TTC. */
+  paidDate?: string | null;
   orderNumber: string;
   customerName?: string | null;
   shippingAddress?: string | null;
@@ -178,14 +182,7 @@ export function generateCustomerInvoicePDF(params: CustomerInvoiceParams): strin
   doc.text("Facture client", margin, y);
   y += 12;
 
-  const sellerLines = [
-    CUSTOMER_INVOICE_SELLER.name,
-    CUSTOMER_INVOICE_SELLER.addressLine1,
-    `${CUSTOMER_INVOICE_SELLER.postalCode} ${CUSTOMER_INVOICE_SELLER.city}`,
-    CUSTOMER_INVOICE_SELLER.country,
-    `SIRET : ${CUSTOMER_INVOICE_SELLER.siret}`,
-    `TVA intracom. : ${CUSTOMER_INVOICE_SELLER.vatNumber}`,
-  ];
+  const sellerLines = formatCustomerInvoiceSellerLines();
 
   const clientLines: string[] = [];
   if (params.customerName?.trim()) clientLines.push(params.customerName.trim());
@@ -204,6 +201,9 @@ export function generateCustomerInvoicePDF(params: CustomerInvoiceParams): strin
   doc.text(`Date de facture : ${params.invoiceDate}`, pageWidth - margin, y, { align: "right" });
   y += 6;
   doc.text(`Commande ${params.orderNumber}`, margin, y);
+  if (params.deliveryDate?.trim()) {
+    doc.text(`Date de livraison : ${params.deliveryDate.trim()}`, pageWidth - margin, y, { align: "right" });
+  }
   y += 8;
 
   const tableData = displayItems.map((item) => {
@@ -256,6 +256,13 @@ export function generateCustomerInvoicePDF(params: CustomerInvoiceParams): strin
   drawTotalLine("Total HT", `${formatMoneyFr(params.totalHT)} €`);
   drawTotalLine("TVA (20 %)", `${formatMoneyFr(tvaAmount)} €`);
   drawTotalLine("Total TTC", `${formatMoneyFr(params.totalTTC)} €`, true);
+
+  if (params.paidDate?.trim()) {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.text(`Facture acquittée le ${params.paidDate.trim()}`, tableRight, y, { align: "right" });
+    y += 8;
+  }
 
   drawPageFooters(doc, margin, y);
 
