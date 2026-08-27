@@ -134,6 +134,8 @@ export function orderItemRowToEnrichmentLine(item: Record<string, unknown>): Rec
  * sinon le PDF part à 0 € sans relecture catalogue.
  */
 export function orderItemHasFrozenSnapshot(item: Record<string, unknown>): boolean {
-  const purchase = Number(item.snapshot_purchase_price_ht ?? item.purchase_price_ht ?? NaN);
+  const purchase = Number(
+    item.snapshot_purchase_price_ht ?? item.product_purchase_price_ht ?? item.purchase_price_ht ?? NaN,
+  );
   return Number.isFinite(purchase) && purchase > 0;
 }

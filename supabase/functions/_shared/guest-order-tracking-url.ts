@@ -2,6 +2,7 @@ import {
   GUEST_TRACKING_TOKEN_PARAM,
   signGuestOrderTrackingToken,
 } from "./guest-order-tracking-token.ts";
+import { storefrontUrlForSlug } from "./storefront-url.ts";
 
 /** Lien suivi invité signé : order + email + jeton HMAC (non forgeable). */
 export async function buildGuestOrderTrackingUrl(
@@ -9,7 +10,7 @@ export async function buildGuestOrderTrackingUrl(
   customerEmail: string,
   storefrontUrl?: string,
 ): Promise<string> {
-  const base = (storefrontUrl || Deno.env.get("STOREFRONT_URL") || "https://www.vis-a-bois.com").replace(/\/$/, "");
+  const base = (storefrontUrl || storefrontUrlForSlug(null)).replace(/\/$/, "");
   const order = orderNumber.trim().toUpperCase();
   const email = customerEmail.trim().toLowerCase();
   const token = await signGuestOrderTrackingToken(order, email);

@@ -1,0 +1,23 @@
+# Vis-à-Bois (vis-a-bois.com)
+> Boutique en ligne spécialisée dans les vis à bois — édité par 3K-Négoce (France).
+
+Vis-à-Bois propose plus de 5000 références de vis à bois (terrasse, charpente, agglo, tirefond), en acier zingué et inox A2/A4, avec livraison en France métropolitaine.
+
+## Pages clés
+
+- [Accueil](https://www.vis-a-bois.com/): catalogue et recherche de vis à bois
+- [Catalogue](https://www.vis-a-bois.com/produits): toutes les références
+- [Guide de choix](https://www.vis-a-bois.com/guide-choix-vis-a-bois): comment choisir diamètre, longueur, matériau
+- [Comparatif inox A2 vs A4](https://www.vis-a-bois.com/comparatif-vis-inox-a2-a4): quel inox pour quel usage
+- [FAQ](https://www.vis-a-bois.com/faq): commandes, livraison, produits, retours
+- [Fiches techniques](https://www.vis-a-bois.com/information-technique): PDF par gamme
+- [À propos](https://www.vis-a-bois.com/a-propos): Vis-à-Bois / 3K-Négoce
+- [Contact](https://www.vis-a-bois.com/contact): 06 17 91 20 29 — contact@vis-a-bois.com
+- [Livraison](https://www.vis-a-bois.com/livraison): délais et frais
+
+## Entité
+
+- Marque : Vis-à-Bois
+- Éditeur : 3K-Négoce (SAS), 47 rue Vivienne, 75002 Paris
+- Site canonique : https://www.vis-a-bois.com
+- Sitemap : https://www.vis-a-bois.com/sitemap.xml

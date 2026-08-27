@@ -13,6 +13,7 @@ import {
   stripeMetadataForCompactItems,
   toCompactCartItems,
 } from "../_shared/stripe-cart-metadata.ts";
+import { resolveCheckoutOrigin } from "../_shared/storefront-url.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -200,7 +201,7 @@ serve(async (req) => {
     logStep("Built line items", { count: lineItems.length });
 
     // Create Stripe Checkout session
-    const origin = req.headers.get("origin") || "https://www.vis-a-bois.com";
+    const origin = resolveCheckoutOrigin(req.headers.get("origin"), siteSlug);
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       customer_email: customerId ? undefined : emailForCheckout,

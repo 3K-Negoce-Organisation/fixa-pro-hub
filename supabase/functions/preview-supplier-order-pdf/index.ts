@@ -91,6 +91,9 @@ serve(async (req) => {
     const displayName = String(customer.name || "Simulation admin").trim();
     const customerEmail = String(customer.email || "simulation@admin.local").trim();
     const customerPhone = customer.phone?.trim() || null;
+    const carrierContactEmail = String(
+      supplierSettings?.customer_service_email || supplierSettings?.email || "",
+    ).trim() || null;
 
     const lineBreakdown = enrichedItems.map((item) => {
       const productUniteDeVente =
@@ -142,6 +145,7 @@ serve(async (req) => {
         },
         customerPhone,
         siteLogo,
+        carrierContactEmail,
       );
 
       pdfFile = {

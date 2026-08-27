@@ -39,6 +39,9 @@ import RetoursPage from "./pages/RetoursPage";
 import FAQPage from "./pages/FAQPage";
 import ContactPage from "./pages/ContactPage";
 import InformationTechniquePage from "./pages/InformationTechniquePage";
+import GuideChoixVisPage from "./pages/GuideChoixVisPage";
+import ComparatifInoxPage from "./pages/ComparatifInoxPage";
+import AProposPage from "./pages/AProposPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -84,6 +87,9 @@ const App = () => (
                   <Route path="/faq" element={<StorefrontAccessGuard><FAQPage /></StorefrontAccessGuard>} />
                   <Route path="/contact" element={<StorefrontAccessGuard><ContactPage /></StorefrontAccessGuard>} />
                   <Route path="/information-technique" element={<StorefrontAccessGuard><InformationTechniquePage /></StorefrontAccessGuard>} />
+                  <Route path="/guide-choix-vis-a-bois" element={<StorefrontAccessGuard><GuideChoixVisPage /></StorefrontAccessGuard>} />
+                  <Route path="/comparatif-vis-inox-a2-a4" element={<StorefrontAccessGuard><ComparatifInoxPage /></StorefrontAccessGuard>} />
+                  <Route path="/a-propos" element={<StorefrontAccessGuard><AProposPage /></StorefrontAccessGuard>} />
                   {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                   <Route path="*" element={<StorefrontAccessGuard><NotFound /></StorefrontAccessGuard>} />
                 </Routes>

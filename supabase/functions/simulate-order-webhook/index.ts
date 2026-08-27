@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { splitOrderTotals } from "../_shared/order-totals.ts";
 import { sendOrderConfirmationEmail } from "../_shared/send-order-confirmation-email.ts";
 import { buildOrderTrackingUrlForEmail } from "../_shared/guest-order-tracking-url.ts";
@@ -13,6 +13,11 @@ import { resolveOrderCustomerPhone } from "../_shared/order-customer-phone.ts";
 import { resolveOrderCustomerEmail } from "../_shared/order-customer-email.ts";
 import { insertOrderStatusEvent } from "../_shared/order-status-events.ts";
 import { supplierPoContactEmail } from "../_shared/supplier-contact-email.ts";
+import {
+  resolveSiteSlug,
+  resolveStorefrontUrlForSiteId,
+  storefrontHostForSlug,
+} from "../_shared/storefront-url.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -98,7 +103,7 @@ serve(async (req) => {
       adminUserId = user.id;
     }
 
-    const { order_id, preview_only, record_manual_event, manual_note, skip_customer_email } = await req.json();
+    const { order_id, preview_only, record_manual_event, manual_note, skip_customer_email, skip_n8n } = await req.json();
 
     if (!order_id) {
       return new Response(
@@ -212,14 +217,15 @@ serve(async (req) => {
     const customerNumber = supplierSettings?.customer_number || '000001';
     const supplierContactEmail = supplierPoContactEmail(supplierSettings);
 
-    if (!preview_only && !n8nWebhookUrl) {
+    if (!preview_only && !skip_n8n && !n8nWebhookUrl) {
       return new Response(
         JSON.stringify({ error: 'N8N_WEBHOOK_URL non configuré' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const skipClientEmail = skip_customer_email === true;
+    const skipClientEmail = skip_customer_email === true || skip_n8n === true;
+    const storeOnly = skip_n8n === true;
 
     // Generate PDF file
     const siteLogo = loadSupplierDocumentLogo();
@@ -227,7 +233,7 @@ serve(async (req) => {
     const pdfBase64 = generateOrderPDF(
       order.order_number,
       displayName,
-      supplierContactEmail,
+      customerEmail,
       customerNumber,
       enrichedItems,
       {
@@ -238,6 +244,7 @@ serve(async (req) => {
       },
       resolvedPhone,
       siteLogo,
+      supplierContactEmail || null,
     );
 
     logStep("PDF file generated", { size: pdfBase64.length, preview_only: !!preview_only });
@@ -262,10 +269,13 @@ serve(async (req) => {
     const { productsHT, shippingHT } = splitOrderTotals(enrichedItems, order.total_ht);
     const fromEmail = supplierSettings?.customer_service_email || supplierSettings?.email;
     if (!preview_only && !skipClientEmail && (fromEmail || Deno.env.get("RESEND_FROM_EMAIL")) && customerEmail) {
-      const storefrontBase = (Deno.env.get("STOREFRONT_URL") || "https://www.vis-a-bois.com").replace(/\/$/, "");
+      const siteSlug = await resolveSiteSlug(supabaseAdmin, order.site_id ?? null);
+      const storefrontBase = await resolveStorefrontUrlForSiteId(supabaseAdmin, order.site_id ?? null);
       const trackingUrl = await buildOrderTrackingUrlForEmail(order.order_number, customerEmail, storefrontBase);
 
-      const { fromEmail: resendFrom, fromName, replyTo } = resolveResendFrom(supplierSettings);
+      const { fromEmail: resendFrom, fromName, replyTo } = resolveResendFrom(supplierSettings, {
+        siteSlug,
+      });
       const logoUrl = await resolveSiteLogoUrlForEmail(supabaseAdmin, order.site_id ?? null);
 
       await sendOrderConfirmationEmail({
@@ -274,6 +284,7 @@ serve(async (req) => {
         fromName,
         replyTo,
         logoUrl,
+        storefrontHost: storefrontHostForSlug(siteSlug),
         bccEmail: supplierSettings?.status_email || null,
         orderNumber: order.order_number,
         items: enrichedItems.map((item) => ({
@@ -311,6 +322,7 @@ serve(async (req) => {
       .upload(pdfPath, bytes, {
         contentType: 'application/pdf',
         upsert: true,
+        cacheControl: '0',
       });
 
     if (uploadError) {
@@ -325,35 +337,40 @@ serve(async (req) => {
 
       if (signedUrlData?.signedUrl) {
         // Get existing documents
-        const existingDocs = Array.isArray(order.documents) ? order.documents : [];
+        const existingDocs = Array.isArray(order.documents) ? [...order.documents] : [];
         
-        // Check if this document already exists (avoid duplicates)
-        const docExists = existingDocs.some((doc: any) => doc.name === pdfFileName);
-        
-        if (!docExists) {
-          const newDocument = {
-            name: pdfFileName,
-            path: pdfPath,
-            url: signedUrlData.signedUrl,
-            type: 'application/pdf',
-            uploaded_at: new Date().toISOString(),
-          };
+        const newDocument = {
+          name: pdfFileName,
+          path: pdfPath,
+          url: signedUrlData.signedUrl,
+          type: 'application/pdf',
+          uploaded_at: new Date().toISOString(),
+          source: storeOnly ? 'regenerate_cmd' : 'simulate-order-webhook',
+        };
 
-          // Update order with new document
-          const { error: updateError } = await supabaseAdmin
-            .from('orders')
-            .update({
-              documents: [...existingDocs, newDocument],
-            })
-            .eq('id', order.id);
+        const existingIdx = existingDocs.findIndex((doc: { name?: string; path?: string }) =>
+          doc?.name === pdfFileName || doc?.path === pdfPath
+        );
 
-          if (updateError) {
-            logStep("Error updating order documents", { error: updateError.message });
-          } else {
-            logStep("Order documents updated", { docCount: existingDocs.length + 1 });
-          }
+        if (existingIdx >= 0) {
+          existingDocs[existingIdx] = newDocument;
+          logStep("Document replaced in order.documents", { name: pdfFileName });
         } else {
-          logStep("Document already exists, skipping", { name: pdfFileName });
+          existingDocs.push(newDocument);
+          logStep("Document appended to order.documents", { name: pdfFileName });
+        }
+
+        const { error: updateError } = await supabaseAdmin
+          .from('orders')
+          .update({
+            documents: existingDocs,
+          })
+          .eq('id', order.id);
+
+        if (updateError) {
+          logStep("Error updating order documents", { error: updateError.message });
+        } else {
+          logStep("Order documents updated", { docCount: existingDocs.length });
         }
       }
     }
@@ -408,6 +425,40 @@ serve(async (req) => {
       },
       created_at: new Date().toISOString(),
     };
+
+    if (storeOnly) {
+      logStep("skip_n8n: PDF stocké sans envoi fournisseur", { order_number: order.order_number });
+
+      if (record_manual_event && adminUserId) {
+        await insertOrderStatusEvent(supabaseAdmin, {
+          order_id: order.id,
+          status: order.status,
+          event_kind: "manual_cmd",
+          is_manual: true,
+          note: manual_note || "Régénération CMD fournisseur (sans envoi)",
+          document: {
+            name: pdfFileName,
+            path: pdfPath,
+            type: "renvoi",
+          },
+          created_by: adminUserId,
+        });
+      }
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: "CMD régénérée et stockée (non envoyée au fournisseur)",
+          skip_n8n: true,
+          order_number: order.order_number,
+          pdf_file: {
+            filename: pdfFileName,
+            content_base64: pdfBase64,
+          },
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
 
     logStep("Sending to n8n", { url: n8nWebhookUrl });
 

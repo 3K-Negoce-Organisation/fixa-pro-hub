@@ -44,6 +44,22 @@ export function SeoExploreLinks() {
             Tout le catalogue
             <ArrowRight className="h-3.5 w-3.5 ml-1" />
           </Link>
+          {isVisABois && (
+            <>
+              <Link
+                to="/guide-choix-vis-a-bois"
+                className="inline-flex items-center rounded-full border border-border bg-card px-4 py-2 text-sm font-medium text-foreground hover:bg-muted transition-colors"
+              >
+                Guide de choix
+              </Link>
+              <Link
+                to="/comparatif-vis-inox-a2-a4"
+                className="inline-flex items-center rounded-full border border-border bg-card px-4 py-2 text-sm font-medium text-foreground hover:bg-muted transition-colors"
+              >
+                Inox A2 vs A4
+              </Link>
+            </>
+          )}
         </div>
       )}
 
