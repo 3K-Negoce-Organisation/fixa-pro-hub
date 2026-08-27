@@ -25,6 +25,10 @@ import OrderConfirmationPage from "./pages/OrderConfirmationPage";
 import PaymentCancelPage from "./pages/PaymentCancelPage";
 import AdminOrdersPage from "./pages/AdminOrdersPage";
 import AdminProductsPage from "./pages/AdminProductsPage";
+import AdminBlogPage from "./pages/AdminBlogPage";
+import BlogPage from "./pages/BlogPage";
+import BlogPostPage from "./pages/BlogPostPage";
+import AvisClientsPage from "./pages/AvisClientsPage";
 import PromosPage from "./pages/PromosPage";
 import MentionsLegalesPage from "./pages/MentionsLegalesPage";
 import PolitiqueConfidentialitePage from "./pages/PolitiqueConfidentialitePage";
@@ -70,6 +74,10 @@ const App = () => (
                   <Route path="/compte" element={<AuthGuard><AccountPage /></AuthGuard>} />
                   <Route path="/admin/commandes" element={<AdminGuard><AdminOrdersPage /></AdminGuard>} />
                   <Route path="/admin/produits" element={<AdminGuard><AdminProductsPage /></AdminGuard>} />
+                  <Route path="/admin/blog" element={<AdminGuard><AdminBlogPage /></AdminGuard>} />
+                  <Route path="/blog" element={<StorefrontAccessGuard><BlogPage /></StorefrontAccessGuard>} />
+                  <Route path="/blog/:slug" element={<StorefrontAccessGuard><BlogPostPage /></StorefrontAccessGuard>} />
+                  <Route path="/avis-clients" element={<StorefrontAccessGuard><AvisClientsPage /></StorefrontAccessGuard>} />
                   <Route path="/mentions-legales" element={<StorefrontAccessGuard><MentionsLegalesPage /></StorefrontAccessGuard>} />
                   <Route path="/politique-confidentialite" element={<StorefrontAccessGuard><PolitiqueConfidentialitePage /></StorefrontAccessGuard>} />
                   <Route path="/cookies" element={<StorefrontAccessGuard><CookiesPage /></StorefrontAccessGuard>} />

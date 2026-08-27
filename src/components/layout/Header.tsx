@@ -11,7 +11,9 @@ import { SupplierSettingsDialog } from "@/components/admin/SupplierSettingsDialo
 import { ThemeSettingsDialog } from "@/components/admin/ThemeSettingsDialog";
 import { CartDrawer } from "@/components/cart/CartDrawer";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useStorefrontSite } from "@/contexts/StorefrontSiteContext";
 import { ENVIRONMENT, getEnvironmentLabel, getEnvironmentColor } from "@/lib/environment";
+import { fetchSiteCategories } from "@/hooks/useSiteCategories";
 import {
   Dialog,
   DialogContent,
@@ -20,18 +22,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-// Fonction pour générer un slug URL à partir du nom de catégorie
-const categoryToSlug = (category: string): string => {
-  return category
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "") // Supprimer les accents
-    .replace(/\s+/g, "-") // Espaces vers tirets
-    .replace(/[^a-z0-9-]/g, ""); // Supprimer caractères spéciaux
-};
-
 export function Header() {
   const { theme, logoUrl } = useTheme();
+  const { siteId, loading: siteLoading } = useStorefrontSite();
   const [searchQuery, setSearchQuery] = useState("");
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [userFirstName, setUserFirstName] = useState<string | null>(null);
@@ -47,25 +40,19 @@ export function Header() {
   // Use dynamic logo from theme context (site_assets) or legacy theme.logo_url, or fallback to default
   const logoSrc = logoUrl || theme.logo_url || logoVisABois;
 
-  // Fetch categories from categories table
+  // Sous-catégories de la gamme du site (sub_category via category_product)
   const { data: categories = [] } = useQuery({
-    queryKey: ["product-categories"],
+    queryKey: ["product-sub-categories", siteId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("categories")
-        .select("id, name, slug, sort_order")
-        .eq("is_active", true)
-        .order("sort_order", { ascending: true });
-
-      if (error) throw error;
-
-      return (data || []).map((c) => ({
+      const rows = await fetchSiteCategories(siteId, "id, name, slug, sort_order");
+      return rows.map((c) => ({
         name: c.name,
         slug: c.slug,
         count: 0,
       }));
     },
     staleTime: 5 * 60 * 1000,
+    enabled: !siteLoading,
   });
 
   const getGreeting = () => {
@@ -133,7 +120,7 @@ export function Header() {
   }, []);
 
   const fetchDbStats = async () => {
-    const tables = ['products', 'profiles', 'orders', 'order_items', 'user_carts', 'supplier_settings', 'user_roles'];
+    const tables = ['products', 'profiles', 'orders', 'order_items', 'user_carts', 'supplier_settings', 'user_roles', 'blog_posts', 'blog_categories'];
     const stats: { table: string; count: number }[] = [];
     
     for (const table of tables) {
@@ -189,8 +176,8 @@ export function Header() {
               <span className="hidden md:inline">{getDisplayName()}</span>
             </Link>
 
-            {/* Admin : modale au clic, uniquement pierre.kabore@gmail.com */}
-            {userEmail === "pierre.kabore@gmail.com" && (
+            {/* Admin : modale au clic pour les comptes avec rôle admin */}
+            {isAdmin && (
               <>
                 <button
                   type="button"
@@ -232,6 +219,13 @@ export function Header() {
                         onClick={() => setAdminMenuOpen(false)}
                       >
                         Gestion des produits
+                      </Link>
+                      <Link
+                        to="/admin/blog"
+                        className="block rounded-md px-3 py-2.5 text-sm text-foreground hover:bg-primary/10 transition-colors"
+                        onClick={() => setAdminMenuOpen(false)}
+                      >
+                        Gestion du blog
                       </Link>
                       <button
                         type="button"

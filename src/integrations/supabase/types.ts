@@ -14,6 +14,137 @@ export type Database = {
   }
   public: {
     Tables: {
+      blog_categories: {
+        Row: {
+          id: string
+          site_id: string
+          slug: string
+          name: string
+          description: string | null
+          sort_order: number
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          site_id: string
+          slug: string
+          name: string
+          description?: string | null
+          sort_order?: number
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          site_id?: string
+          slug?: string
+          name?: string
+          description?: string | null
+          sort_order?: number
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "blog_categories_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      blog_posts: {
+        Row: {
+          id: string
+          site_id: string
+          slug: string
+          title: string
+          excerpt: string | null
+          content: string
+          cover_image_url: string | null
+          cover_image_pinterest_url: string | null
+          author_name: string
+          category_id: string | null
+          audience: string
+          meta_title: string | null
+          meta_description: string | null
+          cta_type: string
+          cta_label: string | null
+          cta_url: string | null
+          is_published: boolean
+          published_at: string | null
+          sort_order: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          site_id: string
+          slug: string
+          title: string
+          excerpt?: string | null
+          content?: string
+          cover_image_url?: string | null
+          cover_image_pinterest_url?: string | null
+          author_name?: string
+          category_id?: string | null
+          audience?: string
+          meta_title?: string | null
+          meta_description?: string | null
+          cta_type?: string
+          cta_label?: string | null
+          cta_url?: string | null
+          is_published?: boolean
+          published_at?: string | null
+          sort_order?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          site_id?: string
+          slug?: string
+          title?: string
+          excerpt?: string | null
+          content?: string
+          cover_image_url?: string | null
+          cover_image_pinterest_url?: string | null
+          author_name?: string
+          category_id?: string | null
+          audience?: string
+          meta_title?: string | null
+          meta_description?: string | null
+          cta_type?: string
+          cta_label?: string | null
+          cta_url?: string | null
+          is_published?: boolean
+          published_at?: string | null
+          sort_order?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "blog_posts_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "blog_posts_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "blog_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       custom_themes: {
         Row: {
           created_at: string

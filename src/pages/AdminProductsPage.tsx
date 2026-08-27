@@ -78,6 +78,7 @@ interface ProductFormData {
   price_ht: number;
   price_ttc: number;
   category_id: string;
+  sub_category_id: string;
   stock: number;
   is_active: boolean;
   is_promo: boolean;
@@ -112,6 +113,7 @@ const emptyFormData: ProductFormData = {
   price_ht: 0,
   price_ttc: 0,
   category_id: "",
+  sub_category_id: "",
   stock: 0,
   is_active: true,
   is_promo: false,
@@ -177,12 +179,13 @@ const AdminProductsPage = () => {
     checkAdmin();
   }, []);
 
-  // Fetch categories for the dropdown
+  // Sous-catégories (sub_category) pour le sélecteur
   const { data: categories = [] } = useQuery({
-    queryKey: ['admin-categories'],
+    queryKey: ['admin-sub-categories'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('categories')
+      const db = supabase as any;
+      const { data, error } = await db
+        .from('sub_category')
         .select('id, name, slug')
         .eq('is_active', true)
         .order('name');
@@ -191,17 +194,17 @@ const AdminProductsPage = () => {
     },
   });
 
-  // Fetch all products (including inactive for admin), with joined category
+  // Fetch all products (including inactive for admin), with joined sub_category
   const { data: products, isLoading, refetch } = useQuery({
     queryKey: ['admin-products'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('products')
-        .select('*, categories(id, name, slug)')
+        .select('*, sub_category:sub_category_id(id, name, slug)')
         .order('title');
       
       if (error) throw error;
-      return data as (Product & { categories: { id: string; name: string; slug: string } | null })[];
+      return data as (Product & { sub_category: { id: string; name: string; slug: string } | null })[];
     },
     enabled: isAdmin === true,
   });
@@ -210,7 +213,7 @@ const AdminProductsPage = () => {
   const filteredProducts = products?.filter(p =>
     p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
     p.handle.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (p as any).categories?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (p as any).sub_category?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     p.code_alsafix?.toLowerCase().includes(searchQuery.toLowerCase())
   ) || [];
 
@@ -243,6 +246,7 @@ const AdminProductsPage = () => {
           price_ht: money.price_ht,
           price_ttc: money.price_ttc,
           category_id: data.category_id || null,
+          sub_category_id: data.sub_category_id || null,
           stock: data.stock,
           is_active: data.is_active,
           is_promo: data.is_promo,
@@ -296,6 +300,7 @@ const AdminProductsPage = () => {
           price_ht: money.price_ht,
           price_ttc: money.price_ttc,
           category_id: data.category_id || null,
+          sub_category_id: data.sub_category_id || null,
           stock: data.stock,
           is_active: data.is_active,
           is_promo: data.is_promo,
@@ -509,6 +514,7 @@ const AdminProductsPage = () => {
       price_ht: product.price_ht,
       price_ttc: product.price_ttc,
       category_id: product.category_id || "",
+      sub_category_id: (product as any).sub_category_id || "",
       stock: product.stock || 0,
       is_active: product.is_active ?? true,
       is_promo: product.is_promo ?? false,
@@ -770,9 +776,9 @@ const AdminProductsPage = () => {
                             {product.title}
                           </TableCell>
                           <TableCell className="max-w-[120px]">
-                            {(product as any).categories?.name ? (
+                            {(product as any).sub_category?.name ? (
                               <Badge variant="secondary" className="truncate max-w-full text-xs font-normal">
-                                {(product as any).categories.name}
+                                {(product as any).sub_category.name}
                               </Badge>
                             ) : (
                               <span className="text-muted-foreground">-</span>
@@ -922,13 +928,13 @@ const AdminProductsPage = () => {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="category_id">Catégorie</Label>
+                  <Label htmlFor="sub_category_id">Sous-catégorie</Label>
                   <UiSelect
-                    value={formData.category_id || ""}
-                    onValueChange={(val) => setFormData({ ...formData, category_id: val })}
+                    value={formData.sub_category_id || ""}
+                    onValueChange={(val) => setFormData({ ...formData, sub_category_id: val })}
                   >
-                    <UiSelectTrigger id="category_id">
-                      <UiSelectValue placeholder="Choisir une catégorie" />
+                    <UiSelectTrigger id="sub_category_id">
+                      <UiSelectValue placeholder="Choisir une sous-catégorie" />
                     </UiSelectTrigger>
                     <UiSelectContent>
                       {categories.map((cat) => (

@@ -8,6 +8,8 @@ export function Footer() {
           {/* Liens infos et légaux */}
           <div className="flex flex-wrap justify-center md:justify-start gap-x-4 gap-y-1 text-sm">
             <Link to="/information-technique" className="text-theme-footer-hover hover:underline">Infos techniques</Link>
+            <Link to="/blog" className="text-theme-footer-hover hover:underline">Blog</Link>
+            <Link to="/avis-clients" className="text-theme-footer-hover hover:underline">Avis clients</Link>
             <Link to="/guide-choix-vis-a-bois" className="text-theme-footer-hover hover:underline">Guide choix</Link>
             <Link to="/faq" className="text-theme-footer-hover hover:underline">FAQ</Link>
             <Link to="/a-propos" className="text-theme-footer-hover hover:underline">À propos</Link>
@@ -20,7 +22,7 @@ export function Footer() {
             <Link to="/livraison" className="opacity-70 text-theme-footer-hover hover:underline">Livraison</Link>
             <Link to="/retours" className="opacity-70 text-theme-footer-hover hover:underline">Retours</Link>
           </div>
-          
+
           {/* Copyright */}
           <p className="text-xs opacity-50 shrink-0">
             © 2024 vis-a-bois

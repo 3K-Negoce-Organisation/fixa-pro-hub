@@ -219,14 +219,14 @@ const ProductDetailPage = () => {
             <Link to="/produits" className="hover:text-foreground shrink-0">
               Produits
             </Link>
-            {product.categories && (
+            {product.sub_category && (
               <>
                 <ChevronRight className="h-3 w-3 sm:h-4 sm:w-4 shrink-0" />
                 <Link
-                  to={`/produits?category=${product.categories.slug}`}
+                  to={`/produits?category=${product.sub_category.slug}`}
                   className="hover:text-foreground shrink-0"
                 >
-                  {product.categories.name}
+                  {product.sub_category.name}
                 </Link>
               </>
             )}
@@ -286,9 +286,9 @@ const ProductDetailPage = () => {
             <div className="space-y-4">
               {/* Title & Badge */}
               <div>
-                {product.categories && (
+                {product.sub_category && (
                   <Badge variant="secondary" className="mb-1">
-                    {product.categories.name}
+                    {product.sub_category.name}
                   </Badge>
                 )}
                 <h1 className="text-xl font-bold text-foreground mb-1">
