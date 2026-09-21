@@ -335,6 +335,7 @@ export type Database = {
           head_diameter_mm: number | null
           id: string
           images: Json | null
+          videos: Json | null
           is_active: boolean | null
           is_promo: boolean | null
           length_mm: number | null
@@ -374,6 +375,7 @@ export type Database = {
           head_diameter_mm?: number | null
           id?: string
           images?: Json | null
+          videos?: Json | null
           is_active?: boolean | null
           is_promo?: boolean | null
           length_mm?: number | null
@@ -413,6 +415,7 @@ export type Database = {
           head_diameter_mm?: number | null
           id?: string
           images?: Json | null
+          videos?: Json | null
           is_active?: boolean | null
           is_promo?: boolean | null
           length_mm?: number | null

@@ -39,6 +39,8 @@ export type ExtendedProductCharacteristics = {
   flat_length_mm?: number | null;
   classification?: number | null;
   datasheet_url?: string | null;
+  /** Vidéos YouTube (colonne products.videos). */
+  videos?: Array<{ url?: string; provider?: string; id?: string }> | null;
 };
 
 export type Product = Tables<"products"> &

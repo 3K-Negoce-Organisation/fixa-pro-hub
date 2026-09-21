@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { ShoppingCart, Heart, ChevronRight, Truck, Shield, RotateCcw, Loader2, Download } from "lucide-react";
 import { CharacteristicPicto } from "@/components/products/CharacteristicPicto";
+import { ProductMediaGallery } from "@/components/products/ProductMediaGallery";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -27,6 +28,7 @@ import {
 } from "@/lib/seo";
 import { resolveTechnicalSheetForProduct } from "@/lib/technicalSheets";
 import { resolveProductImageUrl } from "@/lib/imageFallback";
+import { productCarouselItems } from "@/lib/productMedia";
 import {
   fetchProductByHandle,
   formatPrice,
@@ -100,6 +102,16 @@ const ProductDetailPage = () => {
   const variants: ProductVariant[] = product ? parseVariants(product) : [];
   const currentVariant = variants.find(v => v.id === selectedVariantId) || variants[0];
   const productImage = product ? getProductImage(product) : resolveProductImageUrl(null);
+  const mediaItems = useMemo(
+    () =>
+      product
+        ? productCarouselItems(
+            product.images as Array<{ url?: string }> | string[] | null,
+            (product as { videos?: Array<{ url?: string }> | string[] | null }).videos,
+          )
+        : [],
+    [product],
+  );
 
   if (isLoading) {
     return (
@@ -235,15 +247,13 @@ const ProductDetailPage = () => {
           </nav>
 
           <div className="grid lg:grid-cols-2 gap-4 sm:gap-6">
-            {/* Product Images + Characteristics */}
+            {/* Product Images / Videos + Characteristics */}
             <div className="space-y-4">
-              <div className="aspect-square bg-white rounded-lg flex items-center justify-center p-4 border border-border">
-                <img
-                  src={productImage}
-                  alt={product.title}
-                  className="max-w-full max-h-full object-contain"
-                />
-              </div>
+              <ProductMediaGallery
+                items={mediaItems}
+                alt={product.title}
+                fallbackUrl={productImage}
+              />
               {/* Technical specifications as badges */}
               {technicalSpecs.length > 0 && (
                 <div className="mt-4 flex flex-wrap items-start gap-3 sm:gap-4">
