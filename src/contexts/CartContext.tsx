@@ -11,6 +11,8 @@ import {
   type PromoPricedProduct,
 } from "@/lib/productPromoPrices";
 import { resolveProductImageUrl } from "@/lib/imageFallback";
+import { useStorefrontSite } from "@/contexts/StorefrontSiteContext";
+
 export interface CartItem {
   id: string;
   variantId: string;
@@ -53,6 +55,7 @@ const CART_STORAGE_KEY = "vis-a-bois-cart";
 const REMOVED_ITEMS_STORAGE_KEY = "vis-a-bois-removed-items";
 
 export function CartProvider({ children }: { children: ReactNode }) {
+  const { siteId, loading: siteLoading } = useStorefrontSite();
   const [items, setItems] = useState<CartItem[]>([]);
   const [removedItems, setRemovedItems] = useState<CartItem[]>([]);
   const [isOpen, setIsOpen] = useState(false);
@@ -166,14 +169,16 @@ export function CartProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  // Save cart to Supabase for authenticated users
+  // Save cart to Supabase for authenticated users (scoped by site)
   const saveCartToSupabase = useCallback(async (userId: string, cartItems: CartItem[]) => {
+    if (!siteId) return;
     try {
       // Check if cart exists first
       const { data: existingCart } = await supabase
         .from('user_carts')
         .select('id')
         .eq('user_id', userId)
+        .eq('site_id', siteId)
         .maybeSingle();
 
       if (existingCart) {
@@ -184,7 +189,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
             items: JSON.parse(JSON.stringify(cartItems)),
             updated_at: new Date().toISOString(),
           })
-          .eq('user_id', userId);
+          .eq('user_id', userId)
+          .eq('site_id', siteId);
 
         if (error) {
           console.error("[CART] Error updating cart in Supabase:", error);
@@ -197,6 +203,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
           .from('user_carts')
           .insert({
             user_id: userId,
+            site_id: siteId,
             items: JSON.parse(JSON.stringify(cartItems)),
           });
 
@@ -209,15 +216,17 @@ export function CartProvider({ children }: { children: ReactNode }) {
     } catch (err) {
       console.error("[CART] Failed to save cart:", err);
     }
-  }, []);
+  }, [siteId]);
 
-  // Load cart from Supabase for authenticated users
+  // Load cart from Supabase for authenticated users (scoped by site)
   const loadCartFromSupabase = useCallback(async (userId: string): Promise<CartItem[]> => {
+    if (!siteId) return [];
     try {
       const { data, error } = await supabase
         .from('user_carts')
         .select('items')
         .eq('user_id', userId)
+        .eq('site_id', siteId)
         .maybeSingle();
 
       if (error) {
@@ -234,26 +243,31 @@ export function CartProvider({ children }: { children: ReactNode }) {
       console.error("[CART] Failed to load cart:", err);
       return [];
     }
-  }, []);
+  }, [siteId]);
 
-  // Clear cart from Supabase
+  // Clear cart from Supabase (scoped by site)
   const clearCartFromSupabase = useCallback(async (userId: string) => {
+    if (!siteId) return;
     try {
       await supabase
         .from('user_carts')
         .delete()
-        .eq('user_id', userId);
+        .eq('user_id', userId)
+        .eq('site_id', siteId);
       console.log("[CART] Cleared from Supabase");
     } catch (err) {
       console.error("[CART] Failed to clear cart:", err);
     }
-  }, []);
+  }, [siteId]);
 
-  // Initialize cart based on auth state
+  // Initialize cart based on auth state + site (reload when siteId changes)
   useEffect(() => {
+    if (siteLoading || !siteId) return;
+
     const initializeCart = async () => {
       setIsLoading(true);
-      
+      isInitializedRef.current = false;
+
       const { data: { user: currentUser } } = await supabase.auth.getUser();
       setUser(currentUser);
 
@@ -337,7 +351,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     return () => {
       subscription.unsubscribe();
     };
-  }, [loadCartFromSupabase, loadLocalCart, saveCartToSupabase, hydrateCartItems]);
+  }, [siteLoading, siteId, loadCartFromSupabase, loadLocalCart, saveCartToSupabase, hydrateCartItems]);
 
   // Save cart changes (debounced for performance)
   useEffect(() => {
@@ -351,6 +365,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     // Debounce saves to avoid too many requests
     saveTimeoutRef.current = setTimeout(() => {
       if (user) {
+        if (!siteId) return;
         // Save to Supabase for authenticated users
         saveCartToSupabase(user.id, items);
       } else {
@@ -364,7 +379,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         clearTimeout(saveTimeoutRef.current);
       }
     };
-  }, [items, user, saveCartToSupabase]);
+  }, [items, user, siteId, saveCartToSupabase]);
 
   // Save removed items to localStorage (always local)
   useEffect(() => {
