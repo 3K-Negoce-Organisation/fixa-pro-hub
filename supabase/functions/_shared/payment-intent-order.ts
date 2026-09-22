@@ -210,6 +210,16 @@ export async function fulfillPaymentIntentOrder(
     .single();
 
   if (orderError || !order) {
+    // Concurrence webhook / complete-checkout : UNIQUE stripe_payment_intent_id
+    const existing = await findOrderByPaymentIntentId(supabaseAdmin, paymentIntentId);
+    if (existing) {
+      console.log("[fulfillPaymentIntentOrder] idempotent hit", existing.order_number);
+      return {
+        order_id: existing.id,
+        order_number: existing.order_number,
+        existing: true,
+      };
+    }
     throw new Error(orderError?.message || "Échec création commande");
   }
 
@@ -244,18 +254,21 @@ export async function fulfillPaymentIntentOrder(
     );
 
     const { error: itemsError } = await supabaseAdmin.from("order_items").insert(orderItems);
-    if (!itemsError) {
-      const stockResult = await decrementProductsStock(
-        supabaseAdmin,
-        orderItems.map((item) => ({
-          product_id: String(item.product_id),
-          quantity: Number(item.quantity),
-        })),
-        { order_id: order.id, order_number: orderNumber },
-      );
-      if (stockResult.warnings.length > 0) {
-        console.warn("[fulfillPaymentIntentOrder] stock warnings", stockResult.warnings);
-      }
+    if (itemsError) {
+      // Ne pas laisser une commande paid sans lignes (stock / n8n / facture cassés).
+      await supabaseAdmin.from("orders").delete().eq("id", order.id);
+      throw new Error(`order_items insert failed: ${itemsError.message}`);
+    }
+    const stockResult = await decrementProductsStock(
+      supabaseAdmin,
+      orderItems.map((item) => ({
+        product_id: String(item.product_id),
+        quantity: Number(item.quantity),
+      })),
+      { order_id: order.id, order_number: orderNumber },
+    );
+    if (stockResult.warnings.length > 0) {
+      console.warn("[fulfillPaymentIntentOrder] stock warnings", stockResult.warnings);
     }
   }
 

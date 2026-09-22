@@ -28,6 +28,7 @@ import {
 } from "@/lib/seo";
 import { resolveTechnicalSheetForProduct } from "@/lib/technicalSheets";
 import { resolveProductImageUrl } from "@/lib/imageFallback";
+import { getEffectiveProductPrices } from "@/lib/productPromoPrices";
 import { productCarouselItems } from "@/lib/productMedia";
 import {
   fetchProductByHandle,
@@ -155,7 +156,11 @@ const ProductDetailPage = () => {
   }
 
   const handleAddToCart = () => {
-    if (!currentVariant) return;
+    if (!currentVariant || !product) return;
+    const effective = getEffectiveProductPrices(product as any);
+    const promoActive = effective.isPromo && !!(product as any).promo_gift_product_id
+      ? true
+      : effective.isPromo;
     addItem(
       {
         id: product.id,
@@ -163,11 +168,17 @@ const ProductDetailPage = () => {
         handle: product.handle,
         title: product.title,
         variantTitle: currentVariant.title,
-        priceHT: currentVariant.price_ht,
-        priceTTC: currentVariant.price_ttc,
+        priceHT: effective.priceHT,
+        priceTTC: effective.priceTTC,
         image: productImage,
-        promoGiftProductId: (product as any).promo_gift_product_id || undefined,
-        promoGiftQuantity: (product as any).promo_gift_quantity || undefined,
+        promoGiftProductId:
+          promoActive && (product as any).promo_gift_product_id
+            ? (product as any).promo_gift_product_id
+            : undefined,
+        promoGiftQuantity:
+          promoActive && (product as any).promo_gift_quantity
+            ? (product as any).promo_gift_quantity
+            : undefined,
         boxQuantity: product.box_quantity ?? null,
       },
       quantity

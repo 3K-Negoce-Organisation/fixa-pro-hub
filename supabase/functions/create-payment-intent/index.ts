@@ -3,7 +3,6 @@ import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { ensureFrenchStripeCustomer } from "../_shared/stripe-customer-fr.ts";
 import { computeCheckoutTotals } from "../_shared/checkout-totals.ts";
-import { roundMoney } from "../_shared/money.ts";
 import {
   loadShippingConfigForSite,
   shippingConfigMetadata,
@@ -13,6 +12,7 @@ import {
   stripeMetadataForCompactItems,
   toCompactCartItems,
 } from "../_shared/stripe-cart-metadata.ts";
+import { resolveCartLinesFromCatalog } from "../_shared/resolve-cart-prices.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -156,15 +156,8 @@ serve(async (req) => {
     assertSecretMatchesStripeMode(stripeMode, stripeKey);
     logStep("Stripe key resolved", { stripeMode });
 
-    const roundedItems = payableItems.map((item) => {
-      const priceTTC =
-        item.priceTTC != null && item.priceTTC > 0
-          ? roundMoney(item.priceTTC)
-          : roundMoney(roundMoney(item.priceHT) * 1.2);
-      const priceHT =
-        item.priceHT > 0 ? roundMoney(item.priceHT) : roundMoney(priceTTC / 1.2);
-      return { ...item, priceHT, priceTTC };
-    });
+    // Prix serveur uniquement (ignore priceHT/priceTTC client — anti-fraude).
+    const roundedItems = await resolveCartLinesFromCatalog(admin, payableItems);
     const shippingConfig = await loadShippingConfigForSite(admin, resolvedSiteId);
     const { productsHT, subtotalTTC, shippingTTC, shippingHT, totalHT, totalTTC } =
       computeCheckoutTotals(roundedItems, shippingConfig);

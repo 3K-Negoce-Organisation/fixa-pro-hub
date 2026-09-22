@@ -4,18 +4,22 @@ import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { ProductCard, DisplayProduct } from "@/components/products/ProductCard";
 import { fetchProducts, getProductImage, Product } from "@/lib/products";
+import { getEffectiveProductPrices } from "@/lib/productPromoPrices";
 import { useCart } from "@/contexts/CartContext";
 import { useStorefrontSite } from "@/contexts/StorefrontSiteContext";
 import { toast } from "sonner";
 
 function mapProductToDisplay(product: Product): DisplayProduct {
+  const effective = getEffectiveProductPrices(product as any);
   return {
     id: product.id,
     variantId: product.id,
     handle: product.handle,
     title: product.title,
-    priceHT: product.price_ht,
-    priceTTC: product.price_ttc,
+    priceHT: effective.priceHT,
+    priceTTC: effective.priceTTC,
+    originalPriceHT: effective.originalPriceHT,
+    originalPriceTTC: effective.originalPriceTTC,
     image: getProductImage(product),
     category: product.categories?.name || product.category || "",
     diameter_mm: product.diameter_mm,

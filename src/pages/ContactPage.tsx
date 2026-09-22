@@ -24,6 +24,9 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 
+import { useStorefrontSite } from "@/contexts/StorefrontSiteContext";
+import { DEFAULT_STOREFRONT_SITE_SLUG } from "@/lib/storefrontSite";
+
 const contactSchema = z.object({
   name: z.string().trim().min(2, "Le nom doit contenir au moins 2 caractères").max(100),
   email: z.string().trim().email("Adresse email invalide").max(255),
@@ -37,6 +40,7 @@ type ContactFormValues = z.infer<typeof contactSchema>;
 const ContactPage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
+  const { siteSlug } = useStorefrontSite();
 
   const form = useForm<ContactFormValues>({
     resolver: zodResolver(contactSchema),
@@ -53,10 +57,16 @@ const ContactPage = () => {
     setIsSubmitting(true);
     try {
       const { data: response, error } = await supabase.functions.invoke("send-contact-email", {
-        body: data,
+        body: {
+          ...data,
+          site_slug: siteSlug || DEFAULT_STOREFRONT_SITE_SLUG,
+        },
       });
 
       if (error) throw error;
+      if (response && typeof response === "object" && "error" in response && response.error) {
+        throw new Error(String(response.error));
+      }
 
       toast({
         title: "Message envoyé !",

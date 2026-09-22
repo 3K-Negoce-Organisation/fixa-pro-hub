@@ -12,6 +12,15 @@ serve(async (req) => {
   }
 
   try {
+    const expected = (Deno.env.get("ADMIN_SECRET") || Deno.env.get("CREATE_ADMIN_SECRET") || "").trim();
+    const provided = (req.headers.get("x-admin-secret") || "").trim();
+    if (!expected || provided !== expected) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
     const { email, password } = await req.json();
 
     if (!email || !password) {
@@ -27,7 +36,6 @@ serve(async (req) => {
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
 
-    // Create user with admin API
     const { data: user, error: createError } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
@@ -48,9 +56,8 @@ serve(async (req) => {
       JSON.stringify({ success: true, userId: user.user?.id }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
-  } catch (error: unknown) {
-    console.error("Error:", error);
-    const message = error instanceof Error ? error.message : "Unknown error";
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
     return new Response(
       JSON.stringify({ error: message }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }

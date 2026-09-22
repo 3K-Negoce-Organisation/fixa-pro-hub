@@ -13,6 +13,7 @@ import {
   stripeMetadataForCompactItems,
   toCompactCartItems,
 } from "../_shared/stripe-cart-metadata.ts";
+import { resolveCartLinesFromCatalog } from "../_shared/resolve-cart-prices.ts";
 import { resolveCheckoutOrigin } from "../_shared/storefront-url.ts";
 
 const corsHeaders = {
@@ -137,15 +138,8 @@ serve(async (req) => {
 
     const checkoutSiteId = site?.id ?? "";
 
-    const roundedItems = payableItems.map((item) => {
-      const priceTTC =
-        item.priceTTC != null && item.priceTTC > 0
-          ? roundMoney(item.priceTTC)
-          : roundMoney(roundMoney(item.priceHT) * 1.2);
-      const priceHT =
-        item.priceHT > 0 ? roundMoney(item.priceHT) : roundMoney(priceTTC / 1.2);
-      return { ...item, priceHT, priceTTC };
-    });
+    // Prix serveur uniquement (ignore priceHT/priceTTC client — anti-fraude).
+    const roundedItems = await resolveCartLinesFromCatalog(admin, payableItems);
     const shippingConfig = await loadShippingConfigForSite(admin, checkoutSiteId || site?.id);
     const { productsHT, subtotalTTC, shippingTTC, shippingHT, totalHT, totalTTC } =
       computeCheckoutTotals(roundedItems, shippingConfig);

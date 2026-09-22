@@ -373,22 +373,25 @@ serve(async (req) => {
           .insert(orderItems);
 
         if (itemsError) {
-          logStep("Error creating order items", { error: itemsError.message });
+          logStep("Error creating order items — rolling back empty order", {
+            error: itemsError.message,
+          });
+          await supabaseAdmin.from("orders").delete().eq("id", order.id);
+          throw new Error(`order_items insert failed: ${itemsError.message}`);
+        }
+        logStep("Order items created", { count: orderItems.length });
+        const stockResult = await decrementProductsStock(
+          supabaseAdmin,
+          orderItems.map((item) => ({
+            product_id: String(item.product_id),
+            quantity: Number(item.quantity),
+          })),
+          { order_id: order.id, order_number: orderNumber },
+        );
+        if (stockResult.warnings.length > 0) {
+          logStep("Stock decrement warnings", { warnings: stockResult.warnings });
         } else {
-          logStep("Order items created", { count: orderItems.length });
-          const stockResult = await decrementProductsStock(
-            supabaseAdmin,
-            orderItems.map((item) => ({
-              product_id: String(item.product_id),
-              quantity: Number(item.quantity),
-            })),
-            { order_id: order.id, order_number: orderNumber },
-          );
-          if (stockResult.warnings.length > 0) {
-            logStep("Stock decrement warnings", { warnings: stockResult.warnings });
-          } else {
-            logStep("Stock decremented", { products_updated: stockResult.products_updated });
-          }
+          logStep("Stock decremented", { products_updated: stockResult.products_updated });
         }
       }
 

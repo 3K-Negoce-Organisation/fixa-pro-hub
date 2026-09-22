@@ -3,6 +3,7 @@ import { Clock, ArrowRight, Plus } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { fetchProducts, getProductImage, formatPrice } from "@/lib/products";
+import { getEffectiveProductPrices } from "@/lib/productPromoPrices";
 import { useCart } from "@/contexts/CartContext";
 import { useStorefrontSite } from "@/contexts/StorefrontSiteContext";
 import { useToast } from "@/hooks/use-toast";
@@ -18,15 +19,24 @@ export function QuickOrderSection() {
     enabled: !siteLoading,
   });
 
-  const recentProducts = (products?.slice(0, 4) || []).map((product) => ({
-    id: product.id,
-    handle: product.handle,
-    title: product.title,
-    priceHT: product.price_ht,
-    priceTTC: product.price_ttc,
-    image: getProductImage(product),
-    boxQuantity: product.box_quantity ?? null,
-  }));
+  const recentProducts = (products?.slice(0, 4) || []).map((product) => {
+    const effective = getEffectiveProductPrices(product as any);
+    return {
+      id: product.id,
+      handle: product.handle,
+      title: product.title,
+      priceHT: effective.priceHT,
+      priceTTC: effective.priceTTC,
+      image: getProductImage(product),
+      boxQuantity: product.box_quantity ?? null,
+      promoGiftProductId: effective.isPromo
+        ? ((product as any).promo_gift_product_id as string | undefined)
+        : undefined,
+      promoGiftQuantity: effective.isPromo
+        ? ((product as any).promo_gift_quantity as number | undefined)
+        : undefined,
+    };
+  });
 
   const handleAddToCart = (product: typeof recentProducts[0]) => {
     addItem({
@@ -39,6 +49,8 @@ export function QuickOrderSection() {
       priceTTC: product.priceTTC,
       image: product.image,
       boxQuantity: product.boxQuantity ?? null,
+      promoGiftProductId: product.promoGiftProductId,
+      promoGiftQuantity: product.promoGiftQuantity,
     }, 1);
     toast({
       title: "Produit ajouté",

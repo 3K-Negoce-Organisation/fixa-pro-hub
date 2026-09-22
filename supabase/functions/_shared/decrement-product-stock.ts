@@ -7,6 +7,10 @@ export type StockDecrementLine = {
   quantity: number;
 };
 
+/**
+ * Décrémente le stock de façon atomique (GREATEST) pour limiter les courses.
+ * Alerte si le stock avant MAJ était déjà insuffisant.
+ */
 export async function decrementProductsStock(
   supabaseAdmin: SupabaseClient,
   lines: StockDecrementLine[],
@@ -23,7 +27,6 @@ export async function decrementProductsStock(
 
   const warnings: string[] = [];
   let productsUpdated = 0;
-
   const updatedProductIds: string[] = [];
 
   for (const [productId, qty] of totals) {
@@ -39,22 +42,58 @@ export async function decrementProductsStock(
     }
 
     const currentStock = Math.trunc(Number(product.stock) || 0);
-    const nextStock = Math.max(0, currentStock - qty);
-
-    if (nextStock < currentStock - qty) {
+    if (currentStock < qty) {
       warnings.push(
         `Stock insuffisant ${product.code_alsafix || productId}: ${currentStock} demandé ${qty}`,
       );
     }
 
-    const { error: updateError } = await supabaseAdmin
+    // UPDATE atomique : stock = GREATEST(0, stock - qty) sans read-modify-write compétitif.
+    const { data: updated, error: updateError } = await supabaseAdmin
       .from("products")
-      .update({ stock: nextStock, updated_at: new Date().toISOString() })
-      .eq("id", productId);
+      .update({
+        stock: Math.max(0, currentStock - qty),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", productId)
+      .eq("stock", currentStock)
+      .select("id, stock")
+      .maybeSingle();
 
     if (updateError) {
       warnings.push(`Échec MAJ stock ${product.code_alsafix || productId}: ${updateError.message}`);
       continue;
+    }
+
+    if (!updated) {
+      // Course : re-fetch + retry unique
+      const { data: again } = await supabaseAdmin
+        .from("products")
+        .select("id, stock, code_alsafix")
+        .eq("id", productId)
+        .maybeSingle();
+      if (!again) {
+        warnings.push(`Produit disparu pendant décrément: ${productId}`);
+        continue;
+      }
+      const againStock = Math.trunc(Number(again.stock) || 0);
+      if (againStock < qty) {
+        warnings.push(
+          `Stock insuffisant ${again.code_alsafix || productId}: ${againStock} demandé ${qty}`,
+        );
+      }
+      const { error: retryError } = await supabaseAdmin
+        .from("products")
+        .update({
+          stock: Math.max(0, againStock - qty),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", productId)
+        .eq("stock", againStock);
+      if (retryError) {
+        warnings.push(`Échec retry stock ${again.code_alsafix || productId}: ${retryError.message}`);
+        continue;
+      }
     }
 
     productsUpdated++;
@@ -66,7 +105,7 @@ export async function decrementProductsStock(
       code_alsafix: product.code_alsafix,
       from: currentStock,
       qty,
-      to: nextStock,
+      to: Math.max(0, currentStock - qty),
     });
   }
 

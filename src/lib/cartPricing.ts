@@ -68,8 +68,7 @@ export function cartProductsHT(items: CartPricedLine[]): number {
   return roundMoney(
     items.reduce((sum, item) => {
       if (item.isGift) return sum;
-      const unitTtc = lineUnitTTC(item);
-      return sum + roundMoney(unitTtc / (1 + TVA_RATE)) * item.quantity;
+      return sum + roundMoney(lineUnitHT(item) * item.quantity);
     }, 0),
   );
 }

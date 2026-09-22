@@ -6,6 +6,10 @@ import {
   cartProductsTTC,
   normalizeCartLinePricing,
 } from "@/lib/cartPricing";
+import {
+  getEffectiveProductPrices,
+  type PromoPricedProduct,
+} from "@/lib/productPromoPrices";
 import { resolveProductImageUrl } from "@/lib/imageFallback";
 export interface CartItem {
   id: string;
@@ -133,20 +137,31 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
     const { data: products } = await supabase
       .from("products")
-      .select("id, box_quantity, price_ht, price_ttc")
+      .select(
+        "id, box_quantity, price_ht, price_ttc, is_promo, promo_price_ht, promo_discount_percent, promo_end_date, promo_gift_product_id",
+      )
       .in("id", productIds);
 
     const byId = new Map((products || []).map((p) => [p.id, p]));
+    const now = new Date();
 
     return cartItems.map((item) => {
       if (item.isGift) return item;
       const product = byId.get(item.id);
-      const { priceHT, priceTTC } = normalizeCartLinePricing(item, product ?? undefined);
+      if (!product) {
+        const { priceHT, priceTTC } = normalizeCartLinePricing(item);
+        return { ...item, priceHT, priceTTC };
+      }
+      const effective = getEffectiveProductPrices(product as PromoPricedProduct, now);
+      const { priceHT, priceTTC } = normalizeCartLinePricing(item, {
+        price_ht: effective.priceHT,
+        price_ttc: effective.priceTTC,
+      });
       return {
         ...item,
         priceHT,
         priceTTC,
-        boxQuantity: item.boxQuantity ?? product?.box_quantity ?? null,
+        boxQuantity: item.boxQuantity ?? product.box_quantity ?? null,
       };
     });
   }, []);
