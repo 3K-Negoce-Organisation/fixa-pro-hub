@@ -797,18 +797,19 @@ export const StripePaymentForm = ({ items, totalTTC, totalHT, onSuccess, onCance
     setGuestGatePassed(true);
   };
 
-  // Redirection Checkout hébergé seulement si Stripe.js / Elements ne charge pas (pas sur erreur API)
+  // Redirection Checkout hébergé seulement si Stripe.js a échoué à charger
+  // (ne pas utiliser !clientSecret : course au démarrage du PI → fallback intempestif).
   const shouldFallback =
     stripeMode !== null &&
     sessionResolved &&
     pastGuestGate &&
     !isLoading &&
     !error &&
-    (stripeLoaded === false || !clientSecret);
+    stripeLoaded === false;
 
   useEffect(() => {
     if (shouldFallback && !fallbackLoading) {
-      console.log("[STRIPE] Stripe Elements failed, auto-triggering Checkout fallback in 1.5s...");
+      console.log("[STRIPE] Stripe.js unavailable, auto-triggering Checkout fallback in 1.5s...");
       const autoFallbackTimer = setTimeout(() => {
         handleFallbackToCheckout();
       }, 1500);
