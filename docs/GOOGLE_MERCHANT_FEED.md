@@ -9,15 +9,15 @@ Spécification attributs : [Product data specification](https://support.google.c
 | Élément | Valeur |
 |---------|--------|
 | Format | TSV (tabulation), UTF-8 |
-| Site | `https://www.vis-a-bois.com` |
+| Site (compte Merchant Center) | `https://www.3k-negoce.com` |
 | Langue / pays cible | `fr` / `FR` |
 | Catégorie Google | `1732` (Hardware > Hardware Accessories > Fasteners) |
-| Marque | `Vis-à-Bois` |
-| Politique retours (site) | `https://www.vis-a-bois.com/retours` |
+| Marque (fabricant / GTIN) | `Alsafix` |
+| Politique retours (site) | `https://www.3k-negoce.com/retours` |
 
 ### Colonnes exportées
 
-`id`, `title`, `description`, `link`, `image_link`, `availability`, `price`, `sale_price`, `brand`, `gtin`, `mpn`, `condition`, `google_product_category`, `product_type`, `identifier_exists`
+`id`, `title`, `description`, `link`, `image_link`, `additional_image_link`, `availability`, `price`, `sale_price`, `brand`, `gtin`, `mpn`, `condition`, `google_product_category`, `product_type`, `identifier_exists`, `shipping`
 
 - **id** : `code_alsafix` ou UUID produit
 - **price** : TTC (`price_ttc`) en EUR
@@ -30,7 +30,12 @@ Spécification attributs : [Product data specification](https://support.google.c
 
 Edge Function Supabase `google-merchant-feed` sert le TSV à jour (cache 1 h).
 
-**Production :**
+**Production (recommandé — domaine 3K-Négoce) :**
+```
+https://www.3k-negoce.com/google-merchant-feed.tsv
+```
+
+**Secours Edge Function :**
 ```
 https://lqsbsinycyewdvdtbruy.supabase.co/functions/v1/google-merchant-feed
 ```
@@ -52,7 +57,7 @@ supabase functions deploy google-merchant-feed --project-ref lqsbsinycyewdvdtbru
 
 1. [Merchant Center](https://merchants.google.com/) → **Products** → **Add product source**
 2. Type : **Scheduled fetch** (URL)
-3. URL : endpoint ci-dessus (production)
+3. URL : `https://www.3k-negoce.com/google-merchant-feed.tsv`
 4. Fréquence : **Daily** (24 h)
 5. File name / format : `.tsv`, encodage UTF-8
 6. Pays de vente : **France**
@@ -68,7 +73,7 @@ source ../scripts/load-3k-env.sh
 node scripts/generate-google-merchant-feed.mjs --env production --out public/google-merchant-feed.tsv
 ```
 
-Upload manuel dans Merchant Center (**Upload a file**) ou hébergement sur `https://www.vis-a-bois.com/google-merchant-feed.tsv` si le fichier est commité dans `public/`.
+Upload manuel dans Merchant Center (**Upload a file**) ou hébergement sur `https://www.3k-negoce.com/google-merchant-feed.tsv`.
 
 ## Vérification
 
@@ -86,7 +91,7 @@ Dans Merchant Center, onglet **Diagnostics** : corriger les produits refusés (E
 
 Le feed doit refléter le site public (sans connexion) :
 
-- URL produit : `/produit/{handle}`
+- URL produit : `https://www.3k-negoce.com/produit/{handle}`
 - Prix affiché = `price` / `sale_price` du feed
 - Stock : `in_stock` si `stock > 0`
 - Retours : page `/retours` accessible depuis le footer
