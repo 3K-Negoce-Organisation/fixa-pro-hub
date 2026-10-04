@@ -10,6 +10,9 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const PRODUCTS_SELECT =
+  "id, handle, title, description, designation_fr, price_ttc, price_ht, promo_price_ht, is_promo, stock, images, ean, code_alsafix, material, is_active, specifications, category_product:category_product_id(name), sub_category:sub_category_id(name)";
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -24,21 +27,28 @@ serve(async (req) => {
     }
 
     const supabase = createClient(supabaseUrl, serviceKey);
+    const pageSize = 1000;
+    const products: MerchantFeedProduct[] = [];
 
-    const { data: products, error } = await supabase
-      .from("products")
-      .select(
-        "id, handle, title, description, designation_fr, price_ttc, price_ht, promo_price_ht, is_promo, stock, images, ean, code_alsafix, category, material, is_active",
-      )
-      .eq("is_active", true)
-      .order("title");
+    for (let from = 0; ; from += pageSize) {
+      const { data, error } = await supabase
+        .from("products")
+        .select(PRODUCTS_SELECT)
+        .eq("is_active", true)
+        .order("title")
+        .range(from, from + pageSize - 1);
 
-    if (error) {
-      console.error("[google-merchant-feed]", error);
-      return new Response("Erreur lecture produits", { status: 500 });
+      if (error) {
+        console.error("[google-merchant-feed]", error);
+        return new Response("Erreur lecture produits", { status: 500 });
+      }
+
+      const batch = (data ?? []) as MerchantFeedProduct[];
+      products.push(...batch);
+      if (batch.length < pageSize) break;
     }
 
-    const tsv = buildMerchantFeedTsv((products ?? []) as MerchantFeedProduct[]);
+    const tsv = buildMerchantFeedTsv(products);
 
     return new Response(tsv, {
       headers: {

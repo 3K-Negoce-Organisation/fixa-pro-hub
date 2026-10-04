@@ -61,9 +61,9 @@ if (!supabaseUrl || !supabaseKey) {
   process.exit(1);
 }
 
-const GOOGLE_MERCHANT_SITE_URL = "https://www.vis-a-bois.com";
+const GOOGLE_MERCHANT_SITE_URL = "https://www.3k-negoce.com";
 const GOOGLE_PRODUCT_CATEGORY = "1732";
-const GOOGLE_MERCHANT_BRAND = "Vis-à-Bois";
+const GOOGLE_MERCHANT_BRAND = "Alsafix";
 
 const FEED_HEADERS = [
   "id",
@@ -143,8 +143,11 @@ function buildRow(product) {
     mpn,
     condition: "new",
     google_product_category: GOOGLE_PRODUCT_CATEGORY,
-    product_type: stripText(product.category, 750),
-    identifier_exists: gtin || mpn ? "TRUE" : "FALSE",
+    product_type: stripText(
+      product.sub_category?.name || product.category_product?.name || "",
+      750,
+    ),
+    identifier_exists: gtin ? "TRUE" : "FALSE",
   };
 }
 
@@ -164,7 +167,7 @@ async function main() {
   const { data: products, error } = await supabase
     .from("products")
     .select(
-      "id, handle, title, description, designation_fr, price_ttc, price_ht, promo_price_ht, is_promo, stock, images, ean, code_alsafix, category, material, is_active",
+      "id, handle, title, description, designation_fr, price_ttc, price_ht, promo_price_ht, is_promo, stock, images, ean, code_alsafix, material, is_active, category_product:category_product_id(name), sub_category:sub_category_id(name)",
     )
     .eq("is_active", true)
     .order("title");
