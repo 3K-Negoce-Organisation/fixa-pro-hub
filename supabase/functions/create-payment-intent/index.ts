@@ -2,14 +2,15 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { ensureFrenchStripeCustomer } from "../_shared/stripe-customer-fr.ts";
-import { computeCheckoutTotals } from "../_shared/checkout-totals.ts";
-import { roundMoney } from "../_shared/money.ts";
+import {
+  CatalogRepriceError,
+  repriceAndTotalFromCatalog,
+} from "../_shared/catalog-reprice.ts";
 import {
   loadShippingConfigForSite,
   shippingConfigMetadata,
 } from "../_shared/shipping-config.ts";
 import {
-  filterPayableCartLines,
   stripeMetadataForCompactItems,
   toCompactCartItems,
 } from "../_shared/stripe-cart-metadata.ts";
@@ -102,8 +103,7 @@ serve(async (req) => {
     };
     logStep("Received cart items", { itemCount: items.length, isGuest: !userId, guestEmail });
 
-    const payableItems = filterPayableCartLines(items ?? []);
-    if (payableItems.length === 0) {
+    if (!items?.length) {
       throw new Error("Cart is empty");
     }
 
@@ -156,22 +156,36 @@ serve(async (req) => {
     assertSecretMatchesStripeMode(stripeMode, stripeKey);
     logStep("Stripe key resolved", { stripeMode });
 
-    const roundedItems = payableItems.map((item) => {
-      const priceTTC =
-        item.priceTTC != null && item.priceTTC > 0
-          ? roundMoney(item.priceTTC)
-          : roundMoney(roundMoney(item.priceHT) * 1.2);
-      const priceHT =
-        item.priceHT > 0 ? roundMoney(item.priceHT) : roundMoney(priceTTC / 1.2);
-      return { ...item, priceHT, priceTTC };
-    });
+    // Prix / port / totaux : catalogue serveur uniquement (ignore priceHT/TTC client).
     const shippingConfig = await loadShippingConfigForSite(admin, resolvedSiteId);
-    const { productsHT, subtotalTTC, shippingTTC, shippingHT, totalHT, totalTTC } =
-      computeCheckoutTotals(roundedItems, shippingConfig);
-    const compactItems = toCompactCartItems(roundedItems);
+    let pricedLines;
+    let totals;
+    try {
+      const repriced = await repriceAndTotalFromCatalog(admin, items ?? [], shippingConfig);
+      pricedLines = repriced.lines;
+      totals = repriced.totals;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      const status = err instanceof CatalogRepriceError ? 400 : 500;
+      return new Response(JSON.stringify({ error: msg }), {
+        status,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const { productsHT, subtotalTTC, shippingTTC, shippingHT, totalHT, totalTTC } = totals;
+    const compactItems = toCompactCartItems(pricedLines);
     const itemsMetadata = stripeMetadataForCompactItems(compactItems);
     const amountInCents = Math.round(totalTTC * 100);
-    logStep("Calculated totals", { productsHT, subtotalTTC, shippingTTC, totalHT, totalTTC, amountInCents });
+    logStep("Calculated totals (catalog)", {
+      productsHT,
+      subtotalTTC,
+      shippingTTC,
+      shippingHT,
+      totalHT,
+      totalTTC,
+      amountInCents,
+      ignoredClientPrices: true,
+    });
 
     // Initialize Stripe
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });

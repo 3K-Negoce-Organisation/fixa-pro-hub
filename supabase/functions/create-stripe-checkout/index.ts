@@ -2,14 +2,16 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { ensureFrenchStripeCustomer } from "../_shared/stripe-customer-fr.ts";
-import { computeCheckoutTotals } from "../_shared/checkout-totals.ts";
 import { roundMoney } from "../_shared/money.ts";
+import {
+  CatalogRepriceError,
+  repriceAndTotalFromCatalog,
+} from "../_shared/catalog-reprice.ts";
 import {
   loadShippingConfigForSite,
   shippingConfigMetadata,
 } from "../_shared/shipping-config.ts";
 import {
-  filterPayableCartLines,
   stripeMetadataForCompactItems,
   toCompactCartItems,
 } from "../_shared/stripe-cart-metadata.ts";
@@ -93,8 +95,7 @@ serve(async (req) => {
     const guestEmail = (rawGuestEmail ?? "").trim().toLowerCase();
     logStep("Received cart items", { itemCount: items.length, hasGuestEmail: !!guestEmail });
 
-    const payableItems = filterPayableCartLines(items ?? []);
-    if (payableItems.length === 0) {
+    if (!items?.length) {
       throw new Error("Cart is empty");
     }
 
@@ -136,21 +137,32 @@ serve(async (req) => {
     logStep("Stripe key resolved", { stripeMode });
 
     const checkoutSiteId = site?.id ?? "";
-
-    const roundedItems = payableItems.map((item) => {
-      const priceTTC =
-        item.priceTTC != null && item.priceTTC > 0
-          ? roundMoney(item.priceTTC)
-          : roundMoney(roundMoney(item.priceHT) * 1.2);
-      const priceHT =
-        item.priceHT > 0 ? roundMoney(item.priceHT) : roundMoney(priceTTC / 1.2);
-      return { ...item, priceHT, priceTTC };
-    });
     const shippingConfig = await loadShippingConfigForSite(admin, checkoutSiteId || site?.id);
-    const { productsHT, subtotalTTC, shippingTTC, shippingHT, totalHT, totalTTC } =
-      computeCheckoutTotals(roundedItems, shippingConfig);
-    logStep("Calculated totals", { productsHT, subtotalTTC, shippingTTC, totalHT, totalTTC });
-    const itemsMetadata = stripeMetadataForCompactItems(toCompactCartItems(roundedItems));
+    let pricedLines;
+    let totals;
+    try {
+      const repriced = await repriceAndTotalFromCatalog(admin, items ?? [], shippingConfig);
+      pricedLines = repriced.lines;
+      totals = repriced.totals;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      const status = err instanceof CatalogRepriceError ? 400 : 500;
+      return new Response(JSON.stringify({ error: msg }), {
+        status,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const { productsHT, subtotalTTC, shippingTTC, shippingHT, totalHT, totalTTC } = totals;
+    logStep("Calculated totals (catalog)", {
+      productsHT,
+      subtotalTTC,
+      shippingTTC,
+      shippingHT,
+      totalHT,
+      totalTTC,
+      ignoredClientPrices: true,
+    });
+    const itemsMetadata = stripeMetadataForCompactItems(toCompactCartItems(pricedLines));
 
     // Initialize Stripe
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
@@ -166,19 +178,21 @@ serve(async (req) => {
       logStep("Stripe customer ready (fr)", { customerId });
     }
 
-    // Build line items with dynamic pricing (price_data)
-    const lineItems = roundedItems.map(item => {
-      const unitAmountTTC = Math.round(roundMoney(item.priceTTC ?? item.priceHT * 1.2) * 100);
+    // Build line items with catalog prices only
+    const lineItems = pricedLines.map((item) => {
+      const unitAmountTTC = Math.round(roundMoney(item.priceTTC ?? 0) * 100);
       return {
         price_data: {
-          currency: 'eur',
+          currency: "eur",
           product_data: {
-            name: item.title,
+            name: item.title || "Produit",
             description: item.variantTitle !== "Unité" ? item.variantTitle : undefined,
-            images: item.image && !item.image.endsWith("/trex-fallback.png") && item.image !== "/placeholder.svg" ? [item.image] : undefined,
+            images: item.image && !item.image.endsWith("/trex-fallback.png") && item.image !== "/placeholder.svg"
+              ? [item.image]
+              : undefined,
             metadata: {
               product_id: item.id,
-              variant_id: item.variantId,
+              variant_id: item.variantId || item.id,
             },
           },
           unit_amount: unitAmountTTC,
@@ -189,9 +203,9 @@ serve(async (req) => {
     if (shippingTTC > 0) {
       lineItems.push({
         price_data: {
-          currency: 'eur',
+          currency: "eur",
           product_data: {
-            name: 'Frais de livraison',
+            name: "Frais de livraison",
           },
           unit_amount: Math.round(shippingTTC * 100),
         },

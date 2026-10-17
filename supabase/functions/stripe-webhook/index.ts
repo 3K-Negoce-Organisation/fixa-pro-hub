@@ -6,10 +6,7 @@ import {
   enrichCartLinesWithProductSnapshots,
   orderItemRowToEnrichmentLine,
 } from "../_shared/order-item-snapshot.ts";
-import {
-  compactItemsToOrderLines,
-  parseCompactItemsFromMetadata,
-} from "../_shared/stripe-cart-metadata.ts";
+import { parseCompactItemsFromMetadata } from "../_shared/stripe-cart-metadata.ts";
 import {
   insertOrderStatusEvent,
 } from "../_shared/order-status-events.ts";
@@ -20,6 +17,11 @@ import {
 import { decrementProductsStock } from "../_shared/decrement-product-stock.ts";
 import { fulfillPaymentIntentOrder } from "../_shared/payment-intent-order.ts";
 import { sendOrderToN8n } from "../_shared/n8n-fulfill-order.ts";
+import {
+  assertStripeAmountMatchesTotal,
+  repriceAndTotalFromCatalog,
+} from "../_shared/catalog-reprice.ts";
+import { loadShippingConfigForSite } from "../_shared/shipping-config.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -258,38 +260,58 @@ serve(async (req) => {
 
       const metadata = fullSession.metadata || {};
       const userId = metadata.user_id;
-      const totalHT = parseFloat(metadata.total_ht || "0");
-      const totalTTC = parseFloat(metadata.total_ttc || "0");
-      logStep("Session metadata", { userId, totalHT, totalTTC });
-
       const sessionOrderSiteId = await resolveOrderSiteId(supabaseAdmin, metadata as Record<string, string | undefined>);
       logStep("Resolved order site_id (checkout session)", { sessionOrderSiteId });
 
-      // Parse cart items from metadata (compact/chunked, or legacy items_json)
-      let cartItems: any[] = [];
+      // Quantités depuis metadata ; prix recalculés catalogue + contrôle montant Stripe
+      let quantityLines: Array<{ id: string; quantity: number; variantId?: string }> = [];
       try {
         const compactItems = parseCompactItemsFromMetadata(metadata as Record<string, string | undefined>);
         if (compactItems.length > 0) {
-          cartItems = compactItemsToOrderLines(compactItems);
+          quantityLines = compactItems.map((item) => ({
+            id: item.i,
+            quantity: item.q,
+            variantId: item.v || item.i,
+          }));
         } else if (metadata.items_json) {
-          cartItems = JSON.parse(metadata.items_json);
+          const legacy = JSON.parse(metadata.items_json) as Array<Record<string, unknown>>;
+          quantityLines = legacy.map((item) => ({
+            id: String(item.id),
+            quantity: Number(item.quantity),
+            variantId: String(item.variantId ?? item.id),
+          }));
         }
       } catch (e) {
         logStep("Failed to parse checkout session items", { error: String(e) });
       }
+      if (quantityLines.length === 0) {
+        throw new Error("Panier introuvable dans la session Checkout");
+      }
 
-      cartItems = await enrichCartLinesWithProductSnapshots(
+      const shippingConfig = await loadShippingConfigForSite(supabaseAdmin, sessionOrderSiteId);
+      const { lines: pricedLines, totals } = await repriceAndTotalFromCatalog(
         supabaseAdmin,
-        cartItems.map((item: Record<string, unknown>) => ({
-          id: item.id as string,
-          quantity: item.quantity as number,
-          priceHT: item.priceHT as number,
-          priceTTC: item.priceTTC as number | undefined,
-          variantId: (item.variantId as string | undefined) || (item.id as string),
-          variantTitle: (item.variantTitle as string | undefined) || "Default",
-          title: item.title as string | undefined,
-          handle: item.handle as string | undefined,
-          image: item.image as string | undefined,
+        quantityLines,
+        shippingConfig,
+      );
+      const stripePaidCents = fullSession.amount_total ?? 0;
+      assertStripeAmountMatchesTotal(totals.totalTTC, stripePaidCents);
+      const totalHT = totals.totalHT;
+      const totalTTC = totals.totalTTC;
+      logStep("Session totals (catalog)", { userId, totalHT, totalTTC, stripePaidCents });
+
+      let cartItems: any[] = await enrichCartLinesWithProductSnapshots(
+        supabaseAdmin,
+        pricedLines.map((item) => ({
+          id: item.id,
+          quantity: item.quantity,
+          priceHT: item.priceHT ?? 0,
+          priceTTC: item.priceTTC,
+          variantId: item.variantId || item.id,
+          variantTitle: item.variantTitle || "Default",
+          title: item.title,
+          handle: item.handle,
+          image: item.image,
         })),
       );
 

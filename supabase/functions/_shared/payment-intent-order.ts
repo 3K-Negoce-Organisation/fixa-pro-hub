@@ -6,9 +6,12 @@ import {
   orderItemRowToEnrichmentLine,
 } from "./order-item-snapshot.ts";
 import {
-  compactItemsToOrderLines,
-  parseCompactItemsFromMetadata,
-} from "./stripe-cart-metadata.ts";
+  assertStripeAmountMatchesTotal,
+  CatalogRepriceError,
+  repriceAndTotalFromCatalog,
+} from "./catalog-reprice.ts";
+import { parseCompactItemsFromMetadata } from "./stripe-cart-metadata.ts";
+import { loadShippingConfigForSite } from "./shipping-config.ts";
 import { insertOrderStatusEvent } from "./order-status-events.ts";
 import { sendOrderToN8n } from "./n8n-fulfill-order.ts";
 import { decrementProductsStock } from "./decrement-product-stock.ts";
@@ -139,27 +142,47 @@ export async function fulfillPaymentIntentOrder(
   const metaUserId = metadata.user_id;
   const userId = metaUserId && metaUserId !== "guest" && UUID_RE.test(metaUserId) ? metaUserId : null;
   const userEmail = (shippingOverride?.user_email || metadata.user_email || "").trim() || null;
-  const totalHT = parseFloat(metadata.total_ht || "0");
-  const totalTTC = parseFloat(metadata.total_ttc || "0");
   const orderSiteId = await resolveOrderSiteId(supabaseAdmin, metadata);
 
-  let cartItems: Array<Record<string, unknown>> = [];
+  // Quantités depuis metadata Stripe ; prix recalculés depuis le catalogue.
+  let quantityLines: Array<{ id: string; quantity: number; variantId?: string; variantTitle?: string }> = [];
   try {
     const compactItems = parseCompactItemsFromMetadata(metadata);
-    cartItems = compactItemsToOrderLines(compactItems);
+    quantityLines = compactItems.map((item) => ({
+      id: item.i,
+      quantity: item.q,
+      variantId: item.v || item.i,
+      variantTitle: "Default",
+    }));
   } catch {
-    cartItems = [];
+    quantityLines = [];
+  }
+  if (quantityLines.length === 0) {
+    throw new CatalogRepriceError("Panier introuvable dans le PaymentIntent");
   }
 
-  cartItems = await enrichCartLinesWithProductSnapshots(
+  const shippingConfig = await loadShippingConfigForSite(supabaseAdmin, orderSiteId);
+  const { lines: pricedLines, totals } = await repriceAndTotalFromCatalog(
     supabaseAdmin,
-    cartItems.map((item) => ({
-      id: item.id as string,
-      quantity: item.quantity as number,
-      priceHT: item.priceHT as number,
-      priceTTC: item.priceTTC as number | undefined,
-      variantId: (item.variantId as string | undefined) || (item.id as string),
-      variantTitle: (item.variantTitle as string | undefined) || "Default",
+    quantityLines,
+    shippingConfig,
+  );
+  assertStripeAmountMatchesTotal(totals.totalTTC, paymentIntent.amount ?? 0);
+  const totalHT = totals.totalHT;
+  const totalTTC = totals.totalTTC;
+
+  let cartItems: Array<Record<string, unknown>> = await enrichCartLinesWithProductSnapshots(
+    supabaseAdmin,
+    pricedLines.map((item) => ({
+      id: item.id,
+      quantity: item.quantity,
+      priceHT: item.priceHT ?? 0,
+      priceTTC: item.priceTTC,
+      variantId: item.variantId || item.id,
+      variantTitle: item.variantTitle || "Default",
+      title: item.title,
+      image: item.image,
+      handle: item.handle,
     })),
   );
 

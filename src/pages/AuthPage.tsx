@@ -26,12 +26,12 @@ import { PasswordRecoveryForm } from "@/components/auth/PasswordRecoveryForm";
 
 const loginSchema = z.object({
   email: z.string().email("Email invalide"),
-  password: z.string().min(6, "Le mot de passe doit contenir au moins 6 caractères"),
+  password: z.string().min(12, "Le mot de passe doit contenir au moins 12 caractères"),
 });
 
 const signupSchema = z.object({
   email: z.string().email("Email invalide"),
-  password: z.string().min(6, "Le mot de passe doit contenir au moins 6 caractères"),
+  password: z.string().min(12, "Le mot de passe doit contenir au moins 12 caractères"),
   confirmPassword: z.string(),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Les mots de passe ne correspondent pas",
