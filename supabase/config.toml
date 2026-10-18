@@ -1,4 +1,4 @@
-project_id = "dvifxaygfrhhzmnmyiyp"
+project_id = "lqsbsinycyewdvdtbruy"
 
 # verify_jwt = false partout : les clés sb_publishable_ / sb_secret_ ne sont pas des JWT.
 # Le déploiement CI force aussi --no-verify-jwt. Auth métier dans les handlers
