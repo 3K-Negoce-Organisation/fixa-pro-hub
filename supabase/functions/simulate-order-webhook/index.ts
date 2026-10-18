@@ -18,6 +18,10 @@ import {
   resolveStorefrontUrlForSiteId,
   storefrontHostForSlug,
 } from "../_shared/storefront-url.ts";
+import {
+  getSupabaseServiceRoleKey,
+  getSupabaseAnonKey,
+} from "../_shared/supabaseApiKeys.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -37,7 +41,7 @@ serve(async (req) => {
 
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabaseServiceKey = getSupabaseServiceRoleKey()!;
     const n8nWebhookUrl = Deno.env.get('N8N_WEBHOOK_URL');
 
     // Verify admin authorization (JWT admin), service-role ops, or internal marketplace fulfillment.
@@ -74,7 +78,7 @@ serve(async (req) => {
     if (isInternalMarketplaceFulfillment || isServiceRoleBearer) {
       adminUserId = null;
     } else {
-      const supabaseUser = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!, {
+      const supabaseUser = createClient(supabaseUrl, getSupabaseAnonKey()!, {
         global: { headers: { Authorization: authHeader } }
       });
 

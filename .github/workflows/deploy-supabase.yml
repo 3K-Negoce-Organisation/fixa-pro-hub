@@ -1,0 +1,70 @@
+# Déploiement Supabase production — push main uniquement si supabase/** change.
+# Front → Railway natif (0 minute Actions hors ce workflow).
+name: Deploy Supabase
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "supabase/**"
+      - ".github/workflows/deploy-supabase.yml"
+      - ".github/scripts/deploy-supabase.sh"
+  workflow_dispatch:
+    inputs:
+      force_all_functions:
+        description: Redéployer toutes les Edge Functions
+        type: boolean
+        default: false
+
+concurrency:
+  group: deploy-supabase-production-fixa
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: migrations + edge (delta)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      PROJECT_REF: lqsbsinycyewdvdtbruy
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      FORCE_ALL_FUNCTIONS: ${{ github.event_name == 'workflow_dispatch' && inputs.force_all_functions || false }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: supabase/setup-cli@v2
+        with:
+          version: 2.107.0
+
+      - name: Détecter migrations / fonctions changées
+        id: delta
+        run: bash .github/scripts/deploy-supabase.sh detect
+
+      - name: Propager delta
+        run: |
+          set -euo pipefail
+          echo "MIGRATIONS=${{ steps.delta.outputs.migrations }}" >> "$GITHUB_ENV"
+          echo "FUNCTIONS=${{ steps.delta.outputs.functions }}" >> "$GITHUB_ENV"
+
+      - name: Appliquer migrations (diff push)
+        if: steps.delta.outputs.migrations != ''
+        run: bash .github/scripts/deploy-supabase.sh apply-migrations
+
+      - name: Déployer Edge Functions (delta)
+        if: steps.delta.outputs.functions != '' || env.FORCE_ALL_FUNCTIONS == 'true'
+        run: bash .github/scripts/deploy-supabase.sh deploy-functions
+
+      - name: Résumé
+        run: |
+          {
+            echo "### Deploy Supabase production"
+            echo ""
+            echo "- Migrations : \`${{ steps.delta.outputs.migrations || '(aucune)' }}\`"
+            echo "- Functions : \`${{ steps.delta.outputs.functions || '(aucune)' }}\`"
+            echo "- Force all functions : \`${{ env.FORCE_ALL_FUNCTIONS }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"

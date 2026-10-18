@@ -22,6 +22,9 @@ import {
   repriceAndTotalFromCatalog,
 } from "../_shared/catalog-reprice.ts";
 import { loadShippingConfigForSite } from "../_shared/shipping-config.ts";
+import {
+  getSupabaseServiceRoleKey,
+} from "../_shared/supabaseApiKeys.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -129,7 +132,7 @@ serve(async (req) => {
     // Create Supabase client with service role
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+      getSupabaseServiceRoleKey() ?? "",
       { auth: { persistSession: false } }
     );
 

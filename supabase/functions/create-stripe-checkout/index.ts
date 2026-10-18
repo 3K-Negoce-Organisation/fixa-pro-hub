@@ -16,6 +16,10 @@ import {
   toCompactCartItems,
 } from "../_shared/stripe-cart-metadata.ts";
 import { resolveCheckoutOrigin } from "../_shared/storefront-url.ts";
+import {
+  getSupabaseServiceRoleKey,
+  getSupabaseAnonKey,
+} from "../_shared/supabaseApiKeys.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -70,7 +74,7 @@ serve(async (req) => {
 
     const supabaseClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_ANON_KEY") ?? ""
+      getSupabaseAnonKey() ?? ""
     );
 
     // Get user from auth header
@@ -99,7 +103,7 @@ serve(async (req) => {
       throw new Error("Cart is empty");
     }
 
-    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const serviceKey = getSupabaseServiceRoleKey();
     if (!serviceKey) {
       throw new Error("SUPABASE_SERVICE_ROLE_KEY is not configured");
     }

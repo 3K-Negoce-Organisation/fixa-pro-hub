@@ -4,6 +4,9 @@ import {
   buildMerchantFeedTsv,
   type MerchantFeedProduct,
 } from "../_shared/google-merchant-feed.ts";
+import {
+  getSupabaseServiceRoleKey,
+} from "../_shared/supabaseApiKeys.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -20,7 +23,7 @@ serve(async (req) => {
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const serviceKey = getSupabaseServiceRoleKey();
 
     if (!supabaseUrl || !serviceKey) {
       return new Response("Configuration Supabase manquante", { status: 500 });

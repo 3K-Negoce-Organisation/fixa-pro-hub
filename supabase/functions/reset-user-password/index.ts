@@ -1,5 +1,8 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { verifyAdminRequest } from "../_shared/verify-admin.ts";
+import {
+  getSupabaseAnonKey,
+} from "../_shared/supabaseApiKeys.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -96,7 +99,7 @@ Deno.serve(async (req) => {
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
-    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
+    const supabaseAnonKey = getSupabaseAnonKey() ?? "";
     const publicClient = createClient(supabaseUrl, supabaseAnonKey);
 
     const { error: resetError } = await publicClient.auth.resetPasswordForEmail(email, {

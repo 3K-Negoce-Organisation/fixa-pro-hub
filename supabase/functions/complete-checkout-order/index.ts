@@ -6,6 +6,9 @@ import {
   stripeClientForPaymentIntent,
 } from "../_shared/payment-intent-order.ts";
 import { signGuestOrderTrackingToken } from "../_shared/guest-order-tracking-token.ts";
+import {
+  getSupabaseServiceRoleKey,
+} from "../_shared/supabaseApiKeys.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -38,7 +41,7 @@ serve(async (req) => {
 
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+      getSupabaseServiceRoleKey() ?? "",
       { auth: { persistSession: false } },
     );
 

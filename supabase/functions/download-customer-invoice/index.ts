@@ -10,6 +10,10 @@ import {
 } from "../_shared/persist-customer-invoice.ts";
 import { buildCustomerInvoiceParams } from "../_shared/customer-invoice-from-order.ts";
 import { generateCustomerInvoicePDF } from "../_shared/generate-customer-invoice-pdf.ts";
+import {
+  getSupabaseServiceRoleKey,
+  getSupabaseAnonKey,
+} from "../_shared/supabaseApiKeys.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -142,7 +146,7 @@ serve(async (req) => {
       });
     }
 
-    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const serviceKey = getSupabaseServiceRoleKey();
     if (!serviceKey) throw new Error("SUPABASE_SERVICE_ROLE_KEY is not set");
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
@@ -185,7 +189,7 @@ serve(async (req) => {
       let userId: string | null = null;
       const authHeader = req.headers.get("Authorization");
       if (authHeader?.startsWith("Bearer ")) {
-        const anon = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY") ?? "");
+        const anon = createClient(supabaseUrl, getSupabaseAnonKey() ?? "");
         const token = authHeader.replace("Bearer ", "");
         const { data: authData } = await anon.auth.getUser(token);
         userId = authData.user?.id ?? null;
