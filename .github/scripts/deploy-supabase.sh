@@ -146,14 +146,14 @@ deploy_functions() {
     return 0
   fi
 
-  supabase link --project-ref "$PROJECT_REF" --yes >/dev/null
+  # Pas de `supabase link` (évite project_admin_read). --project-ref + --use-api.
   local name
   # shellcheck disable=SC2086
   for name in $list; do
     echo "Deploy $name…"
     # verify_jwt plateforme incompatible avec sb_secret_ / sb_publishable_ seuls :
     # auth faite dans le handler (voir _shared/supabaseApiKeys.ts).
-    supabase functions deploy "$name" --no-verify-jwt --project-ref "$PROJECT_REF"
+    supabase functions deploy "$name" --no-verify-jwt --project-ref "$PROJECT_REF" --use-api
   done
   echo "✓ Edge Functions déployées"
 }
