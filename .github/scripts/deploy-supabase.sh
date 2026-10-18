@@ -3,7 +3,7 @@
 # Aucune donnée personnelle dans les logs. Pas de clé service_role sur la VM.
 set -euo pipefail
 
-PROJECT_REF="${PROJECT_REF:-lqsbsinycyewdvdtbruy}"
+PROJECT_REF="${PROJECT_REF:-dvifxaygfrhhzmnmyiyp}"
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$ROOT"
 

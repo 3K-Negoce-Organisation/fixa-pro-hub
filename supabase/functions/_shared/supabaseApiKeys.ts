@@ -1,5 +1,6 @@
 /**
  * Résolution des clés API Supabase (legacy JWT + sb_publishable_ / sb_secret_).
+ * Touch: forcer redeploy EF après alignement verify_jwt=false (JWT legacy disable).
  *
  * Pendant la transition les deux familles coexistent :
  * - SUPABASE_SERVICE_ROLE_KEY / SUPABASE_ANON_KEY (chaînes, souvent encore injectées)

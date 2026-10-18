@@ -1,10 +1,14 @@
 project_id = "dvifxaygfrhhzmnmyiyp"
 
+# verify_jwt = false partout : les clés sb_publishable_ / sb_secret_ ne sont pas des JWT.
+# Le déploiement CI force aussi --no-verify-jwt. Auth métier dans les handlers
+# (verifyAdminRequest, getUser, isServiceRoleBearer, etc.).
+
 [functions.update-order-status]
 verify_jwt = false
 
 [functions.admin-update-order]
-verify_jwt = true
+verify_jwt = false
 
 [functions.create-stripe-checkout]
 verify_jwt = false
@@ -31,34 +35,40 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.simulate-order-webhook]
-verify_jwt = true
+verify_jwt = false
 
 [functions.admin-stripe-refund]
-verify_jwt = true
+verify_jwt = false
 
 [functions.admin-create-payment-link]
-verify_jwt = true
+verify_jwt = false
 
 [functions.admin-cancel-order]
-verify_jwt = true
+verify_jwt = false
 
 [functions.admin-delete-orders]
-verify_jwt = true
+verify_jwt = false
 
 [functions.admin-persist-customer-invoices]
-verify_jwt = true
+verify_jwt = false
 
 [functions.preview-supplier-order-pdf]
-verify_jwt = true
+verify_jwt = false
 
 [functions.reset-user-password]
-verify_jwt = true
+verify_jwt = false
 
 [functions.change-own-password]
-verify_jwt = true
+verify_jwt = false
 
 [functions.send-contact-email]
 verify_jwt = false
 
 [functions.google-merchant-feed]
+verify_jwt = false
+
+[functions.gdpr-export-data]
+verify_jwt = false
+
+[functions.gdpr-delete-account]
 verify_jwt = false
