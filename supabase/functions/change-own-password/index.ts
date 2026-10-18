@@ -1,4 +1,8 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import {
+  getSupabaseServiceRoleKey,
+  getSupabaseAnonKey,
+} from "../_shared/supabaseApiKeys.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -28,8 +32,8 @@ Deno.serve(async (req) => {
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
+    const supabaseServiceKey = getSupabaseServiceRoleKey() ?? "";
+    const supabaseAnonKey = getSupabaseAnonKey() ?? "";
 
     if (!supabaseUrl || !supabaseServiceKey || !supabaseAnonKey) {
       return new Response(JSON.stringify({ error: "Configuration Supabase manquante" }), {

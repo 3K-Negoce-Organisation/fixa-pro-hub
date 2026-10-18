@@ -1,3 +1,6 @@
+import {
+  getSupabaseServiceRoleKey,
+} from "./supabaseApiKeys.ts";
 /** Paramètre URL du jeton de suivi invité (HMAC order + email). */
 export const GUEST_TRACKING_TOKEN_PARAM = "t";
 
@@ -35,7 +38,7 @@ function base64UrlDecode(value: string): Uint8Array | null {
 /** Clé HMAC dérivée (stable, identique sur toutes les edge functions du projet). */
 async function getTrackingHmacKey(): Promise<CryptoKey> {
   const explicit = Deno.env.get("ORDER_TRACKING_SECRET")?.trim();
-  const serviceRole = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")?.trim();
+  const serviceRole = getSupabaseServiceRoleKey()?.trim();
   const material = explicit || (serviceRole ? `${TRACKING_KEY_SALT}:${serviceRole}` : "");
   if (!material) {
     throw new Error("Tracking secret not configured");
