@@ -7,6 +7,8 @@
  *
  * Après désactivation des clés JWT, seul le JSON (ou un secret Edge
  * SUPABASE_SERVICE_ROLE_KEY = sb_secret_…) reste disponible.
+ *
+ * Toute modification de ce fichier redéploie toutes les Edge Functions (delta _shared).
  */
 
 function parseNamedKeysJson(raw: string | undefined): Record<string, string> {
@@ -49,11 +51,20 @@ export function listSupabasePublishableKeys(): string[] {
 
 /**
  * Clé admin pour createClient (bypass RLS).
- * Préfère `default` dans SUPABASE_SECRET_KEYS, sinon legacy, sinon première clé.
+ *
+ * Ordre :
+ * 1. `SUPABASE_SECRET_KEY_NAME` (ex. `kpmc_2026`) si présent dans SUPABASE_SECRET_KEYS
+ * 2. noms préférés : `kpmc_2026`, puis `default`
+ * 3. `SUPABASE_SERVICE_ROLE_KEY` (legacy JWT ou secret Edge posé manuellement)
+ * 4. première clé de SUPABASE_SECRET_KEYS
  */
 export function getSupabaseServiceRoleKey(): string {
   const named = parseNamedKeysJson(Deno.env.get("SUPABASE_SECRET_KEYS"));
-  if (named.default) return named.default;
+  const preferredName = (Deno.env.get("SUPABASE_SECRET_KEY_NAME") ?? "").trim();
+  if (preferredName && named[preferredName]) return named[preferredName];
+  for (const name of ["kpmc_2026", "default"]) {
+    if (named[name]) return named[name];
+  }
   const legacy = (Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "").trim();
   if (legacy) return legacy;
   const first = Object.values(named)[0];
