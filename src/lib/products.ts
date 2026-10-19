@@ -2,6 +2,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
 import { resolveProductImageUrl } from "@/lib/imageFallback";
+import { scopeStorefrontProducts } from "@/lib/visABoisCatalog";
 
 export type CategoryRef = {
   id: string;
@@ -101,17 +102,24 @@ function withCategoryAlias(row: Product | null): Product | null {
   return { ...row, categories: sub };
 }
 
-// Fetch all active products (with joined sub_category), optionally scoped to a site
-export async function fetchProducts(searchQuery?: string, siteId?: string | null) {
-  let query = supabase
-    .from("products")
-    .select("*, sub_category:sub_category_id(id, name, slug)")
-    .eq("is_active", true)
-    .order("title");
-
-  if (siteId) {
-    query = query.eq("site_id", siteId);
-  }
+// Fetch all active products (with joined sub_category), scoped to the storefront.
+// Vis-à-Bois : catalogue 3k-negoce limité aux rayons `categories` du site.
+export async function fetchProducts(
+  searchQuery?: string,
+  siteId?: string | null,
+  siteSlug?: string | null,
+) {
+  const scoped = await scopeStorefrontProducts(
+    supabase
+      .from("products")
+      .select("*, sub_category:sub_category_id(id, name, slug)")
+      .eq("is_active", true)
+      .order("title"),
+    siteId,
+    siteSlug,
+  );
+  if (!scoped) return [];
+  let query = scoped.query;
 
   const term = searchQuery?.trim();
   if (term) {
@@ -128,19 +136,25 @@ export async function fetchProducts(searchQuery?: string, siteId?: string | null
   return ((data || []) as Product[]).map((row) => withCategoryAlias(row)!) ;
 }
 
-// Fetch a single product by handle (with joined sub_category)
-export async function fetchProductByHandle(handle: string, siteId?: string | null) {
-  let query = supabase
-    .from("products")
-    .select("*, sub_category:sub_category_id(id, name, slug)")
-    .eq("handle", handle)
-    .eq("is_active", true);
+// Fetch a single product by handle (with joined sub_category).
+// Hors périmètre de la vitrine → null (la fiche affiche « produit introuvable »).
+export async function fetchProductByHandle(
+  handle: string,
+  siteId?: string | null,
+  siteSlug?: string | null,
+) {
+  const scoped = await scopeStorefrontProducts(
+    supabase
+      .from("products")
+      .select("*, sub_category:sub_category_id(id, name, slug)")
+      .eq("handle", handle)
+      .eq("is_active", true),
+    siteId,
+    siteSlug,
+  );
+  if (!scoped) return null;
 
-  if (siteId) {
-    query = query.eq("site_id", siteId);
-  }
-
-  const { data, error } = await query.maybeSingle();
+  const { data, error } = await scoped.query.maybeSingle();
 
   if (error) {
     console.error("Error fetching product:", error);

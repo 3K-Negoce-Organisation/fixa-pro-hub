@@ -63,14 +63,14 @@ const ProductDetailPage = () => {
   const { addItem } = useCart();
   const { isFavorite, toggleFavorite } = useFavorites();
   const { theme } = useTheme();
-  const { siteId: storefrontSiteId, loading: siteLoading } = useStorefrontSite();
+  const { siteId: storefrontSiteId, siteSlug, loading: siteLoading } = useStorefrontSite();
   const [quantity, setQuantity] = useState(1);
   const [selectedVariantId, setSelectedVariantId] = useState<string>("");
   const siteId = theme.site_id || storefrontSiteId || null;
 
   const { data: product, isLoading, error } = useQuery({
-    queryKey: ["product", handle, siteId],
-    queryFn: () => fetchProductByHandle(handle!, siteId),
+    queryKey: ["product", handle, siteSlug, siteId],
+    queryFn: () => fetchProductByHandle(handle!, siteId, siteSlug),
     enabled: !!handle && !siteLoading,
   });
 

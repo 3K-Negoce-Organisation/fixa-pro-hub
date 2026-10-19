@@ -5,9 +5,16 @@ import { useCart } from "@/contexts/CartContext";
 interface ProductGridProps {
   products: DisplayProduct[];
   isLoading?: boolean;
+  emptyTitle?: string;
+  emptyDescription?: string;
 }
 
-export function ProductGrid({ products, isLoading }: ProductGridProps) {
+export function ProductGrid({
+  products,
+  isLoading,
+  emptyTitle = "Aucun produit trouvé",
+  emptyDescription = "Essayez de modifier vos filtres ou votre recherche.",
+}: ProductGridProps) {
   const { addItem } = useCart();
 
   const handleAddToCart = (productId: string) => {
@@ -55,11 +62,11 @@ export function ProductGrid({ products, isLoading }: ProductGridProps) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center">
         <p className="text-lg font-medium text-foreground mb-2">
-          Aucun produit trouvé
+          {emptyTitle}
         </p>
-        <p className="text-muted-foreground">
-          Essayez de modifier vos filtres ou votre recherche.
-        </p>
+        {emptyDescription ? (
+          <p className="text-muted-foreground">{emptyDescription}</p>
+        ) : null}
       </div>
     );
   }
