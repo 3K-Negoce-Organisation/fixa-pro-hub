@@ -27,6 +27,7 @@ import { fetchProducts, getProductImage, parseVariants, type Product } from "@/l
 import { useCart } from "@/contexts/CartContext";
 import { useStorefrontSite } from "@/contexts/StorefrontSiteContext";
 import { fetchSiteCategories } from "@/hooks/useSiteCategories";
+import { isVisABoisStorefront } from "@/lib/visABoisCatalog";
 
 type ItemsPerPage = "12" | "25" | "50" | "all";
 
@@ -71,8 +72,12 @@ const ProductsPage = () => {
   // Get products filtered by sub_category (base for filter options)
   const categoryFilteredProducts = useMemo(() => {
     if (!activeCategoryId) return products;
-    return products.filter((p: Product) => p.category_id === activeCategoryId);
-  }, [products, activeCategoryId]);
+    // Vis-à-Bois : rayon = products.category_id ; autres vitrines : sub_category_id
+    const visABois = isVisABoisStorefront(siteSlug);
+    return products.filter((p: Product) =>
+      visABois ? p.category_id === activeCategoryId : p.sub_category_id === activeCategoryId,
+    );
+  }, [products, activeCategoryId, siteSlug]);
 
   // Generate filter options from products that match OTHER active filters
   // This ensures we only show filter values that would return results
