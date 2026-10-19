@@ -4,11 +4,8 @@ project_id = "lqsbsinycyewdvdtbruy"
 # Le déploiement CI force aussi --no-verify-jwt. Auth métier dans les handlers
 # (verifyAdminRequest, getUser, isServiceRoleBearer, etc.).
 
-[functions.update-order-status]
-verify_jwt = false
-
-[functions.admin-update-order]
-verify_jwt = false
+# update-order-status / admin-update-order : source unique = admin-hub-central
+# (n8n / VAB_API_KEY). Ne pas redéployer depuis ce dépôt.
 
 [functions.create-stripe-checkout]
 verify_jwt = false
