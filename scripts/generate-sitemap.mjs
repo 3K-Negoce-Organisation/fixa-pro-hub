@@ -6,6 +6,7 @@ import { createClient } from "@supabase/supabase-js";
 import { writeFileSync } from "fs";
 import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
+import { fetchCatalogProducts, loadVisABoisCatalog } from "./vis-a-bois-catalog.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SITE_URL = "https://www.vis-a-bois.com";
@@ -57,15 +58,10 @@ async function main() {
   } else {
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const { data: categories, error: catError } = await supabase
-      .from("categories")
-      .select("slug")
-      .eq("is_active", true);
-
-    if (catError) {
-      console.warn("[sitemap] Erreur catégories:", catError.message);
-    } else {
-      for (const cat of categories ?? []) {
+    // Périmètre Vis-à-Bois : rayons `categories` du site + catalogue commun 3k-negoce
+    try {
+      const scope = await loadVisABoisCatalog(supabase);
+      for (const cat of scope.categories) {
         if (cat.slug) {
           urls.push(
             urlEntry(
@@ -76,21 +72,15 @@ async function main() {
           );
         }
       }
-    }
 
-    const { data: products, error: prodError } = await supabase
-      .from("products")
-      .select("handle")
-      .eq("is_active", true);
-
-    if (prodError) {
-      console.warn("[sitemap] Erreur produits:", prodError.message);
-    } else {
-      for (const product of products ?? []) {
+      const products = await fetchCatalogProducts(supabase, scope, "handle");
+      for (const product of products) {
         if (product.handle) {
           urls.push(urlEntry(`${SITE_URL}/produit/${encodeURIComponent(product.handle)}`, "weekly", "0.6"));
         }
       }
+    } catch (error) {
+      console.warn("[sitemap] Erreur catalogue Vis-à-Bois:", error.message);
     }
   }
 

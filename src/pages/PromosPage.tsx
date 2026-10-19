@@ -10,23 +10,28 @@ import { STATIC_PAGE_SEO, staticPageCanonical } from "@/lib/staticPageSeo";
 import { supabase } from "@/integrations/supabase/client";
 import { getProductImage, parseVariants, type Product } from "@/lib/products";
 import { resolveProductImageUrl } from "@/lib/imageFallback";
+import { scopeStorefrontProducts } from "@/lib/visABoisCatalog";
 import { useStorefrontSite } from "@/contexts/StorefrontSiteContext";
 
 const PromosPage = () => {
-  const { siteId, loading: siteLoading } = useStorefrontSite();
+  const { siteId, siteSlug, loading: siteLoading } = useStorefrontSite();
   // Fetch promo products from Supabase
   const { data: products = [], isLoading } = useQuery({
-    queryKey: ["promo-products", siteId],
+    queryKey: ["promo-products", siteSlug, siteId],
     queryFn: async () => {
-      let q = supabase
-        .from("products")
-        .select("*")
-        .eq("is_active", true)
-        .eq("is_promo", true)
-        .order("title");
-      if (siteId) q = q.eq("site_id", siteId);
+      const scoped = await scopeStorefrontProducts(
+        supabase
+          .from("products")
+          .select("*")
+          .eq("is_active", true)
+          .eq("is_promo", true)
+          .order("title"),
+        siteId,
+        siteSlug,
+      );
+      if (!scoped) return [];
 
-      const { data, error } = await q;
+      const { data, error } = await scoped.query;
 
       if (error) throw error;
       const promoRows = (data || []) as Product[];

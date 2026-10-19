@@ -27,6 +27,7 @@ import { fetchProducts, getProductImage, parseVariants, type Product } from "@/l
 import { useCart } from "@/contexts/CartContext";
 import { useStorefrontSite } from "@/contexts/StorefrontSiteContext";
 import { fetchSiteCategories } from "@/hooks/useSiteCategories";
+import { isVisABoisStorefront } from "@/lib/visABoisCatalog";
 
 type ItemsPerPage = "12" | "25" | "50" | "all";
 
@@ -35,7 +36,7 @@ const ProductsPage = () => {
   const categoryParam = searchParams.get("category");
   const query = searchParams.get("q");
   const { isOpen: isCartOpen } = useCart();
-  const { siteId, loading: siteLoading } = useStorefrontSite();
+  const { siteId, siteSlug, loading: siteLoading } = useStorefrontSite();
 
   const [filters, setFilters] = useState<Record<string, string[]>>({
     diameter: [],
@@ -47,18 +48,18 @@ const ProductsPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState<ItemsPerPage>("25");
 
-  // Sous-catégories (sub_category) de la gamme du site
+  // Vis-à-Bois : rayons `categories` ; autres vitrines : sub_category de la gamme du site
   const { data: dbCategories = [] } = useQuery({
-    queryKey: ["sub-categories", siteId],
-    queryFn: () => fetchSiteCategories(siteId, "id, name, slug"),
+    queryKey: ["site-categories", siteSlug, siteId, "id, name, slug"],
+    queryFn: () => fetchSiteCategories(siteId, "id, name, slug", siteSlug),
     staleTime: 5 * 60 * 1000,
     enabled: !siteLoading,
   });
 
   // Fetch products from Supabase
   const { data: products = [], isLoading } = useQuery({
-    queryKey: ["products", siteId, query],
-    queryFn: () => fetchProducts(query || undefined, siteId),
+    queryKey: ["products", siteSlug, siteId, query],
+    queryFn: () => fetchProducts(query || undefined, siteId, siteSlug),
     enabled: !siteLoading,
   });
 
@@ -73,8 +74,12 @@ const ProductsPage = () => {
   // Get products filtered by sub_category (base for filter options)
   const categoryFilteredProducts = useMemo(() => {
     if (!activeCategoryId) return products;
-    return products.filter((p: Product) => p.sub_category_id === activeCategoryId);
-  }, [products, activeCategoryId]);
+    // Vis-à-Bois : rayon = products.category_id ; autres vitrines : sub_category_id
+    const visABois = isVisABoisStorefront(siteSlug);
+    return products.filter((p: Product) =>
+      visABois ? p.category_id === activeCategoryId : p.sub_category_id === activeCategoryId,
+    );
+  }, [products, activeCategoryId, siteSlug]);
 
   // Generate filter options from products that match OTHER active filters
   // This ensures we only show filter values that would return results
@@ -233,6 +238,13 @@ const ProductsPage = () => {
 
   // Calculate pagination
   const totalProducts = filteredProducts.length;
+  // Rayon sans produit (ex. Gros volume) : message dédié plutôt qu'une liste vide muette
+  const comingSoon =
+    Boolean(activeCategory) &&
+    !query &&
+    Object.values(filters).flat().length === 0 &&
+    !isLoading &&
+    filteredProducts.length === 0;
   const perPage = itemsPerPage === "all" ? totalProducts : parseInt(itemsPerPage);
   const totalPages = Math.ceil(totalProducts / perPage) || 1;
 
@@ -325,9 +337,9 @@ const ProductsPage = () => {
                 {getCategoryTitle()}
               </h1>
               <p className="text-muted-foreground">
-                {filteredProducts.length} produit
-                {filteredProducts.length > 1 ? "s" : ""} trouvé
-                {filteredProducts.length > 1 ? "s" : ""}
+                {comingSoon
+                  ? "Produits bientôt disponibles"
+                  : `${filteredProducts.length} produit${filteredProducts.length > 1 ? "s" : ""} trouvé${filteredProducts.length > 1 ? "s" : ""}`}
               </p>
               {(categoryParam || !query) && (
                 <p className="text-sm text-muted-foreground mt-3 max-w-3xl leading-relaxed">
@@ -453,7 +465,12 @@ const ProductsPage = () => {
 
             {/* Products grid */}
             <div className="flex-1 min-w-0">
-              <ProductGrid products={paginatedProducts} isLoading={isLoading} />
+              <ProductGrid
+                products={paginatedProducts}
+                isLoading={isLoading}
+                emptyTitle={comingSoon ? "Produits bientôt disponibles" : undefined}
+                emptyDescription={comingSoon ? "" : undefined}
+              />
 
               {/* Pagination */}
               {itemsPerPage !== "all" && totalPages > 1 && (
