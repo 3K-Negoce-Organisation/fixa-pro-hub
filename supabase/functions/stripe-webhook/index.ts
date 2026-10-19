@@ -218,14 +218,14 @@ serve(async (req) => {
           .eq("order_id", existingOrder.id);
 
         // Send webhook to n8n for fulfillment (even if order already exists)
-        if (n8nWebhookUrl) {
+        {
           const cartItems = (existingItems || []).map((item) =>
             orderItemRowToEnrichmentLine(item as Record<string, unknown>),
           );
 
           if (cartItems.length > 0) {
             await sendToN8n(
-            n8nWebhookUrl,
+            n8nWebhookUrl || "",
             supabaseAdmin,
             existingOrder.order_number,
             existingOrder.id,
@@ -418,9 +418,8 @@ serve(async (req) => {
       }
 
       // Send webhook to n8n for fulfillment
-      if (n8nWebhookUrl) {
-        await sendToN8n(
-          n8nWebhookUrl,
+      await sendToN8n(
+        n8nWebhookUrl || "",
           supabaseAdmin,
           orderNumber,
           order.id,
@@ -438,11 +437,8 @@ serve(async (req) => {
           } : null,
           cartItems,
           totalHT,
-          totalTTC
-        );
-      } else {
-        logStep("N8N_WEBHOOK_URL not configured, skipping fulfillment notification");
-      }
+          totalTTC,
+      );
 
       logStep("Checkout session processing complete");
     }

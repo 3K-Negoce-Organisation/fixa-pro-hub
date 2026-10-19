@@ -33,6 +33,8 @@ export interface OrderConfirmationEmailParams {
   logoUrl?: string | null;
   /** Domaine affiché sous le logo (ex. www.3k-negoce.com) */
   storefrontHost?: string | null;
+  /** Reprise d’un envoi peut-être déjà accepté par Resend. */
+  idempotencyKey?: string | null;
 }
 
 function escapeHtml(value: string): string {
@@ -130,13 +132,15 @@ function buildOrderConfirmationHtml(params: OrderConfirmationEmailParams): strin
 </html>`;
 }
 
-export async function sendOrderConfirmationEmail(params: OrderConfirmationEmailParams): Promise<{ sent: boolean; error?: string }> {
+export async function sendOrderConfirmationEmail(
+  params: OrderConfirmationEmailParams,
+): Promise<{ sent: boolean; id?: string | null; error?: string }> {
   if (!RESEND_API_KEY) {
-    console.error("[order-confirmation-email] RESEND_API_KEY not set");
+    console.error("[order-confirmation-email] RESEND_API_KEY not set", { orderNumber: params.orderNumber });
     return { sent: false, error: "RESEND_API_KEY not set" };
   }
   if (!params.customerEmail) {
-    console.warn("[order-confirmation-email] No customer email — skipping");
+    console.error("[order-confirmation-email] pas d'email client", { orderNumber: params.orderNumber });
     return { sent: false, error: "No customer email" };
   }
 
@@ -153,26 +157,40 @@ export async function sendOrderConfirmationEmail(params: OrderConfirmationEmailP
     payload.reply_to = [params.replyTo];
   }
 
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${RESEND_API_KEY}`,
+    "Content-Type": "application/json",
+  };
+  if (params.idempotencyKey) {
+    headers["Idempotency-Key"] = params.idempotencyKey;
+  }
+
   try {
     const resp = await fetch("https://api.resend.com/emails", {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${RESEND_API_KEY}`,
-        "Content-Type": "application/json",
-      },
+      headers,
       body: JSON.stringify(payload),
     });
     if (!resp.ok) {
       const errText = await resp.text();
-      console.error("[order-confirmation-email] Resend error:", resp.status, errText);
+      console.error("[order-confirmation-email] Resend a refusé", {
+        orderNumber: params.orderNumber,
+        status: resp.status,
+      });
       return { sent: false, error: `Resend ${resp.status}: ${errText}` };
     }
     const result = await resp.json();
-    console.log("[order-confirmation-email] Sent:", result.id, "→", params.customerEmail);
-    return { sent: true };
+    console.log("[order-confirmation-email] Resend a accepté", {
+      orderNumber: params.orderNumber,
+      resendId: result.id,
+    });
+    return { sent: true, id: result.id ?? null };
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
-    console.error("[order-confirmation-email] Unexpected error:", e);
+    console.error("[order-confirmation-email] erreur réseau", {
+      orderNumber: params.orderNumber,
+      error: message,
+    });
     return { sent: false, error: message };
   }
 }
