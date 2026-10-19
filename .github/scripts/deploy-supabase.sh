@@ -125,16 +125,30 @@ PY
   echo "✓ Migrations appliquées"
 }
 
-# Fonctions présentes aussi dans le dépôt KPMC, qui les déploie sur le MÊME projet.
-# Les déployer d'ici écraserait la version KPMC (le dernier déploiement gagne).
+# Fonctions présentes aussi dans d’autres dépôts sur le MÊME projet prod
+# (lqsbsinycyewdvdtbruy). Les déployer d’ici écraserait la source unique
+# (le dernier déploiement gagne). Ne jamais les remettre sous supabase/functions/.
 KPMC_OWNED_FUNCTIONS=(admin-persist-customer-invoices download-customer-invoice simulate-order-webhook)
+# n8n / Admin Hub : VAB_API_KEY + tracking marketplace — pas ORDER_UPDATE_API_KEY.
+ADMIN_HUB_OWNED_FUNCTIONS=(update-order-status admin-update-order)
 
-is_kpmc_owned() {
+is_foreign_owned() {
   local candidate="$1" owned
-  for owned in "${KPMC_OWNED_FUNCTIONS[@]}"; do
+  for owned in "${KPMC_OWNED_FUNCTIONS[@]}" "${ADMIN_HUB_OWNED_FUNCTIONS[@]}"; do
     [[ "$candidate" == "$owned" ]] && return 0
   done
   return 1
+}
+
+foreign_owner_label() {
+  local candidate="$1" owned
+  for owned in "${KPMC_OWNED_FUNCTIONS[@]}"; do
+    [[ "$candidate" == "$owned" ]] && { echo "KPMC"; return 0; }
+  done
+  for owned in "${ADMIN_HUB_OWNED_FUNCTIONS[@]}"; do
+    [[ "$candidate" == "$owned" ]] && { echo "admin-hub-central"; return 0; }
+  done
+  echo "?"
 }
 
 deploy_functions() {
@@ -143,7 +157,10 @@ deploy_functions() {
   if [[ -f /tmp/deploy-functions.txt ]]; then
     list="$(tr '\n' ' ' </tmp/deploy-functions.txt)"
   fi
-  if [[ "${FORCE_ALL_FUNCTIONS:-false}" == "true" ]]; then
+  # Liste explicite (workflow_dispatch inputs.functions) : jamais élargir à « toutes ».
+  if [[ -n "${FUNCTIONS_INPUT:-}" ]]; then
+    list="${FUNCTIONS_INPUT}"
+  elif [[ "${FORCE_ALL_FUNCTIONS:-false}" == "true" ]]; then
     list=""
     local d base
     for d in supabase/functions/*/; do
@@ -162,8 +179,8 @@ deploy_functions() {
   local name
   # shellcheck disable=SC2086
   for name in $list; do
-    if is_kpmc_owned "$name"; then
-      echo "Skip $name — fonction déployée par le dépôt KPMC (même projet Supabase)."
+    if is_foreign_owned "$name"; then
+      echo "Skip $name — fonction déployée par $(foreign_owner_label "$name") (même projet Supabase)."
       continue
     fi
     echo "Deploy $name…"
