@@ -125,6 +125,18 @@ PY
   echo "✓ Migrations appliquées"
 }
 
+# Fonctions présentes aussi dans le dépôt KPMC, qui les déploie sur le MÊME projet.
+# Les déployer d'ici écraserait la version KPMC (le dernier déploiement gagne).
+KPMC_OWNED_FUNCTIONS=(admin-persist-customer-invoices download-customer-invoice simulate-order-webhook)
+
+is_kpmc_owned() {
+  local candidate="$1" owned
+  for owned in "${KPMC_OWNED_FUNCTIONS[@]}"; do
+    [[ "$candidate" == "$owned" ]] && return 0
+  done
+  return 1
+}
+
 deploy_functions() {
   require_token
   local list="${FUNCTIONS:-}"
@@ -150,6 +162,10 @@ deploy_functions() {
   local name
   # shellcheck disable=SC2086
   for name in $list; do
+    if is_kpmc_owned "$name"; then
+      echo "Skip $name — fonction déployée par le dépôt KPMC (même projet Supabase)."
+      continue
+    fi
     echo "Deploy $name…"
     # verify_jwt plateforme incompatible avec sb_secret_ / sb_publishable_ seuls :
     # auth faite dans le handler (voir _shared/supabaseApiKeys.ts).
