@@ -63,13 +63,8 @@ function resolveSeoForRequest(pathname, searchParams) {
   if (seoManifest[key]) return seoManifest[key];
 
   const productMatch = pathname.match(/^\/produit\/([^/]+)$/);
-  if (productMatch) {
-    const handle = decodeURIComponent(productMatch[1]);
-    return toManifestEntry({
-      title: `${handle} — Vis-à-Bois`,
-      description: DEFAULT_DESCRIPTION,
-      canonical: pathname,
-    });
+  if (productMatch && !seoManifest[key]) {
+    return null;
   }
 
   if (pathname === "/produits" && searchParams.get("q")) {
@@ -177,14 +172,21 @@ function serveSpaIndex(res, url) {
   }
 
   const seo = resolveSeoForRequest(url.pathname, url.searchParams);
-  if (!seo) {
+  const isProduct = /^\/produit\/[^/]+$/.test(url.pathname);
+  const manifestListsProducts = Object.keys(seoManifest).some((entry) => entry.startsWith("/produit/"));
+  const missingProduct =
+    isProduct &&
+    manifestListsProducts &&
+    !seoManifest[manifestKey(url.pathname, url.searchParams)];
+  if (!seo || missingProduct) {
     const html = injectSeoIntoHtml(template, {
-      title: "Page introuvable — Vis-à-Bois",
+      title: isProduct ? "Produit introuvable — Vis-à-Bois" : "Page introuvable — Vis-à-Bois",
       description: DEFAULT_DESCRIPTION,
       canonical: absoluteUrl(url.pathname),
       noindex: true,
     });
-    sendFile(res, indexPath, html);
+    res.writeHead(missingProduct ? 404 : 200, { "Content-Type": "text/html; charset=utf-8" });
+    res.end(html);
     return;
   }
 

@@ -24,7 +24,7 @@ import {
 
 export function Header() {
   const { theme, logoUrl } = useTheme();
-  const { siteId, loading: siteLoading } = useStorefrontSite();
+  const { siteId, siteSlug, loading: siteLoading } = useStorefrontSite();
   const [searchQuery, setSearchQuery] = useState("");
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [userFirstName, setUserFirstName] = useState<string | null>(null);
@@ -42,9 +42,9 @@ export function Header() {
 
   // Sous-catégories de la gamme du site (sub_category via category_product)
   const { data: categories = [] } = useQuery({
-    queryKey: ["product-sub-categories", siteId],
+    queryKey: ["product-sub-categories", siteSlug, siteId],
     queryFn: async () => {
-      const rows = await fetchSiteCategories(siteId, "id, name, slug, sort_order");
+      const rows = await fetchSiteCategories(siteId, "id, name, slug, sort_order", siteSlug);
       return rows.map((c) => ({
         name: c.name,
         slug: c.slug,

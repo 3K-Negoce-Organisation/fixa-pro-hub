@@ -2,6 +2,8 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 
 const SITE_URL = "https://www.vis-a-bois.com";
+const VIS_A_BOIS_SITE_SLUG = "vis-a-bois";
+const CATALOG_SITE_SLUG = "3k-negoce";
 
 const STATIC_PATHS = [
   "/",
@@ -56,10 +58,26 @@ serve(async (req) => {
     if (supabaseUrl && serviceKey) {
       const supabase = createClient(supabaseUrl, serviceKey);
 
-      const { data: categories } = await supabase
-        .from("sub_category")
-        .select("slug")
-        .eq("is_active", true);
+      const { data: storefront } = await supabase
+        .from("sites")
+        .select("id")
+        .eq("slug", VIS_A_BOIS_SITE_SLUG)
+        .maybeSingle();
+      const { data: catalog } = await supabase
+        .from("sites")
+        .select("id")
+        .eq("slug", CATALOG_SITE_SLUG)
+        .maybeSingle();
+
+      const { data: categories } = storefront?.id
+        ? await supabase
+          .from("categories")
+          .select("id, slug")
+          .eq("site_id", storefront.id)
+          .eq("is_active", true)
+        : { data: [] as Array<{ id: string; slug: string | null }> };
+
+      const categoryIds = (categories ?? []).map((cat) => cat.id).filter(Boolean);
 
       for (const cat of categories ?? []) {
         if (cat.slug) {
@@ -73,16 +91,27 @@ serve(async (req) => {
         }
       }
 
-      const { data: products } = await supabase
-        .from("products")
-        .select("handle")
-        .eq("is_active", true);
+      if (catalog?.id && categoryIds.length > 0) {
+        const pageSize = 1000;
+        for (let from = 0; ; from += pageSize) {
+          const { data: products } = await supabase
+            .from("products")
+            .select("handle")
+            .eq("is_active", true)
+            .eq("validated", "yes")
+            .eq("site_id", catalog.id)
+            .in("category_id", categoryIds)
+            .order("id", { ascending: true })
+            .range(from, from + pageSize - 1);
 
-      for (const product of products ?? []) {
-        if (product.handle) {
-          urls.push(
-            urlEntry(`${SITE_URL}/produit/${encodeURIComponent(product.handle)}`, "weekly", "0.6"),
-          );
+          for (const product of products ?? []) {
+            if (product.handle) {
+              urls.push(
+                urlEntry(`${SITE_URL}/produit/${encodeURIComponent(product.handle)}`, "weekly", "0.6"),
+              );
+            }
+          }
+          if (!products || products.length < pageSize) break;
         }
       }
 

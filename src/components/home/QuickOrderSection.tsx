@@ -11,11 +11,11 @@ import { useToast } from "@/hooks/use-toast";
 export function QuickOrderSection() {
   const { addItem } = useCart();
   const { toast } = useToast();
-  const { siteId, loading: siteLoading } = useStorefrontSite();
-  
+  const { siteId, siteSlug, loading: siteLoading } = useStorefrontSite();
+
   const { data: products, isLoading } = useQuery({
-    queryKey: ["quick-order-products", siteId],
-    queryFn: () => fetchProducts(undefined, siteId),
+    queryKey: ["quick-order-products", siteSlug, siteId],
+    queryFn: () => fetchProducts(undefined, siteId, siteSlug),
     enabled: !siteLoading,
   });
 

@@ -35,7 +35,7 @@ const ProductsPage = () => {
   const categoryParam = searchParams.get("category");
   const query = searchParams.get("q");
   const { isOpen: isCartOpen } = useCart();
-  const { siteId, loading: siteLoading } = useStorefrontSite();
+  const { siteId, siteSlug, loading: siteLoading } = useStorefrontSite();
 
   const [filters, setFilters] = useState<Record<string, string[]>>({
     diameter: [],
@@ -47,18 +47,16 @@ const ProductsPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState<ItemsPerPage>("25");
 
-  // Sous-catégories (sub_category) de la gamme du site
   const { data: dbCategories = [] } = useQuery({
-    queryKey: ["sub-categories", siteId],
-    queryFn: () => fetchSiteCategories(siteId, "id, name, slug"),
+    queryKey: ["site-categories", siteSlug, siteId, "id, name, slug"],
+    queryFn: () => fetchSiteCategories(siteId, "id, name, slug", siteSlug),
     staleTime: 5 * 60 * 1000,
     enabled: !siteLoading,
   });
 
-  // Fetch products from Supabase
   const { data: products = [], isLoading } = useQuery({
-    queryKey: ["products", siteId, query],
-    queryFn: () => fetchProducts(query || undefined, siteId),
+    queryKey: ["products", siteSlug, siteId, query],
+    queryFn: () => fetchProducts(query || undefined, siteId, siteSlug),
     enabled: !siteLoading,
   });
 
@@ -73,7 +71,7 @@ const ProductsPage = () => {
   // Get products filtered by sub_category (base for filter options)
   const categoryFilteredProducts = useMemo(() => {
     if (!activeCategoryId) return products;
-    return products.filter((p: Product) => p.sub_category_id === activeCategoryId);
+    return products.filter((p: Product) => p.category_id === activeCategoryId);
   }, [products, activeCategoryId]);
 
   // Generate filter options from products that match OTHER active filters
@@ -224,7 +222,7 @@ const ProductsPage = () => {
     }
 
     return result;
-  }, [displayProducts, categoryParam, filters, sortBy]);
+  }, [displayProducts, activeCategoryId, filters, sortBy]);
 
   // Reset page when filters or category changes
   useEffect(() => {
@@ -297,6 +295,13 @@ const ProductsPage = () => {
   const startIndex = itemsPerPage === "all" ? 1 : (currentPage - 1) * perPage + 1;
   const endIndex = itemsPerPage === "all" ? totalProducts : Math.min(currentPage * perPage, totalProducts);
 
+  const comingSoon =
+    Boolean(activeCategory) &&
+    !query &&
+    activeFilterCount === 0 &&
+    !isLoading &&
+    filteredProducts.length === 0;
+
   const seoTitle = buildProductsListTitle(query, activeCategory?.name ?? null);
   const seoDescription = buildProductsListDescription(
     query,
@@ -325,9 +330,9 @@ const ProductsPage = () => {
                 {getCategoryTitle()}
               </h1>
               <p className="text-muted-foreground">
-                {filteredProducts.length} produit
-                {filteredProducts.length > 1 ? "s" : ""} trouvé
-                {filteredProducts.length > 1 ? "s" : ""}
+                {comingSoon
+                  ? "Produits bientôt disponibles"
+                  : `${filteredProducts.length} produit${filteredProducts.length > 1 ? "s" : ""} trouvé${filteredProducts.length > 1 ? "s" : ""}`}
               </p>
               {(categoryParam || !query) && (
                 <p className="text-sm text-muted-foreground mt-3 max-w-3xl leading-relaxed">
@@ -453,7 +458,12 @@ const ProductsPage = () => {
 
             {/* Products grid */}
             <div className="flex-1 min-w-0">
-              <ProductGrid products={paginatedProducts} isLoading={isLoading} />
+              <ProductGrid
+                products={paginatedProducts}
+                isLoading={isLoading}
+                emptyTitle={comingSoon ? "Produits bientôt disponibles" : undefined}
+                emptyDescription={comingSoon ? "" : undefined}
+              />
 
               {/* Pagination */}
               {itemsPerPage !== "all" && totalPages > 1 && (

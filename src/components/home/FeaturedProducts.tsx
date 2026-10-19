@@ -35,10 +35,10 @@ function mapProductToDisplay(product: Product): DisplayProduct {
 
 export function FeaturedProducts() {
   const { addItem } = useCart();
-  const { siteId, loading: siteLoading } = useStorefrontSite();
+  const { siteId, siteSlug, loading: siteLoading } = useStorefrontSite();
   const { data: products, isLoading } = useQuery({
-    queryKey: ["featured-products", siteId],
-    queryFn: () => fetchProducts(undefined, siteId),
+    queryKey: ["featured-products", siteSlug, siteId],
+    queryFn: () => fetchProducts(undefined, siteId, siteSlug),
     enabled: !siteLoading,
   });
 
