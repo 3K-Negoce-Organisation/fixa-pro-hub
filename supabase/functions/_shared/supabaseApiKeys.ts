@@ -25,15 +25,51 @@ function parseNamedKeysJson(raw: string | undefined): Record<string, string> {
   }
 }
 
-/** Toutes les clés secrètes connues (legacy + sb_secret_* nommées). */
-export function listSupabaseSecretKeys(): string[] {
+/** Comparaison en temps (quasi) constant — ne log jamais les valeurs. */
+export function timingSafeEqualString(a: string, b: string): boolean {
+  const ae = new TextEncoder().encode(a);
+  const be = new TextEncoder().encode(b);
+  const len = Math.max(ae.length, be.length);
+  let mismatch = ae.length ^ be.length;
+  for (let i = 0; i < len; i++) {
+    mismatch |= (ae[i] ?? 0) ^ (be[i] ?? 0);
+  }
+  return mismatch === 0;
+}
+
+/**
+ * Toutes les clés secrètes connues (legacy + sb_secret_* nommées).
+ * `SUPABASE_SECRET_KEYS` défaut `"{}"` ; JSON objet `{ "default": "sb_secret_…" }`.
+ * JSON invalide → aucune clé sb_secret_ (legacy conservée), pas de throw, rien loggé.
+ * Valeurs non-string / vides ignorées.
+ */
+export function listSupabaseSecretKeysFrom(
+  getEnv: (name: string) => string | undefined,
+): string[] {
   const keys: string[] = [];
-  const legacy = (Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "").trim();
+  const legacy = (getEnv("SUPABASE_SERVICE_ROLE_KEY") ?? "").trim();
   if (legacy) keys.push(legacy);
-  for (const v of Object.values(parseNamedKeysJson(Deno.env.get("SUPABASE_SECRET_KEYS")))) {
-    if (!keys.includes(v)) keys.push(v);
+
+  const rawSecretKeys = (getEnv("SUPABASE_SECRET_KEYS") ?? "{}").trim() || "{}";
+  try {
+    const parsed = JSON.parse(rawSecretKeys) as unknown;
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      for (const v of Object.values(parsed as Record<string, unknown>)) {
+        if (typeof v !== "string") continue;
+        const t = v.trim();
+        if (!t || keys.includes(t)) continue;
+        keys.push(t);
+      }
+    }
+  } catch {
+    // JSON invalide : aucune sb_secret_ ; legacy déjà ajoutée ; ne pas logger le contenu
   }
   return keys;
+}
+
+/** Toutes les clés secrètes connues (legacy + sb_secret_* nommées). */
+export function listSupabaseSecretKeys(): string[] {
+  return listSupabaseSecretKeysFrom((name) => Deno.env.get(name));
 }
 
 /** Toutes les clés publishable / anon connues. */
@@ -73,21 +109,29 @@ export function getSupabaseAnonKey(): string {
   return first ?? "";
 }
 
-/** Token brut (sans préfixe Bearer) = clé secrète ou JWT role=service_role. */
-export function isServiceRoleToken(token: string): boolean {
+/**
+ * Token brut (sans préfixe Bearer) = égalité temps-constant avec une clé de
+ * `listSupabaseSecretKeys()` uniquement.
+ * Pas de décodage JWT « role == service_role » (forgible si verify_jwt=false).
+ */
+export function isServiceRoleTokenFrom(
+  token: string,
+  allowedSecrets: readonly string[],
+): boolean {
   const t = token.trim();
   if (!t) return false;
-  for (const sk of listSupabaseSecretKeys()) {
-    if (t === sk) return true;
+  let matched = false;
+  for (const candidate of allowedSecrets) {
+    const c = candidate.trim();
+    if (!c) continue;
+    if (timingSafeEqualString(t, c)) matched = true;
   }
-  const parts = t.split(".");
-  if (parts.length < 2) return false;
-  try {
-    const payload = JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")));
-    return payload.role === "service_role";
-  } catch {
-    return false;
-  }
+  return matched;
+}
+
+/** Token brut = clé secrète serveur connue (voir `isServiceRoleTokenFrom`). */
+export function isServiceRoleToken(token: string): boolean {
+  return isServiceRoleTokenFrom(token, listSupabaseSecretKeys());
 }
 
 /** Header Authorization: Bearer … */

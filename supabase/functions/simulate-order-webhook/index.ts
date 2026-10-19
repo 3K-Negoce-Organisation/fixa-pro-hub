@@ -21,6 +21,7 @@ import {
 import {
   getSupabaseServiceRoleKey,
   getSupabaseAnonKey,
+  isServiceRoleToken,
 } from "../_shared/supabaseApiKeys.ts";
 
 const corsHeaders = {
@@ -50,15 +51,8 @@ serve(async (req) => {
     const expectedInternalKey =
       Deno.env.get('MARKETPLACE_HUB_API_KEY') ?? Deno.env.get('VAB_API_KEY');
     const bearerToken = authHeader?.replace(/^Bearer\s+/i, '').trim() || '';
-    let isServiceRoleBearer = !!bearerToken && bearerToken === supabaseServiceKey;
-    if (!isServiceRoleBearer && bearerToken.split('.').length === 3) {
-      try {
-        const payload = JSON.parse(atob(bearerToken.split('.')[1]!));
-        isServiceRoleBearer = payload?.role === 'service_role';
-      } catch {
-        // ignore malformed JWT
-      }
-    }
+    // Égalité avec listSupabaseSecretKeys — pas de décodage JWT non signé.
+    const isServiceRoleBearer = !!bearerToken && isServiceRoleToken(bearerToken);
     const isInternalMarketplaceFulfillment =
       !!expectedInternalKey
       && !!internalKey
