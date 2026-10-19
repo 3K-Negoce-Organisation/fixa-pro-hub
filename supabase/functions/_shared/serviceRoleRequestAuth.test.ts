@@ -6,6 +6,7 @@ import {
   secretMatchesAny,
   timingSafeEqualString,
 } from "./serviceRoleRequestAuth.ts";
+import { listSupabaseSecretKeysFrom } from "./supabaseApiKeys.ts";
 
 function forgedServiceRoleJwt(): string {
   const header = Buffer.from(JSON.stringify({ alg: "none", typ: "JWT" })).toString("base64url");
@@ -55,5 +56,28 @@ describe("extractPresentedSecret / secretMatchesAny", () => {
       headers: { Authorization: `Bearer ${forgedServiceRoleJwt()}` },
     });
     assert.equal(authorizeServiceRoleRequest(req, ["real-key"]), false);
+  });
+});
+
+describe("listSupabaseSecretKeysFrom", () => {
+  it('SECRET_KEYS = "pas du json" → legacy seule', () => {
+    assert.deepEqual(
+      listSupabaseSecretKeysFrom((name) => {
+        if (name === "SUPABASE_SERVICE_ROLE_KEY") return "legacy-secret";
+        if (name === "SUPABASE_SECRET_KEYS") return "pas du json";
+        return undefined;
+      }),
+      ["legacy-secret"],
+    );
+  });
+
+  it('SECRET_KEYS = {"a":123} → ignore non-string', () => {
+    assert.deepEqual(
+      listSupabaseSecretKeysFrom((name) => {
+        if (name === "SUPABASE_SECRET_KEYS") return '{"a":123}';
+        return undefined;
+      }),
+      [],
+    );
   });
 });

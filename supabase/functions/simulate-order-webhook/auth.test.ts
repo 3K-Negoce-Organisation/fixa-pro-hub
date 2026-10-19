@@ -1,6 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { probeSimulateServiceRoleAuth } from "./auth.ts";
+import { listSupabaseSecretKeysFrom } from "../_shared/supabaseApiKeys.ts";
 
 function forgedServiceRoleJwt(): string {
   const header = Buffer.from(JSON.stringify({ alg: "none", typ: "JWT" })).toString("base64url");
@@ -45,5 +46,29 @@ describe("simulate-order-webhook service_role auth", () => {
       headers: { Authorization: "Bearer real-service-role-key" },
     });
     assert.equal(probeSimulateServiceRoleAuth(req, []).status, 401);
+  });
+
+  it('SECRET_KEYS = "pas du json" + vraie clé legacy → 200', () => {
+    const allowedSecrets = listSupabaseSecretKeysFrom((name) => {
+      if (name === "SUPABASE_SERVICE_ROLE_KEY") return "legacy-secret";
+      if (name === "SUPABASE_SECRET_KEYS") return "pas du json";
+      return undefined;
+    });
+    const req = new Request("http://local/simulate-order-webhook", {
+      headers: { Authorization: "Bearer legacy-secret" },
+    });
+    assert.equal(probeSimulateServiceRoleAuth(req, allowedSecrets).status, 200);
+  });
+
+  it('SECRET_KEYS = {"a":123} + appel sans clé → 401', () => {
+    const allowedSecrets = listSupabaseSecretKeysFrom((name) => {
+      if (name === "SUPABASE_SECRET_KEYS") return '{"a":123}';
+      return undefined;
+    });
+    assert.equal(
+      probeSimulateServiceRoleAuth(new Request("http://local/simulate-order-webhook"), allowedSecrets)
+        .status,
+      401,
+    );
   });
 });
