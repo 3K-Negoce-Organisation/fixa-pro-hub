@@ -21,13 +21,9 @@ import {
 import {
   getSupabaseServiceRoleKey,
   getSupabaseAnonKey,
-  isServiceRoleToken,
+  listSupabaseSecretKeys,
 } from "../_shared/supabaseApiKeys.ts";
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { resolveSimulateMachineAuth, corsHeaders } from "./auth.ts";
 
 const logStep = (step: string, details?: any) => {
   const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
@@ -45,32 +41,27 @@ serve(async (req) => {
     const supabaseServiceKey = getSupabaseServiceRoleKey()!;
     const n8nWebhookUrl = Deno.env.get('N8N_WEBHOOK_URL');
 
-    // Verify admin authorization (JWT admin), service-role ops, or internal marketplace fulfillment.
+    // Auth machine : égalité de secret (Bearer/apikey vs listSupabaseSecretKeys) —
+    // plus de décodage JWT role==service_role (forgible si verify_jwt=false).
+    // Sinon admin JWT, ou header interne marketplace.
     const authHeader = req.headers.get('Authorization');
-    const internalKey = req.headers.get('x-marketplace-internal');
     const expectedInternalKey =
-      Deno.env.get('MARKETPLACE_HUB_API_KEY') ?? Deno.env.get('VAB_API_KEY');
-    const bearerToken = authHeader?.replace(/^Bearer\s+/i, '').trim() || '';
-    // Égalité avec listSupabaseSecretKeys — pas de décodage JWT non signé.
-    const isServiceRoleBearer = !!bearerToken && isServiceRoleToken(bearerToken);
-    const isInternalMarketplaceFulfillment =
-      !!expectedInternalKey
-      && !!internalKey
-      && internalKey === expectedInternalKey
-      && authHeader?.startsWith('Bearer ');
-
-    if (!authHeader) {
-      return new Response(
-        JSON.stringify({ error: 'Non autorisé' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+      Deno.env.get('MARKETPLACE_HUB_API_KEY') ?? Deno.env.get('VAB_API_KEY') ?? null;
+    const machineAuth = resolveSimulateMachineAuth(req, {
+      allowedSecrets: listSupabaseSecretKeys(),
+      expectedInternalKey,
+    });
 
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
     let adminUserId: string | null = null;
 
-    if (isInternalMarketplaceFulfillment || isServiceRoleBearer) {
+    if (machineAuth?.ok) {
       adminUserId = null;
+    } else if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'Non autorisé' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     } else {
       const supabaseUser = createClient(supabaseUrl, getSupabaseAnonKey()!, {
         global: { headers: { Authorization: authHeader } }
