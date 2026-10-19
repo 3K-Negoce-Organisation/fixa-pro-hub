@@ -33,3 +33,7 @@ supabase/.temp/
 
 # Généré au build (scripts/generate-seo-manifest.mjs)
 public/seo-manifest.json
+
+# Railway / npm : ne pas réintroduire bun.lock (épingle des versions obsolètes)
+bun.lock
+bun.lockb
