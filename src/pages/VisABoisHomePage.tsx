@@ -15,6 +15,7 @@ import { PageSeo } from "@/components/seo/PageSeo";
 import { DEFAULT_DESCRIPTION, DEFAULT_TITLE, absoluteUrl } from "@/lib/seo";
 import { buildOrganizationJsonLd, buildWebsiteJsonLd } from "@/lib/organizationJsonLd";
 import { supabase } from "@/integrations/supabase/client";
+import { scopeStorefrontProducts } from "@/lib/visABoisCatalog";
 import { useSiteCategories, filterHomepageCategories } from "@/hooks/useSiteCategories";
 import { useStorefrontSite } from "@/contexts/StorefrontSiteContext";
 import heroScrewsBg from "@/assets/hero-screws-new.jpg";
@@ -32,7 +33,7 @@ const VisABoisHomePage = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [imagesLoaded, setImagesLoaded] = useState(false);
   const navigate = useNavigate();
-  const { siteId, loading: siteLoading } = useStorefrontSite();
+  const { siteId, siteSlug, loading: siteLoading } = useStorefrontSite();
   const { data: dbCategories = [] } = useSiteCategories();
 
   // Track image loading state
@@ -64,21 +65,20 @@ const VisABoisHomePage = () => {
 
   // Fetch product counts by category_id (scoped to active site)
   const { data: categoryCounts } = useQuery({
-    queryKey: ["category-counts", siteId],
+    queryKey: ["category-counts", siteSlug, siteId],
     queryFn: async () => {
-      let q = supabase
-        .from("products")
-        .select("sub_category_id")
-        .eq("is_active", true);
-      if (siteId) q = q.eq("site_id", siteId);
-      const { data, error } = await q;
+      const scoped = await scopeStorefrontProducts(
+        supabase.from("products").select("category_id").eq("is_active", true),
+        siteId,
+        siteSlug,
+      );
+      if (!scoped) return {};
+      const { data, error } = await scoped.query;
       if (error) throw error;
       const counts: Record<string, number> = {};
       data?.forEach((product) => {
-        if ((product as { sub_category_id?: string | null }).sub_category_id) {
-          const sid = (product as { sub_category_id: string }).sub_category_id;
-          counts[sid] = (counts[sid] || 0) + 1;
-        }
+        const categoryId = (product as { category_id?: string | null }).category_id;
+        if (categoryId) counts[categoryId] = (counts[categoryId] || 0) + 1;
       });
       return counts;
     },

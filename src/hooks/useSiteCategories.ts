@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useStorefrontSite } from "@/contexts/StorefrontSiteContext";
+import { isVisABoisStorefront } from "@/lib/visABoisCatalog";
 
 export type SiteCategory = {
   id: string;
@@ -69,16 +70,50 @@ async function fetchSubCategoriesByIds(
   return (data || []) as SiteCategory[];
 }
 
+const CATEGORY_COLUMNS = new Set([
+  "id",
+  "name",
+  "slug",
+  "sort_order",
+  "image_url",
+  "show_on_homepage",
+  "site_id",
+  "description",
+  "is_active",
+  "gamme_id",
+]);
+
+/** Rayons Vis-à-Bois : table `categories`, pas les UUID `sub_category`. */
+async function fetchVisABoisRayons(siteId: string, select: string): Promise<SiteCategory[]> {
+  const columns = select
+    .split(",")
+    .map((column) => column.trim())
+    .filter((column) => CATEGORY_COLUMNS.has(column));
+  const db = supabase as DbClient;
+  const { data, error } = await db
+    .from("categories")
+    .select(columns.length > 0 ? columns.join(", ") : "id, name, slug, sort_order")
+    .eq("site_id", siteId)
+    .eq("is_active", true)
+    .order("sort_order", { ascending: true });
+  if (error) throw error;
+  return (data || []) as SiteCategory[];
+}
+
 /**
- * Sous-catégories vitrine : `sub_category` liées à la gamme du site
- * via `category_product.gamme_id`.
- * Priorité aux lignes scopées au site (ex. buckets marketing Vis-à-Bois),
- * sinon toutes les sub_category actives de la gamme.
+ * Vis-à-Bois : les 9 rayons de `categories` (l'id sert au filtre produits).
+ * Autres vitrines : `sub_category` liées à la gamme du site via `category_product`.
  */
 export async function fetchSiteCategories(
   siteId: string | null,
   select = DEFAULT_SELECT,
+  siteSlug?: string | null,
 ): Promise<SiteCategory[]> {
+  if (isVisABoisStorefront(siteSlug)) {
+    if (!siteId) return [];
+    return fetchVisABoisRayons(siteId, select);
+  }
+
   const db = supabase as DbClient;
   const gammeId = await resolveSiteGammeId(siteId);
   if (!gammeId) return [];
@@ -115,11 +150,11 @@ export function filterHomepageCategories(categories: SiteCategory[]): SiteCatego
 }
 
 export function useSiteCategories(select = DEFAULT_SELECT) {
-  const { siteId, loading: siteLoading } = useStorefrontSite();
+  const { siteId, siteSlug, loading: siteLoading } = useStorefrontSite();
 
   return useQuery({
-    queryKey: ["sub-categories", siteId, select],
-    queryFn: () => fetchSiteCategories(siteId, select),
+    queryKey: ["site-categories", siteSlug, siteId, select],
+    queryFn: () => fetchSiteCategories(siteId, select, siteSlug),
     staleTime: 5 * 60 * 1000,
     enabled: !siteLoading,
   });

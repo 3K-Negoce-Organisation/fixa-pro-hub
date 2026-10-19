@@ -15,6 +15,7 @@ import {
   toManifestEntry,
   withGeoExtras,
 } from "./seo-data.mjs";
+import { fetchCatalogProducts, loadVisABoisCatalog } from "./vis-a-bois-catalog.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -43,21 +44,15 @@ async function main() {
   } else {
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const { data: categories, error: catError } = await supabase
-      .from("categories")
-      .select("id, slug, name")
-      .eq("is_active", true);
-
-    if (catError) {
-      console.warn("[seo-manifest] Erreur catégories:", catError.message);
-    } else {
-      const { data: products } = await supabase.from("products").select("category_id").eq("is_active", true);
+    try {
+      const scope = await loadVisABoisCatalog(supabase);
+      const counted = await fetchCatalogProducts(supabase, scope, "category_id");
       const counts = {};
-      for (const row of products ?? []) {
+      for (const row of counted) {
         if (row.category_id) counts[row.category_id] = (counts[row.category_id] || 0) + 1;
       }
 
-      for (const cat of categories ?? []) {
+      for (const cat of scope.categories) {
         if (!cat.slug) continue;
         const key = `/produits?category=${encodeURIComponent(cat.slug)}`;
         const count = counts[cat.id] ?? 0;
@@ -67,19 +62,13 @@ async function main() {
           canonical: key,
         });
       }
-    }
 
-    const { data: productRows, error: prodError } = await supabase
-      .from("products")
-      .select(
+      const productRows = await fetchCatalogProducts(
+        supabase,
+        scope,
         "handle, title, description, diameter_mm, length_mm, material, drive_type, usage, categories(name)",
-      )
-      .eq("is_active", true);
-
-    if (prodError) {
-      console.warn("[seo-manifest] Erreur produits:", prodError.message);
-    } else {
-      for (const product of productRows ?? []) {
+      );
+      for (const product of productRows) {
         if (!product.handle) continue;
         const path = `/produit/${product.handle}`;
         manifest[path] = toManifestEntry({
@@ -88,6 +77,8 @@ async function main() {
           canonical: path,
         });
       }
+    } catch (error) {
+      console.warn("[seo-manifest] Erreur catalogue Vis-à-Bois:", error.message);
     }
   }
 
